@@ -20,10 +20,8 @@ extern const font_t NF20x24;
 
 
 extern uint16_t spi_buffer[1024];
-
-// defined in board_xxx.hpp
-extern Pad ili9341_cs;
-extern Pad ili9341_dc;
+extern Pad ili9341_conf_cs;
+extern Pad ili9341_conf_dc;
 
 // ===== hooks =====
 

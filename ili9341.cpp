@@ -23,12 +23,15 @@
 
 #define RESET_ASSERT	;
 #define RESET_NEGATE	;
-#define CS_LOW			digitalWrite(ili9341_cs, LOW)
-#define CS_HIGH			digitalWrite(ili9341_cs, HIGH)
-#define DC_CMD			digitalWrite(ili9341_dc, LOW)
-#define DC_DATA			digitalWrite(ili9341_dc, HIGH)
+#define CS_LOW			digitalWrite(ili9341_conf_cs, LOW)
+#define CS_HIGH			digitalWrite(ili9341_conf_cs, HIGH)
+#define DC_CMD			digitalWrite(ili9341_conf_dc, LOW)
+#define DC_DATA			digitalWrite(ili9341_conf_dc, HIGH)
 
 uint16_t spi_buffer[1024];
+
+Pad ili9341_conf_cs;
+Pad ili9341_conf_dc;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
 

@@ -1,4 +1,5 @@
-#pragma once
+// this file must only be included by toplevel module
+
 #include <libopencm3/stm32/adc.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/flash.h>
@@ -14,40 +15,12 @@
 #include <libopencm3/stm32/f1/dma.h>
 #include <libopencm3/stm32/adc.h>
 
-#include "rfsw.hpp"
+#include "board_defs.hpp"
+#include "../rfsw.hpp"
 
 using namespace mculib;
 using namespace std;
 
-Pad led = PA9;
-Pad led2 = PA10;
-
-array<Pad, 2> RFSW_ECAL = {PC13, PC14};
-array<Pad, 2> RFSW_BBGAIN = {PB13, PB12};
-Pad RFSW_TXSYNTH = PB9;
-Pad RFSW_RXSYNTH = PA4;
-Pad RFSW_REFL = PB0;
-Pad RFSW_RECV = PB1;
-
-Pad ili9341_cs = PA15;
-Pad ili9341_dc = PB6;
-
-auto RFSW_ECAL_SHORT = RFSWState::RF2;
-auto RFSW_ECAL_OPEN = RFSWState::RF3;
-auto RFSW_ECAL_LOAD = RFSWState::RF4;
-auto RFSW_ECAL_NORMAL = RFSWState::RF1;
-
-int RFSW_TXSYNTH_LF = 0;
-int RFSW_TXSYNTH_HF = 1;
-
-int RFSW_RXSYNTH_LF = 1;
-int RFSW_RXSYNTH_HF = 0;
-
-int RFSW_REFL_ON = 1;
-int RFSW_REFL_OFF = 0;
-
-int RFSW_RECV_REFL = 1;
-int RFSW_RECV_PORT2 = 0;
 
 
 // set by board_init()
@@ -97,18 +70,6 @@ auto spiDelay_fast = []() {
 };
 SoftSPI<decltype(spiDelay_fast)> ili9341_spi(spiDelay_fast);
 
-
-
-// gain is an integer from 0 to 3, 0 being lowest gain
-static inline RFSWState RFSW_BBGAIN_GAIN(int gain) {
-	switch(gain) {
-		case 0: return RFSWState::RF1;
-		case 1: return RFSWState::RF2;
-		case 2: return RFSWState::RF3;
-		case 3: return RFSWState::RF4;
-		default: return RFSWState::RF4;
-	}
-}
 
 // same as rcc_set_usbpre, but with extended divider range:
 // 0: divide by 1.5
@@ -198,7 +159,7 @@ void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
 	 rcc_apb2_frequency = 96000000;
 }
 
-static inline void boardInit() {
+void boardInit() {
 	rcc_clock_setup_in_hse_24mhz_out_96mhz();
 	cpu_mhz = 96;
 	
@@ -243,6 +204,13 @@ static inline void boardInit() {
 	adc_srate = 6000000/(7.5+12.5);
 	adc_period_cycles = (7.5+12.5);
 	adc_clk = 6000000;
+}
+
+
+void ledPulse() {
+	digitalWrite(led2, HIGH);
+	delayMicroseconds(1);
+	digitalWrite(led2, LOW);
 }
 
 

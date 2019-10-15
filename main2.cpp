@@ -31,8 +31,13 @@
 #include <array>
 #include <complex>
 
-#include "board_v2_0.hpp"
+#include "main.hpp"
+#include <board.hpp>
 #include "ili9341.hpp"
+#include "plot.hpp"
+#include "ui.hpp"
+#include "common.hpp"
+#include "globals.hpp"
 
 #include <libopencm3/stm32/timer.h>
 #include "sample_processor.H"
@@ -337,6 +342,8 @@ void adc_read(volatile uint16_t*& data, int& len) {
 
 
 void lcd_setup() {
+	ili9341_conf_cs = ili9341_cs;
+	ili9341_conf_dc = ili9341_dc;
 	ili9341_spi_transfer = [](uint32_t sdi, int bits) {
 		return ili9341_spi.doTransfer(sdi, bits);
 	};
@@ -345,6 +352,14 @@ void lcd_setup() {
 	};
 	ili9341_init();
 	ili9341_test(5);
+	plot_init();
+	//redraw_frame();
+	//redraw_request = REDRAW_CELLS | REDRAW_FREQUENCY | REDRAW_CAL_STATUS;
+	//draw_all(true);
+	ui_init();
+	//handle_touch_interrupt();
+	//ui_process();
+	ui_mode_menu();
 }
 
 
@@ -688,3 +703,65 @@ extern "C" void *memcpy(char *dest, const char *src, uint32_t n) {
 	for(int i=0;i<n;i++) dest[i] = src[i];
 	return dest;
 }*/
+
+
+
+// nanovna UI callbacks
+
+void cal_collect(int type) {
+	
+}
+void cal_done(void) {
+	
+}
+
+
+void set_sweep_frequency(int type, int32_t frequency) {
+	
+}
+uint32_t get_sweep_frequency(int type) {
+	
+}
+
+float my_atof(const char *p) {
+	
+}
+
+void toggle_sweep(void) {
+	
+}
+
+
+
+void set_trace_type(int t, int type) {
+	
+}
+void set_trace_channel(int t, int channel) {
+	
+}
+void set_trace_scale(int t, float scale) {
+	
+}
+void set_trace_refpos(int t, float refpos) {
+	
+}
+
+void set_electrical_delay(float picoseconds) {
+	
+}
+float get_electrical_delay(void) {
+	
+}
+
+void apply_edelay_at(int i) {
+	
+}
+
+void set_frequencies(uint32_t start, uint32_t stop, int16_t points) {
+	
+}
+void update_frequencies(void) {
+	
+}
+
+
