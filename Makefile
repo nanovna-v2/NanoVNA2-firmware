@@ -1,10 +1,10 @@
 MCULIB ?= /persist/mculib
 DEVICE          = stm32f103cc
 OPENCM3_DIR     = /persist/libopencm3
-OBJS            += main2.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
+OBJS            += main2.o ili9341.o Font5x7.o numfont20x24.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 CFLAGS          += -Os -g
-CPPFLAGS	+= -Os -g --std=c++0x -fno-exceptions -fno-rtti -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103
+CPPFLAGS	+= -O2 -g --std=c++0x -fno-exceptions -fno-rtti -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103
 LDFLAGS         += -static -nostartfiles
 LDLIBS          += -Wl,--start-group -lgcc -lnosys -Wl,--end-group
 

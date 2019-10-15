@@ -29,6 +29,9 @@ Pad RFSW_RXSYNTH = PA4;
 Pad RFSW_REFL = PB0;
 Pad RFSW_RECV = PB1;
 
+Pad ili9341_cs = PA15;
+Pad ili9341_dc = PB6;
+
 auto RFSW_ECAL_SHORT = RFSWState::RF2;
 auto RFSW_ECAL_OPEN = RFSWState::RF3;
 auto RFSW_ECAL_LOAD = RFSWState::RF4;
@@ -88,6 +91,12 @@ ADF4350::ADF4350Driver<decltype(adf4350_tx_sendWord)>
 	adf4350_tx(adf4350_tx_sendWord);
 ADF4350::ADF4350Driver<decltype(adf4350_rx_sendWord)>
 	adf4350_rx(adf4350_rx_sendWord);
+
+auto spiDelay_fast = []() {
+	asm __volatile__ ( "nop" );
+};
+SoftSPI<decltype(spiDelay_fast)> ili9341_spi(spiDelay_fast);
+
 
 
 // gain is an integer from 0 to 3, 0 being lowest gain
@@ -215,8 +224,20 @@ static inline void boardInit() {
 	adf4350_rx_spi.mosi = PA6;
 	adf4350_rx_spi.miso = PA3;
 
+	ili9341_spi.sel = PA15;
+	ili9341_spi.clk = PB3;
+	ili9341_spi.mosi = PB5;
+	ili9341_spi.miso = PB4;
+
 	adf4350_tx_spi.init();
 	adf4350_rx_spi.init();
+	ili9341_spi.init();
+	/*digitalWrite(ili9341_spi.sel, LOW);
+	digitalWrite(ili9341_spi.clk, LOW);
+	digitalWrite(ili9341_spi.mosi, LOW);
+	digitalWrite(ili9341_dc, LOW);*/
+	pinMode(ili9341_dc, OUTPUT);
+	
 
 	adc_ratecfg = ADC_SMPR_SMP_7DOT5CYC;
 	adc_srate = 6000000/(7.5+12.5);

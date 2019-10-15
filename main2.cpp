@@ -32,6 +32,7 @@
 #include <complex>
 
 #include "board_v2_0.hpp"
+#include "ili9341.hpp"
 
 #include <libopencm3/stm32/timer.h>
 #include "sample_processor.H"
@@ -52,7 +53,7 @@ int adf4350_modulus = xtal_freq/adf4350_freqStep;
 
 USBSerial serial;
 
-static const int adcBufSize=2048;	// must be power of 2
+static const int adcBufSize=4096;	// must be power of 2
 volatile uint16_t adcBuffer[adcBufSize];
 
 
@@ -77,6 +78,11 @@ void errorBlink(int cnt) {
 	}
 }
 
+void sampleProcessor_emitValue(int32_t valRe, int32_t valIm);
+auto emitValue = [](int32_t valRe, int32_t valIm) {
+	sampleProcessor_emitValue(valRe, valIm);
+};
+SampleProcessor<decltype(emitValue)> sampleProcessor(emitValue);
 
 
 void timer_setup() {
@@ -90,8 +96,8 @@ void timer_setup() {
 	
 	// this doesn't really set the period, but the "autoreload value"; actual period is this plus 1.
 	// this should be fixed in libopencm3.
-	// 1MHz / 50 = 20kHz
-	timer_set_period(TIM1, 49);
+	// 1MHz / 25 = 40kHz
+	timer_set_period(TIM1, 24);
 
 	timer_enable_preload(TIM1);
 	timer_enable_preload_complementry_enable_bits(TIM1);
@@ -170,44 +176,51 @@ void si5351_setup() {
 		errorBlink(2);
 }
 
-void si5351_doUpdate(uint32_t freq_khz) {
+void si5351_set(int i, int pll, uint32_t freq_khz) {
 	using namespace Si5351;
 
+	CLKRDiv rDiv = CLK_R_Div1;
+
 	// PLL should be configured between 600 and 900 MHz
-	static uint32_t last_O = -1;
-	
-	uint32_t O = 900000/freq_khz;
+	// round up
+	uint32_t msDiv = 900000/freq_khz;
+	uint32_t totalDiv = msDiv;
 	
 	// FIXME: output divider value of 5 is broken for some reason
-	if(O == 5) O = 4;
-	if(O < 4) O = 4;
-	
-	uint32_t vco[2] = {(freq_khz+lo_freq/1000)*O, freq_khz*O};
-	
-	for(int i=0; i<2; i++) {
-		uint32_t mult = vco[i]*128;
-		uint32_t N = mult/xtal_freq;
-		uint32_t frac = mult - N*xtal_freq;
-		
-		si5351.PLL[i].PLL_Multiplier_Integer = N;
-		si5351.PLL[i].PLL_Multiplier_Numerator = frac;
-		//Si5351_ConfigStruct.PLL[i].PLL_Multiplier_Denominator = xtal_freq;
-		
-		si5351.PLLConfig((PLLChannel) i);
+	if(msDiv == 5) msDiv = 4;
+	if(msDiv < 4) msDiv = 4;
+	if(msDiv > 1024) {
+		msDiv /= 64;
+		totalDiv = msDiv*64;
+		rDiv = CLK_R_Div64;
 	}
-	//for(int i=0; i<2; i++)
-	//	Si5351_PLLReset(&Si5351_ConfigStruct, (Si5351_PLLChannelTypeDef) i);
 	
+	uint32_t vco = freq_khz * totalDiv;
+	uint32_t mult = vco*128;
+	uint32_t N = mult/xtal_freq;
+	uint32_t frac = mult - N*xtal_freq;
+
+	si5351.PLL[pll].PLL_Multiplier_Integer = N;
+	si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
+	//Si5351_ConfigStruct.PLL[i].PLL_Multiplier_Denominator = xtal_freq;
+	
+	si5351.PLLConfig((PLLChannel) pll);
+	
+	if(si5351.MS[i].MS_Divider_Integer != msDiv) {
+		si5351.MS[i].MS_Divider_Integer = msDiv;
+		si5351.MSConfig((MSChannel) i);
+	}
+	if(si5351.CLK[i].CLK_R_Div != rDiv) {
+		si5351.CLK[i].CLK_R_Div = rDiv;
+		si5351.CLKConfig((CLKChannel) i);
+	}
+}
+void si5351_doUpdate(uint32_t freq_khz) {
+	using namespace Si5351;
+	
+	si5351_set(0, 0, freq_khz+lo_freq/1000);
+	si5351_set(2, 1, freq_khz);
 	si5351.PLLReset2();
-	
-	if(O != last_O) {
-		si5351.MS[0].MS_Divider_Integer = O;
-		si5351.MS[2].MS_Divider_Integer = O;
-		si5351.MSConfig((MSChannel) 0);
-		si5351.MSConfig((MSChannel) 2);
-		last_O = O;
-	}
-	//Si5351_PLLReset2(&Si5351_ConfigStruct);
 }
 
 void si5351_update(uint32_t freq_khz) {
@@ -236,6 +249,12 @@ void adf4350_set(T& adf4350, uint32_t freq_khz) {
 
 	uint32_t N = freq_khz*O/adf4350_freqStep;
 
+	/*if(freq_khz > 2000000) {
+		// take feedback from divided output
+		N = freq_khz/adf4350_freqStep;
+		adf4350.feedbackFromDivided = true;
+	} else adf4350.feedbackFromDivided = false;*/
+
 	adf4350.O = O;
 	adf4350.N = N / adf4350_modulus;
 	adf4350.numerator = N - (adf4350.N * adf4350_modulus);
@@ -244,6 +263,17 @@ void adf4350_set(T& adf4350, uint32_t freq_khz) {
 	adf4350.sendN();
 }
 
+void adf4350_setup() {
+	adf4350_rx.N = 120;
+	adf4350_rx.rfPower = 0b01;
+	adf4350_rx.sendConfig();
+	adf4350_rx.sendN();
+
+	adf4350_tx.N = 120;
+	adf4350_tx.rfPower = 0b10;
+	adf4350_tx.sendConfig();
+	adf4350_tx.sendN();
+}
 void adf4350_update(uint32_t freq_khz) {
 	freq_khz = uint32_t(freq_khz/adf4350_freqStep) * adf4350_freqStep;
 	adf4350_set(adf4350_tx, freq_khz);
@@ -251,6 +281,19 @@ void adf4350_update(uint32_t freq_khz) {
 }
 
 void setFrequency(uint32_t freq_khz) {
+	/*if(freq_khz > 2000000) {
+		lo_freq = 36000;
+	} else {
+		lo_freq = 12000;
+	}*/
+
+	if(freq_khz > 2700000)
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(3));
+	else if(freq_khz > 1500000)
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
+	else
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
+
 	// use adf4350 for f > 140MHz
 	if(freq_khz > 140000) {
 		adf4350_update(freq_khz);
@@ -261,6 +304,9 @@ void setFrequency(uint32_t freq_khz) {
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 	}
+	uint64_t tmp = uint64_t(lo_freq * adc_period_cycles) << 32;
+	tmp = tmp / (adc_clk);
+	sampleProcessor.sgRate = uint32_t(tmp);
 }
 
 void adc_setup() {
@@ -289,6 +335,17 @@ void adc_read(volatile uint16_t*& data, int& len) {
 	if(lastIndex >= bufWords) lastIndex = 0;
 }
 
+
+void lcd_setup() {
+	ili9341_spi_transfer = [](uint32_t sdi, int bits) {
+		return ili9341_spi.doTransfer(sdi, bits);
+	};
+	ili9341_spi_transfer_bulk = [](uint32_t words) {
+		ili9341_spi.doTransfer_bulk_send(spi_buffer, words);
+	};
+	ili9341_init();
+	ili9341_test(5);
+}
 
 
 /*
@@ -339,11 +396,6 @@ void serialCharHandler(uint8_t* s, int len) {
 	}
 }
 
-uint32_t valueCounter = 0;
-uint32_t nWait = 2, nValues = 10;
-int32_t dpRe, dpIm;
-bool refl = false;
-int32_t dpReFwd, dpImFwd;
 
 struct usbDataPoint {
 	complex<int32_t> port0Out, port0In, port1In;
@@ -355,54 +407,105 @@ volatile int usbTxQueueRPos = 0;
 
 
 
+enum class MeasurementPhases {
+	REFERENCE,
+	REFL1,
+	REFL2,
+	THRU
+};
+
+MeasurementPhases measurementPhase = MeasurementPhases::REFERENCE;
+constexpr uint32_t nWait = 1, nValues = 6;
+int32_t dpRe = 0, dpIm = 0;
+uint32_t valueCounter = 0;
+
+void setMeasurementPhase(MeasurementPhases ph) {
+	switch(ph) {
+		case MeasurementPhases::REFERENCE:
+			rfsw(RFSW_REFL, RFSW_REFL_ON);
+			rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
+			break;
+		case MeasurementPhases::REFL1:
+			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
+			break;
+		case MeasurementPhases::REFL2:
+			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
+			break;
+		case MeasurementPhases::THRU:
+			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
+			rfsw(RFSW_REFL, RFSW_REFL_OFF);
+			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
+			break;
+	}
+	measurementPhase = ph;
+	valueCounter = 0;
+	dpRe = dpIm = 0;
+}
 void sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
-	if(valueCounter > nWait && valueCounter<nValues) {
+	if(valueCounter >= nWait) {
 		dpRe += valRe;
 		dpIm += valIm;
 	}
 	valueCounter++;
-	if(valueCounter == nValues) {
-		if(refl) {
-			// enqueue new data point
-			int wrRPos = usbTxQueueRPos;
-			int wrWPos = usbTxQueueWPos;
-			__sync_synchronize();
-			if((wrRPos + 1) & usbTxQueueMask == usbTxQueueWPos) {
-				// overflow
-			} else {
-				usbTxQueue[wrWPos].port0Out = {dpReFwd, dpImFwd};
-				usbTxQueue[wrWPos].port0In = {dpRe, dpIm};
-				usbTxQueue[wrWPos].port1In = {0, 0};
-				__sync_synchronize();
-				usbTxQueueWPos = (wrRPos + 1) & usbTxQueueMask;
-			}
-		} else {
-			dpReFwd = dpRe;
-			dpImFwd = dpIm;
-		}
-		refl = !refl;
-		rfsw(RFSW_ECAL, refl ? RFSW_ECAL_NORMAL : RFSW_ECAL_SHORT);
 
-		valueCounter = 0;
-		dpRe = dpIm = 0;
+	// state variables
+	static int32_t fwdRe = 0, fwdIm = 0;
+	static int32_t reflRe = 0, reflIm = 0;
+	static int32_t thruRe = 0, thruIm = 0;
+	
+	if(measurementPhase == MeasurementPhases::REFERENCE
+		&& valueCounter == (nWait + nValues*2)) {
+		fwdRe = dpRe;
+		fwdIm = dpIm;
+		setMeasurementPhase(MeasurementPhases::REFL1);
+	} else if(measurementPhase == MeasurementPhases::REFL1
+		&& valueCounter == (nWait + nValues)) {
+		reflRe = dpRe;
+		reflIm = dpIm;
+		setMeasurementPhase(MeasurementPhases::REFL2);
+	} else if(measurementPhase == MeasurementPhases::REFL2
+		&& valueCounter == (nWait + nValues)) {
+		//reflRe = (reflRe - dpRe) * 2;
+		//reflIm = (reflIm - dpIm) * 2;
+		reflRe += dpRe;
+		reflIm += dpIm;
+		setMeasurementPhase(MeasurementPhases::THRU);
+	} else if(measurementPhase == MeasurementPhases::THRU
+		&& valueCounter == (nWait + nValues*2)) {
+		thruRe = dpRe;
+		thruIm = dpIm;
+		setMeasurementPhase(MeasurementPhases::REFERENCE);
+		
+		// enqueue new data point
+		int wrRPos = usbTxQueueRPos;
+		int wrWPos = usbTxQueueWPos;
+		__sync_synchronize();
+		if((wrRPos + 1) & usbTxQueueMask == usbTxQueueWPos) {
+			// overflow
+		} else {
+			usbTxQueue[wrWPos].port0Out = {fwdRe, fwdIm};
+			usbTxQueue[wrWPos].port0In = {reflRe, reflIm};
+			usbTxQueue[wrWPos].port1In = {thruRe, thruIm};
+			__sync_synchronize();
+			usbTxQueueWPos = (wrRPos + 1) & usbTxQueueMask;
+		}
 	}
 }
 
 
 
-auto emitValue = [](int32_t valRe, int32_t valIm) {
-	sampleProcessor_emitValue(valRe, valIm);
-};
-SampleProcessor<decltype(emitValue)> sampleProcessor(emitValue);
 
 void adc_process() {
 	if(!outputRawSamples) {
 		volatile uint16_t* buf;
 		int len;
-		adc_read(buf, len);
-		sampleProcessor.clipFlag = false;
-		sampleProcessor.process((uint16_t*)buf, len);
-		digitalWrite(led, sampleProcessor.clipFlag?1:0);
+		for(int i=0; i<2; i++) {
+			adc_read(buf, len);
+			sampleProcessor.clipFlag = false;
+			sampleProcessor.process((uint16_t*)buf, len);
+			digitalWrite(led, sampleProcessor.clipFlag?1:0);
+		}
 	}
 }
 
@@ -421,7 +524,7 @@ int main(void) {
 
 	digitalWrite(led, HIGH);
 	
-	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
+	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
 	rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 	rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 	rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -435,7 +538,8 @@ int main(void) {
 	});
 	// baud rate is ignored for usbserial
 	serial.begin(115200);
-	
+
+	lcd_setup();
 
 	si5351_setup();
 
@@ -465,13 +569,7 @@ int main(void) {
 		//delay(100);
 	}*/
 	
-	adf4350_rx.N = 120;
-	adf4350_rx.sendConfig();
-	adf4350_rx.sendN();
-
-	adf4350_tx.N = 120;
-	adf4350_tx.sendConfig();
-	adf4350_tx.sendN();
+	adf4350_setup();
 
 
 	// sgRate = lo_freq / (adc_clk/adc_period_cycles) * 2 * 2^32
@@ -493,16 +591,22 @@ int main(void) {
 		}
 	} else {
 		timer_setup();
+		uint32_t cnt = 0;
 		while(1) {
 			if(outputRawSamples) {
 				volatile uint16_t* buf;
 				int len;
 				adc_read(buf, len);
+				cnt += len;
 				int8_t tmpBuf[adcBufSize];
 				for(int i=0; i<len; i++)
 					tmpBuf[i] = int8_t(buf[i] >> 4) - 128;
 				serial.print((char*)tmpBuf, len);
 				rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
+				//rfsw(RFSW_RECV, ((cnt / 500) % 2) ? RFSW_RECV_REFL : RFSW_RECV_PORT2);
+				//rfsw(RFSW_REFL, ((cnt / 500) % 2) ? RFSW_REFL_ON : RFSW_REFL_OFF);
+				rfsw(RFSW_RECV, RFSW_RECV_REFL);
+				rfsw(RFSW_REFL, RFSW_REFL_ON);
 			} else {
 				int rdRPos = usbTxQueueRPos;
 				int rdWPos = usbTxQueueWPos;
@@ -512,37 +616,48 @@ int main(void) {
 					continue;
 				
 				usbDataPoint& value = usbTxQueue[rdRPos];
-				int32_t dpReFwd = value.port0Out.real();
-				int32_t dpImFwd = value.port0Out.imag();
-				int32_t dpRe = value.port0In.real();
-				int32_t dpIm = value.port0In.imag();
+				int32_t fwdRe = value.port0Out.real();
+				int32_t fwdIm = value.port0Out.imag();
+				int32_t reflRe = value.port0In.real();
+				int32_t reflIm = value.port0In.imag();
+				int32_t thruRe = value.port1In.real();
+				int32_t thruIm = value.port1In.imag();
 				uint8_t txbuf[31];
-				txbuf[0] = dpReFwd & 0x7F;
-				txbuf[1] = (dpReFwd >> 7) | 0x80;
-				txbuf[2] = (dpReFwd >> 14) | 0x80;
-				txbuf[3] = (dpReFwd >> 21) | 0x80;
-				txbuf[4] = (dpReFwd >> 28) | 0x80;
+				txbuf[0] = fwdRe & 0x7F;
+				txbuf[1] = (fwdRe >> 7) | 0x80;
+				txbuf[2] = (fwdRe >> 14) | 0x80;
+				txbuf[3] = (fwdRe >> 21) | 0x80;
+				txbuf[4] = (fwdRe >> 28) | 0x80;
 				
-				txbuf[5] = (dpImFwd >> 0) | 0x80;
-				txbuf[6] = (dpImFwd >> 7) | 0x80;
-				txbuf[7] = (dpImFwd >> 14) | 0x80;
-				txbuf[8] = (dpImFwd >> 21) | 0x80;
-				txbuf[9] = (dpImFwd >> 28) | 0x80;
+				txbuf[5] = (fwdIm >> 0) | 0x80;
+				txbuf[6] = (fwdIm >> 7) | 0x80;
+				txbuf[7] = (fwdIm >> 14) | 0x80;
+				txbuf[8] = (fwdIm >> 21) | 0x80;
+				txbuf[9] = (fwdIm >> 28) | 0x80;
 				
-				txbuf[10] = (dpRe >> 0) | 0x80;
-				txbuf[11] = (dpRe >> 7) | 0x80;
-				txbuf[12] = (dpRe >> 14) | 0x80;
-				txbuf[13] = (dpRe >> 21) | 0x80;
-				txbuf[14] = (dpRe >> 28) | 0x80;
+				txbuf[10] = (reflRe >> 0) | 0x80;
+				txbuf[11] = (reflRe >> 7) | 0x80;
+				txbuf[12] = (reflRe >> 14) | 0x80;
+				txbuf[13] = (reflRe >> 21) | 0x80;
+				txbuf[14] = (reflRe >> 28) | 0x80;
 				
-				txbuf[15] = (dpIm >> 0) | 0x80;
-				txbuf[16] = (dpIm >> 7) | 0x80;
-				txbuf[17] = (dpIm >> 14) | 0x80;
-				txbuf[18] = (dpIm >> 21) | 0x80;
-				txbuf[19] = (dpIm >> 28) | 0x80;
+				txbuf[15] = (reflIm >> 0) | 0x80;
+				txbuf[16] = (reflIm >> 7) | 0x80;
+				txbuf[17] = (reflIm >> 14) | 0x80;
+				txbuf[18] = (reflIm >> 21) | 0x80;
+				txbuf[19] = (reflIm >> 28) | 0x80;
 				
-				for(int i=20; i<30; i++)
-					txbuf[i] = 0x80;
+				txbuf[20] = (thruRe >> 0) | 0x80;
+				txbuf[21] = (thruRe >> 7) | 0x80;
+				txbuf[22] = (thruRe >> 14) | 0x80;
+				txbuf[23] = (thruRe >> 21) | 0x80;
+				txbuf[24] = (thruRe >> 28) | 0x80;
+				
+				txbuf[25] = (thruIm >> 0) | 0x80;
+				txbuf[26] = (thruIm >> 7) | 0x80;
+				txbuf[27] = (thruIm >> 14) | 0x80;
+				txbuf[28] = (thruIm >> 21) | 0x80;
+				txbuf[29] = (thruIm >> 28) | 0x80;
 				
 				uint8_t checksum=0b01000110;
 				for(int i=0; i<30; i++)
