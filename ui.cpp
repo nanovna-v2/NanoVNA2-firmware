@@ -27,7 +27,7 @@
 #include "Font5x7.h"
 #include "plot.hpp"
 #include "ui.hpp"
-#include "board_defs.hpp"
+#include "board.hpp"
 #include <stdlib.h>
 #include <string.h>
 

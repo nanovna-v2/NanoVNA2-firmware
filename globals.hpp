@@ -26,7 +26,7 @@ extern int8_t previous_marker;
 extern config_t config;
 
 
-extern float measured[2][101][2];
+extern complexf measured[2][SWEEP_POINTS_MAX];
 
 extern uistat_t uistat;
 

@@ -49,7 +49,7 @@ properties_t current_props = {
 properties_t* active_props = &current_props;
 
 
-float measured[2][101][2];
+complexf measured[2][SWEEP_POINTS_MAX];
 
 
 uistat_t uistat = {

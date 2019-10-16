@@ -1,5 +1,10 @@
 #pragma once
 #include <stdint.h>
+#include <complex>
+
+using namespace std;
+
+typedef complex<float> complexf;
 
 // constants and data types used by all modules.
 // DO NOT DECLARE EXTERNAL FUNCTIONS HERE!!!
@@ -13,6 +18,7 @@
 #define PLATFORM_NAME "GD32F303"
 
 
+#define SWEEP_POINTS_MAX 128
 #define TRACES_MAX 4
 #define FFT_SIZE 256
 
@@ -91,8 +97,8 @@ typedef struct {
   int16_t _sweep_points;
   uint16_t _cal_status;
 
-  uint32_t _frequencies[101];
-  float _cal_data[5][101][2];
+  uint32_t _frequencies[SWEEP_POINTS_MAX];
+  complexf _cal_data[5][SWEEP_POINTS_MAX];
   float _electrical_delay; // picoseconds
   
   trace_t _trace[TRACES_MAX];

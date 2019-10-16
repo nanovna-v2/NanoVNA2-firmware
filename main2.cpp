@@ -44,6 +44,7 @@
 
 using namespace mculib;
 using namespace std;
+using namespace board;
 
 // see https://lists.debian.org/debian-gcc/2003/07/msg00057.html
 // this can be any value since we are not using shared libraries.
@@ -359,7 +360,10 @@ void lcd_setup() {
 	ui_init();
 	//handle_touch_interrupt();
 	//ui_process();
-	ui_mode_menu();
+	//ui_mode_menu();
+	plot_into_index(measured);
+	redraw_request |= REDRAW_CELLS;
+	draw_all(true);
 }
 
 
