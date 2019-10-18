@@ -38,9 +38,10 @@
 #include "ui.hpp"
 #include "common.hpp"
 #include "globals.hpp"
+#include "synthesizers.hpp"
+#include "vna_measurement.hpp"
 
 #include <libopencm3/stm32/timer.h>
-#include "sample_processor.H"
 
 using namespace mculib;
 using namespace std;
@@ -51,17 +52,15 @@ using namespace board;
 void* __dso_handle = (void*) &__dso_handle;
 
 bool outputRawSamples = false;
-int lo_freq = 12000; // IF frequency, Hz
-int xtal_freq = 24000; //19200; // si5351 input frequency, kHz
 int cpu_mhz = 24;
-int adf4350_freqStep = 6; // adf4350 resolution, kHz
-int adf4350_modulus = xtal_freq/adf4350_freqStep;
+
 
 USBSerial serial;
 
 static const int adcBufSize=4096;	// must be power of 2
 volatile uint16_t adcBuffer[adcBufSize];
 
+VNAMeasurement vnaMeasurement;
 
 void adc_process();
 
@@ -83,12 +82,6 @@ void errorBlink(int cnt) {
 		delay(1000);
 	}
 }
-
-void sampleProcessor_emitValue(int32_t valRe, int32_t valIm);
-auto emitValue = [](int32_t valRe, int32_t valIm) {
-	sampleProcessor_emitValue(valRe, valIm);
-};
-SampleProcessor<decltype(emitValue)> sampleProcessor(emitValue);
 
 
 void timer_setup() {
@@ -121,111 +114,9 @@ extern "C" void tim1_up_isr() {
 	adc_process();
 }
 
-
-void si5351_setup() {
-	using namespace Si5351;
-
-	si5351_i2c.init();
-
-	//delay(300);
-
-	//if(!si5351_i2c.probe((0xC0) | 1))
-	//	errorBlink(1);
-	//return;
-
-	si5351.SetFieldsToDefault();	//initialize the structure with default "safe" values
-	
-	// hook up i2c
-	uint8_t devAddr = 0xC0;
-	si5351.ReadRegister = [devAddr](uint8_t addr) -> uint8_t {
-		return si5351_i2c.read_si5351(devAddr, addr);
-	};
-	si5351.WriteRegister = [devAddr](uint8_t addr, uint8_t data) -> int {
-		return si5351_i2c.write(devAddr, addr, data);
-	};
-	si5351.OSC.OSC_XTAL_Load = XTAL_Load_4_pF;	//use 4 pF load for crystal
-
-
-	si5351.PLL[0].PLL_Clock_Source = PLL_Clock_Source_XTAL;	//select xrystal as clock input for the PLL
-	si5351.PLL[0].PLL_Multiplier_Integer = 32*128;				//multiply the clock frequency by 32, this gets us 800 MHz clock
-	si5351.PLL[0].PLL_Multiplier_Numerator = 1*8;
-	si5351.PLL[0].PLL_Multiplier_Denominator = xtal_freq;
-	
-	si5351.PLL[1].PLL_Clock_Source = PLL_Clock_Source_XTAL;
-	si5351.PLL[1].PLL_Multiplier_Integer = 32*128;
-	si5351.PLL[1].PLL_Multiplier_Numerator = 1*8 + lo_freq/1000*8;
-	si5351.PLL[1].PLL_Multiplier_Denominator = xtal_freq;
-
-	si5351.MS[0].MS_Clock_Source = MS_Clock_Source_PLLA;
-	si5351.MS[0].MS_Divider_Integer = 8; // divide pll frequency by 8
-
-	si5351.MS[2].MS_Clock_Source = MS_Clock_Source_PLLB;
-	si5351.MS[2].MS_Divider_Integer = 8; // divide pll frequency by 8
-	
-
-	//si5351.CLK[0].CLK_R_Div = CLK_R_Div64;	//divide the MultiSynth output by 64, this gets us 50 kHz
-	si5351.CLK[0].CLK_R_Div = CLK_R_Div1; // divide by 1; 100MHz
-	si5351.CLK[0].CLK_Enable = ON;	//turn on the output
-	si5351.CLK[0].CLK_I_Drv = CLK_I_Drv_8mA;
-
-	si5351.CLK[1].CLK_Clock_Source = CLK_Clock_Source_XTAL;
-	si5351.CLK[1].CLK_R_Div = CLK_R_Div1; // divide by 1; 24MHz
-	si5351.CLK[1].CLK_Enable = ON;	//turn on the output
-	si5351.CLK[1].CLK_I_Drv = CLK_I_Drv_8mA;
-
-	si5351.CLK[2].CLK_R_Div = CLK_R_Div1; // divide by 1; 100MHz
-	si5351.CLK[2].CLK_Enable = ON;	//turn on the output
-	si5351.CLK[2].CLK_I_Drv = CLK_I_Drv_8mA;
-	
-	
-	if(si5351.Init() != 0)
-		errorBlink(2);
-}
-
-void si5351_set(int i, int pll, uint32_t freq_khz) {
-	using namespace Si5351;
-
-	CLKRDiv rDiv = CLK_R_Div1;
-
-	// PLL should be configured between 600 and 900 MHz
-	// round up
-	uint32_t msDiv = 900000/freq_khz;
-	uint32_t totalDiv = msDiv;
-	
-	// FIXME: output divider value of 5 is broken for some reason
-	if(msDiv == 5) msDiv = 4;
-	if(msDiv < 4) msDiv = 4;
-	if(msDiv > 1024) {
-		msDiv /= 64;
-		totalDiv = msDiv*64;
-		rDiv = CLK_R_Div64;
-	}
-	
-	uint32_t vco = freq_khz * totalDiv;
-	uint32_t mult = vco*128;
-	uint32_t N = mult/xtal_freq;
-	uint32_t frac = mult - N*xtal_freq;
-
-	si5351.PLL[pll].PLL_Multiplier_Integer = N;
-	si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
-	//Si5351_ConfigStruct.PLL[i].PLL_Multiplier_Denominator = xtal_freq;
-	
-	si5351.PLLConfig((PLLChannel) pll);
-	
-	if(si5351.MS[i].MS_Divider_Integer != msDiv) {
-		si5351.MS[i].MS_Divider_Integer = msDiv;
-		si5351.MSConfig((MSChannel) i);
-	}
-	if(si5351.CLK[i].CLK_R_Div != rDiv) {
-		si5351.CLK[i].CLK_R_Div = rDiv;
-		si5351.CLKConfig((CLKChannel) i);
-	}
-}
 void si5351_doUpdate(uint32_t freq_khz) {
-	using namespace Si5351;
-	
-	si5351_set(0, 0, freq_khz+lo_freq/1000);
-	si5351_set(2, 1, freq_khz);
+	si5351_set(true, freq_khz+lo_freq/1000);
+	si5351_set(false, freq_khz);
 	si5351.PLLReset2();
 }
 
@@ -237,53 +128,23 @@ void si5351_update(uint32_t freq_khz) {
 	prevFreq = freq_khz;
 }
 
-// freq_khz must be a multiple of adf4350_freqStep
-template<class T>
-void adf4350_set(T& adf4350, uint32_t freq_khz) {
-	int O = 1;
-	
-	if(freq_khz	> 2200000)
-		O = 1;
-	else if(freq_khz	> 1100000)
-		O = 2;
-	else if(freq_khz	> 550000)
-		O = 4;
-	else if(freq_khz	> 275000)
-		O = 8;
-	else //if(freq_khz	> 137500)
-		O = 16;
 
-	uint32_t N = freq_khz*O/adf4350_freqStep;
-
-	/*if(freq_khz > 2000000) {
-		// take feedback from divided output
-		N = freq_khz/adf4350_freqStep;
-		adf4350.feedbackFromDivided = true;
-	} else adf4350.feedbackFromDivided = false;*/
-
-	adf4350.O = O;
-	adf4350.N = N / adf4350_modulus;
-	adf4350.numerator = N - (adf4350.N * adf4350_modulus);
-	adf4350.denominator = adf4350_modulus;
-	adf4350.sendConfig();
-	adf4350.sendN();
-}
 
 void adf4350_setup() {
 	adf4350_rx.N = 120;
-	adf4350_rx.rfPower = 0b01;
+	adf4350_rx.rfPower = 0b11;
 	adf4350_rx.sendConfig();
 	adf4350_rx.sendN();
 
 	adf4350_tx.N = 120;
-	adf4350_tx.rfPower = 0b10;
+	adf4350_tx.rfPower = 0b11;
 	adf4350_tx.sendConfig();
 	adf4350_tx.sendN();
 }
 void adf4350_update(uint32_t freq_khz) {
 	freq_khz = uint32_t(freq_khz/adf4350_freqStep) * adf4350_freqStep;
-	adf4350_set(adf4350_tx, freq_khz);
-	adf4350_set(adf4350_rx, freq_khz + lo_freq/1000);
+	synthesizers::adf4350_set(adf4350_tx, freq_khz);
+	synthesizers::adf4350_set(adf4350_rx, freq_khz + lo_freq/1000);
 }
 
 void setFrequency(uint32_t freq_khz) {
@@ -310,9 +171,6 @@ void setFrequency(uint32_t freq_khz) {
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 	}
-	uint64_t tmp = uint64_t(lo_freq * adc_period_cycles) << 32;
-	tmp = tmp / (adc_clk);
-	sampleProcessor.sgRate = uint32_t(tmp);
 }
 
 void adc_setup() {
@@ -401,7 +259,8 @@ void serialCharHandler(uint8_t* s, int len) {
 						| (uint32_t(registers[1]) << 8)
 						| (uint32_t(registers[2]) << 0);
 				
-				setFrequency(freq*10);
+				//setFrequency(freq*10);
+				vnaMeasurement.setSweep(freq*10000, 0, 1);
 			}
 			if(writingRegister == 5) {
 				uint8_t outpMode = ch >> 4;
@@ -417,7 +276,7 @@ void serialCharHandler(uint8_t* s, int len) {
 
 
 struct usbDataPoint {
-	complex<int32_t> port0Out, port0In, port1In;
+	VNAObservation value;
 };
 usbDataPoint usbTxQueue[32];
 constexpr int usbTxQueueMask = 31;
@@ -426,94 +285,54 @@ volatile int usbTxQueueRPos = 0;
 
 
 
-enum class MeasurementPhases {
-	REFERENCE,
-	REFL1,
-	REFL2,
-	THRU
-};
 
-MeasurementPhases measurementPhase = MeasurementPhases::REFERENCE;
-constexpr uint32_t nWait = 1, nValues = 6;
-int32_t dpRe = 0, dpIm = 0;
-uint32_t valueCounter = 0;
-
-void setMeasurementPhase(MeasurementPhases ph) {
+void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	switch(ph) {
-		case MeasurementPhases::REFERENCE:
+		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
 			break;
-		case MeasurementPhases::REFL1:
+		case VNAMeasurementPhases::REFL1:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			break;
-		case MeasurementPhases::REFL2:
+		case VNAMeasurementPhases::REFL2:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			break;
-		case MeasurementPhases::THRU:
+		case VNAMeasurementPhases::THRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			rfsw(RFSW_REFL, RFSW_REFL_OFF);
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
 			break;
 	}
-	measurementPhase = ph;
-	valueCounter = 0;
-	dpRe = dpIm = 0;
 }
-void sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
-	if(valueCounter >= nWait) {
-		dpRe += valRe;
-		dpIm += valIm;
-	}
-	valueCounter++;
 
-	// state variables
-	static int32_t fwdRe = 0, fwdIm = 0;
-	static int32_t reflRe = 0, reflIm = 0;
-	static int32_t thruRe = 0, thruIm = 0;
-	
-	if(measurementPhase == MeasurementPhases::REFERENCE
-		&& valueCounter == (nWait + nValues*2)) {
-		fwdRe = dpRe;
-		fwdIm = dpIm;
-		setMeasurementPhase(MeasurementPhases::REFL1);
-	} else if(measurementPhase == MeasurementPhases::REFL1
-		&& valueCounter == (nWait + nValues)) {
-		reflRe = dpRe;
-		reflIm = dpIm;
-		setMeasurementPhase(MeasurementPhases::REFL2);
-	} else if(measurementPhase == MeasurementPhases::REFL2
-		&& valueCounter == (nWait + nValues)) {
-		//reflRe = (reflRe - dpRe) * 2;
-		//reflIm = (reflIm - dpIm) * 2;
-		reflRe += dpRe;
-		reflIm += dpIm;
-		setMeasurementPhase(MeasurementPhases::THRU);
-	} else if(measurementPhase == MeasurementPhases::THRU
-		&& valueCounter == (nWait + nValues*2)) {
-		thruRe = dpRe;
-		thruIm = dpIm;
-		setMeasurementPhase(MeasurementPhases::REFERENCE);
-		
-		// enqueue new data point
-		int wrRPos = usbTxQueueRPos;
-		int wrWPos = usbTxQueueWPos;
+void measurementEmitDataPoint(const VNAObservation& v) {
+	// enqueue new data point
+	int wrRPos = usbTxQueueRPos;
+	int wrWPos = usbTxQueueWPos;
+	__sync_synchronize();
+	if((wrRPos + 1) & usbTxQueueMask == usbTxQueueWPos) {
+		// overflow
+	} else {
+		usbTxQueue[wrWPos].value = v;
 		__sync_synchronize();
-		if((wrRPos + 1) & usbTxQueueMask == usbTxQueueWPos) {
-			// overflow
-		} else {
-			usbTxQueue[wrWPos].port0Out = {fwdRe, fwdIm};
-			usbTxQueue[wrWPos].port0In = {reflRe, reflIm};
-			usbTxQueue[wrWPos].port1In = {thruRe, thruIm};
-			__sync_synchronize();
-			usbTxQueueWPos = (wrRPos + 1) & usbTxQueueMask;
-		}
+		usbTxQueueWPos = (wrRPos + 1) & usbTxQueueMask;
 	}
 }
 
-
-
+void measurement_setup() {
+	vnaMeasurement.phaseChanged = [](VNAMeasurementPhases ph) {
+		measurementPhaseChanged(ph);
+	};
+	vnaMeasurement.emitDataPoint = [](uint64_t freqHz, const VNAObservation& v) {
+		measurementEmitDataPoint(v);
+	};
+	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
+		setFrequency(freqHz/1000);
+	};
+	vnaMeasurement.init();
+}
 
 void adc_process() {
 	if(!outputRawSamples) {
@@ -521,9 +340,9 @@ void adc_process() {
 		int len;
 		for(int i=0; i<2; i++) {
 			adc_read(buf, len);
-			sampleProcessor.clipFlag = false;
-			sampleProcessor.process((uint16_t*)buf, len);
-			digitalWrite(led, sampleProcessor.clipFlag?1:0);
+			vnaMeasurement.sampleProcessor.clipFlag = false;
+			vnaMeasurement.processSamples((uint16_t*)buf, len);
+			digitalWrite(led, vnaMeasurement.sampleProcessor.clipFlag?1:0);
 		}
 	}
 }
@@ -560,44 +379,17 @@ int main(void) {
 
 	lcd_setup();
 
-	si5351_setup();
-
-	/*bool b = false;
-	while(1) {
-		b = !b;
-		digitalWrite(led, b?1:0);
-		delay(300);
-		serial.println("aaaaa");
-	}*/
+	si5351_i2c.init();
+	if(!si5351_setup())
+		errorBlink(2);
 
 	setFrequency(56000);
 
+	measurement_setup();
 	adc_setup();
 	timer_setup();
 
-	/*while(1) {
-		volatile uint16_t* buf;
-		int len;
-		adc_read(buf, len);
-		
-		int8_t tmpBuf[adcBufSize];
-		for(int i=0; i<len; i++)
-			tmpBuf[i] = int8_t(buf[i] >> 4) - 128;
-		serial.print((char*)tmpBuf, len);
-		//serial.println(len);
-		//delay(100);
-	}*/
-	
 	adf4350_setup();
-
-
-	// sgRate = lo_freq / (adc_clk/adc_period_cycles) * 2 * 2^32
-	// sgRate = lo_freq * adc_period_cycles/adc_clk * 2 * 2^32
-	uint64_t tmp = uint64_t(lo_freq * adc_period_cycles) << 32;
-	tmp = tmp / (adc_clk);
-	sampleProcessor.sgRate = uint32_t(tmp);
-	//sampleProcessor.sgRate = (((lo_freq * adc_period_cycles) << 15) / (adc_clk/1000000)) * (8590);
-	sampleProcessor.init();
 
 
 	bool testSG = false;
@@ -606,7 +398,7 @@ int main(void) {
 		//sampleProcessor.sgRate /= 100;
 		while(1) {
 			uint16_t tmp = 1;
-			sampleProcessor.process(&tmp, 1);
+			vnaMeasurement.processSamples(&tmp, 1);
 		}
 	} else {
 		timer_setup();
@@ -634,13 +426,14 @@ int main(void) {
 				if(rdRPos == rdWPos) // queue empty
 					continue;
 				
-				usbDataPoint& value = usbTxQueue[rdRPos];
-				int32_t fwdRe = value.port0Out.real();
-				int32_t fwdIm = value.port0Out.imag();
-				int32_t reflRe = value.port0In.real();
-				int32_t reflIm = value.port0In.imag();
-				int32_t thruRe = value.port1In.real();
-				int32_t thruIm = value.port1In.imag();
+				usbDataPoint& usbDP = usbTxQueue[rdRPos];
+				VNAObservation& value = usbDP.value;
+				int32_t fwdRe = value[1].real();
+				int32_t fwdIm = value[1].imag();
+				int32_t reflRe = value[0].real();
+				int32_t reflIm = value[0].imag();
+				int32_t thruRe = value[2].real();
+				int32_t thruIm = value[2].imag();
 				uint8_t txbuf[31];
 				txbuf[0] = fwdRe & 0x7F;
 				txbuf[1] = (fwdRe >> 7) | 0x80;

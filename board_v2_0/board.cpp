@@ -196,4 +196,102 @@ namespace board {
 		digitalWrite(led2, LOW);
 	}
 
+
+	bool si5351_setup() {
+		using namespace Si5351;
+		//delay(300);
+
+		//if(!si5351_i2c.probe((0xC0) | 1))
+		//	errorBlink(1);
+		//return;
+
+		si5351.SetFieldsToDefault();	//initialize the structure with default "safe" values
+		
+		// hook up i2c
+		uint8_t devAddr = 0xC0;
+		si5351.ReadRegister = [devAddr](uint8_t addr) -> uint8_t {
+			return si5351_i2c.read_si5351(devAddr, addr);
+		};
+		si5351.WriteRegister = [devAddr](uint8_t addr, uint8_t data) -> int {
+			return si5351_i2c.write(devAddr, addr, data);
+		};
+		si5351.OSC.OSC_XTAL_Load = XTAL_Load_4_pF;	//use 4 pF load for crystal
+
+
+		si5351.PLL[0].PLL_Clock_Source = PLL_Clock_Source_XTAL;	//select xrystal as clock input for the PLL
+		si5351.PLL[0].PLL_Multiplier_Integer = 32*128;				//multiply the clock frequency by 32, this gets us 800 MHz clock
+		si5351.PLL[0].PLL_Multiplier_Numerator = 1*8;
+		si5351.PLL[0].PLL_Multiplier_Denominator = xtal_freq;
+		
+		si5351.PLL[1].PLL_Clock_Source = PLL_Clock_Source_XTAL;
+		si5351.PLL[1].PLL_Multiplier_Integer = 32*128;
+		si5351.PLL[1].PLL_Multiplier_Numerator = 1*8 + lo_freq/1000*8;
+		si5351.PLL[1].PLL_Multiplier_Denominator = xtal_freq;
+
+		si5351.MS[0].MS_Clock_Source = MS_Clock_Source_PLLA;
+		si5351.MS[0].MS_Divider_Integer = 8; // divide pll frequency by 8
+
+		si5351.MS[2].MS_Clock_Source = MS_Clock_Source_PLLB;
+		si5351.MS[2].MS_Divider_Integer = 8; // divide pll frequency by 8
+		
+
+		//si5351.CLK[0].CLK_R_Div = CLK_R_Div64;	//divide the MultiSynth output by 64, this gets us 50 kHz
+		si5351.CLK[0].CLK_R_Div = CLK_R_Div1; // divide by 1; 100MHz
+		si5351.CLK[0].CLK_Enable = ON;	//turn on the output
+		si5351.CLK[0].CLK_I_Drv = CLK_I_Drv_8mA;
+
+		si5351.CLK[1].CLK_Clock_Source = CLK_Clock_Source_XTAL;
+		si5351.CLK[1].CLK_R_Div = CLK_R_Div1; // divide by 1; 24MHz
+		si5351.CLK[1].CLK_Enable = ON;	//turn on the output
+		si5351.CLK[1].CLK_I_Drv = CLK_I_Drv_8mA;
+
+		si5351.CLK[2].CLK_R_Div = CLK_R_Div1; // divide by 1; 100MHz
+		si5351.CLK[2].CLK_Enable = ON;	//turn on the output
+		si5351.CLK[2].CLK_I_Drv = CLK_I_Drv_8mA;
+		
+		return si5351.Init() == 0;
+	}
+	void si5351_set(bool isRX, uint32_t freq_khz) {
+		using namespace Si5351;
+
+		int i = isRX ? 0 : 2;
+		int pll = isRX ? 0 : 1;
+
+		CLKRDiv rDiv = CLK_R_Div1;
+
+		// PLL should be configured between 600 and 900 MHz
+		// round up
+		uint32_t msDiv = 900000/freq_khz;
+		uint32_t totalDiv = msDiv;
+		
+		// FIXME: output divider value of 5 is broken for some reason
+		if(msDiv == 5) msDiv = 4;
+		if(msDiv < 4) msDiv = 4;
+		if(msDiv > 1024) {
+			msDiv /= 64;
+			totalDiv = msDiv*64;
+			rDiv = CLK_R_Div64;
+		}
+		
+		uint32_t vco = freq_khz * totalDiv;
+		uint32_t mult = vco*128;
+		uint32_t N = mult/xtal_freq;
+		uint32_t frac = mult - N*xtal_freq;
+
+		si5351.PLL[pll].PLL_Multiplier_Integer = N;
+		si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
+		//Si5351_ConfigStruct.PLL[i].PLL_Multiplier_Denominator = xtal_freq;
+		
+		si5351.PLLConfig((PLLChannel) pll);
+		
+		if(si5351.MS[i].MS_Divider_Integer != msDiv) {
+			si5351.MS[i].MS_Divider_Integer = msDiv;
+			si5351.MSConfig((MSChannel) i);
+		}
+		if(si5351.CLK[i].CLK_R_Div != rDiv) {
+			si5351.CLK[i].CLK_R_Div = rDiv;
+			si5351.CLKConfig((CLKChannel) i);
+		}
+	}
+
 }

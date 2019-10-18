@@ -1,13 +1,27 @@
 #pragma once
 #include <stdint.h>
 #include <complex>
+#include <array>
 
 using namespace std;
 
 typedef complex<float> complexf;
 
+// port 1 in, port 1 out, port 2 in
+typedef array<complexf, 3> VNAObservation;
+
+// a complete observation set for one frequency point
+// (measured waves for excitations at each port).
+// currently a single VNAObservation, but will be
+// an array of 2 observations for a full two port VNA.
+typedef VNAObservation VNAObservationSet;
+
+// S11, S21
+typedef array<complexf, 2> VNARawValue;
+
 // constants and data types used by all modules.
 // DO NOT DECLARE EXTERNAL FUNCTIONS HERE!!!
+
 
 #define VERSION "git"
 #define CH_KERNEL_VERSION "N/A"
@@ -66,6 +80,14 @@ typedef complex<float> complexf;
 #define REDRAW_FREQUENCY  (1<<1)
 #define REDRAW_CAL_STATUS (1<<2)
 #define REDRAW_MARKER     (1<<3)
+
+
+constexpr int lo_freq = 12000; // IF frequency, Hz
+constexpr int xtal_freq = 24000; //19200; // si5351 input frequency, kHz
+constexpr int adf4350_freqStep = 6; // adf4350 resolution, kHz
+constexpr int adf4350_modulus = xtal_freq/adf4350_freqStep;
+
+
 
 enum {
   TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_OFF

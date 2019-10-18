@@ -15,6 +15,7 @@
 #include <libopencm3/stm32/adc.h>
 
 #include "../rfsw.hpp"
+#include "../common.hpp"
 
 #define BOARD_NAME "NanoVNA V2_0"
 
@@ -118,4 +119,8 @@ namespace board {
 	void boardInit();
 
 	void ledPulse();
+
+	bool si5351_setup();
+
+	void si5351_set(bool isRX, uint32_t freq_khz);
 }
