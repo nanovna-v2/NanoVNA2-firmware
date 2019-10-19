@@ -115,7 +115,9 @@ static char *ftoa(char *p, double num, unsigned long precision) {
 // void putChar(uint8_t c)
 template<class putChar_t>
 int chvprintf(const putChar_t& putChar, const char* fmt, va_list ap) {
-	char *p, *s, c, filler;
+	char* p;
+	char* s;
+	char c, filler;
 	int i, precision, width;
 	int n = 0;
 	bool is_long, left_align;

@@ -28,7 +28,6 @@ namespace board {
 	uint32_t adc_ratecfg = 0;
 	uint32_t adc_srate = 0; // Hz
 	uint32_t adc_period_cycles, adc_clk;
-	uint8_t registers[32];
 
 
 	DMADriver dma(DMA1);
@@ -52,7 +51,9 @@ namespace board {
 	ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_rx(adf4350_sendWord_t {adf4350_rx_spi});
 
 	SoftSPI<spiDelay_fast_t> ili9341_spi(spiDelay_fast);
+	SoftSPI<spiDelay_t> xpt2046_spi(spiDelay);
 
+	XPT2046 xpt2046(xpt2046_cs, xpt2046_irq);
 
 	// same as rcc_set_usbpre, but with extended divider range:
 	// 0: divide by 1.5
@@ -173,15 +174,22 @@ namespace board {
 		ili9341_spi.mosi = PB5;
 		ili9341_spi.miso = PB4;
 
+		xpt2046_spi.sel = xpt2046_cs;
+		xpt2046_spi.clk = PB3;
+		xpt2046_spi.mosi = PB5;
+		xpt2046_spi.miso = PB4;
+
+		xpt2046.spiTransfer = [](uint32_t data, int bits) {
+			return xpt2046_spi.doTransfer(data, bits);
+		};
+
 		adf4350_tx_spi.init();
 		adf4350_rx_spi.init();
 		ili9341_spi.init();
-		/*digitalWrite(ili9341_spi.sel, LOW);
-		digitalWrite(ili9341_spi.clk, LOW);
-		digitalWrite(ili9341_spi.mosi, LOW);
-		digitalWrite(ili9341_dc, LOW);*/
+		xpt2046_spi.init();
+		xpt2046.begin(320, 240);
+
 		pinMode(ili9341_dc, OUTPUT);
-		
 
 		adc_ratecfg = ADC_SMPR_SMP_7DOT5CYC;
 		adc_srate = 6000000/(7.5+12.5);

@@ -16,6 +16,7 @@
 
 #include "../rfsw.hpp"
 #include "../common.hpp"
+#include "../xpt2046.hpp"
 
 #define BOARD_NAME "NanoVNA V2_0"
 
@@ -24,6 +25,8 @@ using namespace std;
 
 
 namespace board {
+
+	// ##### pin assignments #####
 
 	static constexpr Pad led = PA9;
 	static constexpr Pad led2 = PA10;
@@ -37,35 +40,27 @@ namespace board {
 
 	static constexpr Pad ili9341_cs = PA15;
 	static constexpr Pad ili9341_dc = PB6;
-
-	static constexpr auto RFSW_ECAL_SHORT = RFSWState::RF2;
-	static constexpr auto RFSW_ECAL_OPEN = RFSWState::RF3;
-	static constexpr auto RFSW_ECAL_LOAD = RFSWState::RF4;
-	static constexpr auto RFSW_ECAL_NORMAL = RFSWState::RF1;
-
-	static constexpr int RFSW_TXSYNTH_LF = 0;
-	static constexpr int RFSW_TXSYNTH_HF = 1;
-
-	static constexpr int RFSW_RXSYNTH_LF = 1;
-	static constexpr int RFSW_RXSYNTH_HF = 0;
-
-	static constexpr int RFSW_REFL_ON = 1;
-	static constexpr int RFSW_REFL_OFF = 0;
-
-	static constexpr int RFSW_RECV_REFL = 1;
-	static constexpr int RFSW_RECV_PORT2 = 0;
+	static constexpr Pad xpt2046_cs = PB7;
+	static constexpr Pad xpt2046_irq = PB8;
 
 
-	// set by board_init()
+	// ##### board parameters #####
 	extern uint32_t adc_ratecfg;
 	extern uint32_t adc_srate; // Hz
 	extern uint32_t adc_period_cycles, adc_clk;
-	extern uint8_t registers[32];
 
+
+
+	// ##### board peripherals #####
+
+	// baseband ADC
 
 	extern DMADriver dma;
 	extern DMAChannel dmaChannel;
 	extern DMAADC dmaADC;
+
+
+	// synthesizers
 
 	struct i2cDelay_t {
 		void operator()() {
@@ -77,7 +72,6 @@ namespace board {
 			delayMicroseconds(1);
 		}
 	};
-
 
 	extern SoftI2C<i2cDelay_t> si5351_i2c;
 	extern Si5351::Si5351Driver si5351;
@@ -96,13 +90,38 @@ namespace board {
 	extern ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_tx;
 	extern ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_rx;
 
+
+
+	// lcd display
+
 	struct spiDelay_fast_t {
 		void operator()() {
 			asm __volatile__ ( "nop" );
 		}
 	};
 	extern SoftSPI<spiDelay_fast_t> ili9341_spi;
+	extern SoftSPI<spiDelay_t> xpt2046_spi;
 
+	extern XPT2046 xpt2046;
+
+	// rf switch positions
+
+	static constexpr auto RFSW_ECAL_SHORT = RFSWState::RF2;
+	static constexpr auto RFSW_ECAL_OPEN = RFSWState::RF3;
+	static constexpr auto RFSW_ECAL_LOAD = RFSWState::RF4;
+	static constexpr auto RFSW_ECAL_NORMAL = RFSWState::RF1;
+
+	static constexpr int RFSW_TXSYNTH_LF = 0;
+	static constexpr int RFSW_TXSYNTH_HF = 1;
+
+	static constexpr int RFSW_RXSYNTH_LF = 1;
+	static constexpr int RFSW_RXSYNTH_HF = 0;
+
+	static constexpr int RFSW_REFL_ON = 1;
+	static constexpr int RFSW_REFL_OFF = 0;
+
+	static constexpr int RFSW_RECV_REFL = 1;
+	static constexpr int RFSW_RECV_PORT2 = 0;
 
 	// gain is an integer from 0 to 3, 0 being lowest gain
 	static inline RFSWState RFSW_BBGAIN_GAIN(int gain) {
@@ -116,11 +135,15 @@ namespace board {
 		return RFSWState::RF4;
 	}
 
+	// call this function at the beginning of main()
 	void boardInit();
 
+	// blink the status led
 	void ledPulse();
 
+	// initialize and configure si5351
 	bool si5351_setup();
 
+	// set si5351 frequency for tx or rx port
 	void si5351_set(bool isRX, uint32_t freq_khz);
 }

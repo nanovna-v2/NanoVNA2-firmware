@@ -10,6 +10,8 @@
 // for events that can be acted upon rather than let modules directly
 // modify global state.
 
+extern uint8_t registers[32];
+
 extern uint16_t redraw_request;
 extern int8_t sweep_enabled;
 

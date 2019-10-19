@@ -31,37 +31,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+using UIHW::UIEvent;
+using UIHW::UIEventButtons;
+using UIHW::UIEventTypes;
+
 
 #define TRUE true
 #define FALSE false
-#define NO_EVENT					0
-#define EVT_BUTTON_SINGLE_CLICK		0x01
-#define EVT_BUTTON_DOUBLE_CLICK		0x02
-#define EVT_BUTTON_DOWN_LONG		0x04
-#define EVT_UP					0x10
-#define EVT_DOWN				0x20
-#define EVT_REPEAT				0x40
 
-#define BUTTON_DOWN_LONG_TICKS		5000  /* 1sec */
-#define BUTTON_DOUBLE_TICKS			5000   /* 500ms */
-#define BUTTON_REPEAT_TICKS			1000   /* 100ms */
-#define BUTTON_DEBOUNCE_TICKS		200
-
-/* lever switch assignment */
-#define BIT_UP1 	3
-#define BIT_PUSH	2
-#define BIT_DOWN1	1
-
-//#define READ_PORT() palReadPort(GPIOA)
-#define BUTTON_MASK 0b1111
-
-static uint16_t last_button = 0b0000;
-static uint32_t last_button_down_ticks;
-static uint32_t last_button_repeat_ticks;
-static int8_t inhibit_until_release = FALSE;
-
-enum { OP_NONE = 0, OP_LEVER, OP_TOUCH };
-uint8_t operation_requested = OP_NONE;
 
 int8_t previous_marker = -1;
 
@@ -84,15 +61,6 @@ typedef struct {
   const void* reference;
 } menuitem_t;
 
-int8_t last_touch_status = FALSE;
-int16_t last_touch_x;
-int16_t last_touch_y;
-//int16_t touch_cal[4] = { 1000, 1000, 10*16, 12*16 };
-//int16_t touch_cal[4] = { 620, 600, 130, 180 };
-#define EVT_TOUCH_NONE 0
-#define EVT_TOUCH_DOWN 1
-#define EVT_TOUCH_PRESSED 2
-#define EVT_TOUCH_RELEASED 3
 
 int awd_count;
 //int touch_x, touch_y;
@@ -106,6 +74,8 @@ int awd_count;
 char kp_buf[11];
 int8_t kp_index = 0;
 
+bool uiEventsEnabled = true;
+UIEvent lastUIEvent = {};
 
 void ui_mode_normal(void);
 void ui_mode_menu(void);
@@ -114,116 +84,119 @@ void ui_mode_keypad(int _keypad_mode);
 void draw_menu(void);
 void leave_ui_mode(void);
 void erase_menu_buttons(void);
-void ui_process_keypad(void);
-static void ui_process_numeric(void);
+void ui_process_keypad(UIEvent evt);
+static void ui_process_numeric(UIEvent evt);
 
 static void menu_push_submenu(const menuitem_t *submenu);
+static int touch_pickup_marker(void);
 
 
-
-static int btn_check(void) {
-	int status = 0;
-	
-	// TODO: set "status" to EVT_BUTTON_SINGLE_CLICK, EVT_UP, or EVT_DOWN
-	// depending on button status changes.
-
-	return status;
-}
-
-static int btn_wait_release(void)
-{
-  // TODO: implement
-}
-
-int
-touch_measure_y(void)
-{
-  // TODO: implement
-  return 0;
-}
-
-int
-touch_measure_x(void)
-{
-  // TODO: implement
-  return 0;
-}
 
 void
 touch_prepare_sense(void)
 {
 }
 
-void touch_start_watchdog(void) {
-	// TODO: implement
+// Disable or enable ui_process_* callbacks in order to do synchronous event polling.
+// New uses of these functions are heavily discouraged.
+// Please use event driven UI processing instead.
+
+void uiEnableProcessing(void) {
+  uiEventsEnabled = true;
 }
-void touch_stop_watchdog() {
-	
+void uiDisableProcessing() {
+  uiEventsEnabled = false;
 }
 
-int
-touch_status(void)
-{
-	// TODO: implement
+// wait for an UI event when UI processing is disabled.
+UIEvent uiWaitEvent() {
+  while(lastUIEvent.type == UIEventTypes::None)
+    application_doSingleEvent();
+
+  UIEvent ret = lastUIEvent;
+  lastUIEvent = {};
+  return ret;
 }
 
-int touch_check(void)
-{
-	// return EVT_TOUCH_*
-	// TODO: implement
-}
 
-void touch_wait_release(void)
-{
-  int status;
-  /* wait touch release */
-  do {
-    status = touch_check();
-  } while(status != EVT_TOUCH_RELEASED);
-}
 
 void
 touch_cal_exec(void)
 {
-  //redraw_all();
-  touch_start_watchdog();
+  int status;
+  int x1, x2, y1, y2;
+  UIEvent evt;
+  
+  uiDisableProcessing();
+
+  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_line(0, 0, 0, 32, 0xffff);
+  ili9341_line(0, 0, 32, 0, 0xffff);
+  ili9341_drawstring_5x7("TOUCH UPPER LEFT", 10, 10, 0xffff, 0x0000);
+
+  do {
+    evt = uiWaitEvent();
+    if(evt.isTouchPress())
+      UIHW::touchPosition(x1, y1);
+  } while(!evt.isTouchRelease());
+
+
+  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_line(320-1, 240-1, 320-1, 240-32, 0xffff);
+  ili9341_line(320-1, 240-1, 320-32, 240-1, 0xffff);
+  ili9341_drawstring_5x7("TOUCH LOWER RIGHT", 230, 220, 0xffff, 0x0000);
+
+  do {
+    evt = uiWaitEvent();
+     if(evt.isTouchPress())
+      UIHW::touchPosition(x2, y2);
+  } while(!evt.isTouchRelease());
+
+  config.touch_cal[0] = x1;
+  config.touch_cal[1] = y1;
+  config.touch_cal[2] = (x2 - x1) * 16 / 320;
+  config.touch_cal[3] = (y2 - y1) * 16 / 240;
+
+  uiEnableProcessing();
 }
 
 void
 touch_draw_test(void)
 {
-  int status;
+  UIEvent evt;
   int x0, y0;
   int x1, y1;
   
-  touch_stop_watchdog();
+  uiDisableProcessing();
 
   ili9341_fill(0, 0, 320, 240, 0);
   ili9341_drawstring_5x7("TOUCH TEST: DRAG PANEL", OFFSETX, 233, 0xffff, 0x0000);
 
   do {
-    status = touch_check();
-  } while(status != EVT_TOUCH_PRESSED);
+    evt = uiWaitEvent();
+  } while(!evt.isTouchPress());
   touch_position(&x0, &y0);
 
-  do {
-    status = touch_check();
+  while(true) {
     touch_position(&x1, &y1);
+    if(x1 == -1) break;
     ili9341_line(x0, y0, x1, y1, 0xffff);
     x0 = x1;
     y0 = y1;
     delay(50);
-  } while(status != EVT_TOUCH_RELEASED);
+  }
 
-  touch_start_watchdog();
+  uiEnableProcessing();
 }
 
 
 void
 touch_position(int *x, int *y)
 {
-  *x = (last_touch_x - config.touch_cal[0]) * 16 / config.touch_cal[2];
-  *y = (last_touch_y - config.touch_cal[1]) * 16 / config.touch_cal[3];
+  int touchX, touchY;
+  UIHW::touchPosition(touchX, touchY);
+  *x = (touchX - config.touch_cal[0]) * 16 / config.touch_cal[2];
+  *y = (touchY - config.touch_cal[1]) * 16 / config.touch_cal[3];
 }
 
 
@@ -232,7 +205,7 @@ show_version(void)
 {
   int x = 5, y = 5;
   
-  touch_stop_watchdog();
+  uiDisableProcessing();
   ili9341_fill(0, 0, 320, 240, 0);
 
   ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
@@ -250,19 +223,18 @@ show_version(void)
   ili9341_drawstring_5x7("Platform: " PLATFORM_NAME, x, y += 10, 0xffff, 0x0000);
 
   while (true) {
-    if (touch_check() == EVT_TOUCH_PRESSED)
-      break;
-    if (btn_check() & EVT_BUTTON_SINGLE_CLICK)
+    UIEvent evt = uiWaitEvent();
+    if(evt.isTouchPress() || evt.isLeverClick())
       break;
   }
 
-  touch_start_watchdog();
+  uiEnableProcessing();
 }
 
 void
 enter_dfu(void)
 {
-  touch_stop_watchdog();
+  uiDisableProcessing();
 
   int x = 5, y = 5;
 
@@ -556,13 +528,13 @@ menu_transform_cb(int item)
       ui_mode_normal();
       break;
     case 5:
-      status = btn_wait_release();
-      if (status & EVT_BUTTON_DOWN_LONG) {
+      UIEvent evt = uiWaitEvent();
+      if (evt.isLeverLongPress()) {
         ui_mode_numeric(KM_VELOCITY_FACTOR);
-        ui_process_numeric();
+        ui_process_numeric(evt);
       } else {
         ui_mode_keypad(KM_VELOCITY_FACTOR);
-        ui_process_keypad();
+        ui_process_keypad(evt);
       }
       break;
   }
@@ -583,36 +555,36 @@ choose_active_marker(void)
 static void
 menu_scale_cb(int item)
 {
-  int status;
-  status = btn_wait_release();
-  if (status & EVT_BUTTON_DOWN_LONG) {
+  UIEvent evt = uiWaitEvent();
+  if (evt.isLeverLongPress()) {
     ui_mode_numeric(KM_SCALE + item);
-    ui_process_numeric();
+    ui_process_numeric(evt);
   } else {
     ui_mode_keypad(KM_SCALE + item);
-    ui_process_keypad();
+    ui_process_keypad(evt);
   }
 }
 
 static void
 menu_stimulus_cb(int item)
 {
-  int status;
   switch (item) {
   case 0: /* START */
   case 1: /* STOP */
   case 2: /* CENTER */
   case 3: /* SPAN */
   case 4: /* CW */
-    status = btn_wait_release();
-    if (status & EVT_BUTTON_DOWN_LONG) {
+  {
+    UIEvent evt = uiWaitEvent();
+    if (evt.isLeverLongPress()) {
       ui_mode_numeric(item);
-      ui_process_numeric();
+      ui_process_numeric(evt);
     } else {
       ui_mode_keypad(item);
-      ui_process_keypad();
+      ui_process_keypad(evt);
     }
     break;
+  }
   case 5: /* PAUSE */
     toggle_sweep();
     //menu_move_back();
@@ -1235,7 +1207,7 @@ menu_select_touch(int i)
 {
   selection = i;
   draw_menu();
-  touch_wait_release();
+  uiWaitEvent();
   selection = -1;
   menu_invoke(i);
 }
@@ -1261,7 +1233,6 @@ menu_apply_touch(void)
     }
   }
 
-  touch_wait_release();
   ui_mode_normal();
 }
 
@@ -1452,56 +1423,58 @@ ui_mode_normal(void)
 }
 
 static void
-ui_process_normal(void)
+ui_process_normal(UIEvent evt)
 {
-  int status = btn_check();
-  if (status != 0) {
-    if (status & EVT_BUTTON_SINGLE_CLICK) {
-      ui_mode_menu();
-    } else {
-      do {
-        if (active_marker >= 0 && markers[active_marker].enabled) {
-          if ((status & EVT_DOWN) && markers[active_marker].index > 0) {
-            markers[active_marker].index--;
-            markers[active_marker].frequency = frequencies[markers[active_marker].index];
-            redraw_marker(active_marker, FALSE);
-          }
-          if ((status & EVT_UP) && markers[active_marker].index < 100) {
-            markers[active_marker].index++;
-            markers[active_marker].frequency = frequencies[markers[active_marker].index];
-            redraw_marker(active_marker, FALSE);
-          }
-        }
-        status = btn_wait_release();
-      } while (status != 0);
-      if (active_marker >= 0)
-        redraw_marker(active_marker, TRUE);
+  if (evt.isLeverClick()) {
+    ui_mode_menu();
+  }
+  if(evt.isJog()) {
+    if (active_marker >= 0 && markers[active_marker].enabled) {
+      if (evt.isJogLeft() && markers[active_marker].index > 0) {
+        markers[active_marker].index--;
+        markers[active_marker].frequency = frequencies[markers[active_marker].index];
+        redraw_marker(active_marker, FALSE);
+      }
+      if (evt.isJogRight() && markers[active_marker].index < 100) {
+        markers[active_marker].index++;
+        markers[active_marker].frequency = frequencies[markers[active_marker].index];
+        redraw_marker(active_marker, FALSE);
+      }
     }
+  }
+  if(evt.isJogEnd()) {
+    if (active_marker >= 0)
+      redraw_marker(active_marker, TRUE);
+  }
+  if(evt.isTouchPress()) {
+    if (touch_pickup_marker()) {
+      return;
+    }
+    // switch menu mode
+    selection = -1;
+    ui_mode_menu();
   }
 }
 
 static void
-ui_process_menu(void)
+ui_process_menu(UIEvent evt)
 {
-  int status = btn_check();
-  if (status != 0) {
-    if (status & EVT_BUTTON_SINGLE_CLICK) {
-      menu_invoke(selection);
-    } else {
-      do {
-        if (status & EVT_UP
-            && menu_stack[menu_current_level][selection+1].type != MT_NONE) {
-          selection++;
-          draw_menu();
-        }
-        if (status & EVT_DOWN
-            && selection > 0) {
-          selection--;
-          draw_menu();
-        }
-        status = btn_wait_release();
-      } while (status != 0);
-    }
+  if (evt.isLeverClick()) {
+    menu_invoke(selection);
+    return;
+  }
+  if (evt.isJogRight()
+      && menu_stack[menu_current_level][selection+1].type != MT_NONE) {
+    selection++;
+    draw_menu();
+  }
+  if (evt.isJogLeft()
+      && selection > 0) {
+    selection--;
+    draw_menu();
+  }
+  if(evt.isTouchPress()) {
+    menu_apply_touch();
   }
 }
 
@@ -1586,7 +1559,7 @@ keypad_apply_touch(void)
       // draw focus
       selection = i;
       draw_keypad();
-      touch_wait_release();
+      uiWaitEvent();
       // erase focus
       selection = -1;
       draw_keypad();
@@ -1602,7 +1575,7 @@ keypad_apply_touch(void)
 }
 
 static void
-numeric_apply_touch(void)
+numeric_apply_touch(UIEvent evt)
 {
   int touch_x, touch_y;
   touch_position(&touch_x, &touch_y);
@@ -1613,7 +1586,7 @@ numeric_apply_touch(void)
   }
   if (touch_x > 64+9*20+8+8) {
     ui_mode_keypad(keypad_mode);
-    ui_process_keypad();
+    ui_process_keypad(evt);
     return;
   }
 
@@ -1635,7 +1608,7 @@ numeric_apply_touch(void)
   }
   draw_numeric_area();
   
-  touch_wait_release();
+  uiWaitEvent();
   uistat.digit_mode = FALSE;
   draw_numeric_area();
   
@@ -1643,63 +1616,59 @@ numeric_apply_touch(void)
 }
 
 static void
-ui_process_numeric(void)
+ui_process_numeric(UIEvent evt)
 {
-  int status = btn_check();
-
-  if (status != 0) {
-    if (status == EVT_BUTTON_SINGLE_CLICK) {
-      status = btn_wait_release();
-      if (uistat.digit_mode) {
-        if (status & (EVT_BUTTON_SINGLE_CLICK | EVT_BUTTON_DOWN_LONG)) {
-          uistat.digit_mode = FALSE;
-          draw_numeric_area();
-        }
+  if (evt.isLeverClick() || evt.isLeverLongPress()) {
+    if (uistat.digit_mode) {
+      uistat.digit_mode = FALSE;
+      draw_numeric_area();
+    } else {
+      if (evt.type == UIEventTypes::LongPress) {
+        uistat.digit_mode = TRUE;
+        draw_numeric_area();
       } else {
-        if (status & EVT_BUTTON_DOWN_LONG) {
-          uistat.digit_mode = TRUE;
+        set_numeric_value();
+        ui_mode_normal();
+      }
+    }
+  }
+
+  if(evt.isJog()) {
+    if (uistat.digit_mode) {
+      if (evt.isJogLeft()) {
+        if (uistat.digit < 8) {
+          uistat.digit++;
           draw_numeric_area();
-        } else if (status & EVT_BUTTON_SINGLE_CLICK) {
-          set_numeric_value();
-          ui_mode_normal();
+        } else {
+          goto exit;
+        }
+      }
+      if (evt.isJogRight()) {
+        if (uistat.digit > 0) {
+          uistat.digit--;
+          draw_numeric_area();
+        } else {
+          goto exit;
         }
       }
     } else {
-      do {
-        if (uistat.digit_mode) {
-          if (status & EVT_DOWN) {
-            if (uistat.digit < 8) {
-              uistat.digit++;
-              draw_numeric_area();
-            } else {
-              goto exit;
-            }
-          }
-          if (status & EVT_UP) {
-            if (uistat.digit > 0) {
-              uistat.digit--;
-              draw_numeric_area();
-            } else {
-              goto exit;
-            }
-          }
-        } else {
-          int32_t step = 1;
-          int n;
-          for (n = uistat.digit; n > 0; n--)
-            step *= 10;
-          if (status & EVT_DOWN) {
-            uistat.value += step;
-            draw_numeric_area();
-          }
-          if (status & EVT_UP) {
-            uistat.value -= step;
-            draw_numeric_area();
-          }
-        }
-        status = btn_wait_release();
-      } while (status != 0);
+      int32_t step = 1;
+      int n;
+      for (n = uistat.digit; n > 0; n--)
+        step *= 10;
+      if (evt.isJogRight()) {
+        uistat.value += step;
+        draw_numeric_area();
+      }
+      if (evt.isJogLeft()) {
+        uistat.value -= step;
+        draw_numeric_area();
+      }
     }
+  }
+
+  if(evt.isTouchPress()) {
+    numeric_apply_touch(evt);
   }
 
   return;
@@ -1710,78 +1679,49 @@ ui_process_numeric(void)
 }
 
 void
-ui_process_keypad(void)
+ui_process_keypad(UIEvent evt)
 {
-  int status;
-  touch_stop_watchdog();
-
   kp_index = 0;
-  while (TRUE) {
-    status = btn_check();
-    if (status & (EVT_UP|EVT_DOWN)) {
-      int s = status;
-      do {
-        if (s & EVT_UP) {
-          selection--;
-          if (selection < 0)
-            selection = keypads_last_index;
-          draw_keypad();
-        }
-        if (s & EVT_DOWN) {
-          selection++;
-          if (keypads[selection].c < 0) {
-            // reaches to tail
-            selection = 0;
-          }
-          draw_keypad();
-        }
-        s = btn_wait_release();
-      } while (s != 0);
+  if (evt.isJogLeft()) {
+    selection--;
+    if (selection < 0)
+      selection = keypads_last_index;
+    draw_keypad();
+    return;
+  }
+  if (evt.isJogRight()) {
+    selection++;
+    if (keypads[selection].c < 0) {
+      // reaches to tail
+      selection = 0;
     }
+    draw_keypad();
+    return;
+  }
 
-    if (status == EVT_BUTTON_SINGLE_CLICK) {
-      if (keypad_click(selection))
-        /* exit loop on done or cancel */
-        break; 
-    }
+  if (evt.isLeverClick()) {
+    if (keypad_click(selection))
+      /* exit loop on done or cancel */
+      goto return_to_normal;
+  }
 
-    status = touch_check();
-    if (status == EVT_TOUCH_PRESSED) {
-      int key = keypad_apply_touch();
-      if (key >= 0 && keypad_click(key))
-        /* exit loop on done or cancel */
-        break;
-      else if (key == -2) {
-        //xxx;
-        return;
-      }
+  if (evt.isTouchPress()) {
+    int key = keypad_apply_touch();
+    if (key >= 0 && keypad_click(key))
+      /* exit loop on done or cancel */
+      goto return_to_normal;
+    else if (key == -2) {
+      //xxx;
+      return;
     }
   }
 
+return_to_normal:
   redraw_frame();
   request_to_redraw_grid();
   ui_mode_normal();
   //redraw_all();
-  touch_start_watchdog();
-}
-
-static void
-ui_process_lever(void)
-{
-  switch (ui_mode) {
-  case UI_NORMAL:
-    ui_process_normal();
-    break;    
-  case UI_MENU:
-    ui_process_menu();
-    break;    
-  case UI_NUMERIC:
-    ui_process_numeric();
-    break;    
-  case UI_KEYPAD:
-    ui_process_keypad();
-    break;    
-  }
+  uiEnableProcessing();
 }
 
 
@@ -1790,10 +1730,11 @@ drag_marker(int t, int m)
 {
   int status;
   /* wait touch release */
-  do {
+  while(true) {
     int touch_x, touch_y;
     int index;
     touch_position(&touch_x, &touch_y);
+    if(touch_x == -1) break;
     touch_x -= OFFSETX;
     touch_y -= OFFSETY;
     index = search_nearest_index(touch_x, touch_y, t);
@@ -1802,9 +1743,7 @@ drag_marker(int t, int m)
       markers[m].frequency = frequencies[index];
       redraw_marker(m, TRUE);
     }
-
-    status = touch_check();
-  } while(status != EVT_TOUCH_RELEASED);
+  }
 }
 
 static int 
@@ -1853,83 +1792,48 @@ touch_pickup_marker(void)
 }
 
 
-static
-void ui_process_touch(void)
-{
-  awd_count++;
-  touch_stop_watchdog();
-
-  int status = touch_check();
-  if (status == EVT_TOUCH_PRESSED || status == EVT_TOUCH_DOWN) {
-    switch (ui_mode) {
-    case UI_NORMAL:
-
-      if (touch_pickup_marker()) {
-        break;
-      }
-      
-      touch_wait_release();
-
-      // switch menu mode
-      selection = -1;
-      ui_mode_menu();
-      break;
-
-    case UI_MENU:
-      menu_apply_touch();
-      break;
-
-    case UI_NUMERIC:
-      numeric_apply_touch();
-      break;
-    }
-  }
-  touch_start_watchdog();
-}
 
 void
-ui_process(void)
+ui_process(UIEvent evt)
 {
-  switch (operation_requested) {
-  case OP_LEVER:
-    ui_process_lever();
-    break;
-  case OP_TOUCH:
-    ui_process_touch();
+  if(!uiEventsEnabled) {
+    lastUIEvent = evt;
+    return;
+  }
+  if(evt.isTouchPress())
+    awd_count++;
+
+  switch (ui_mode) {
+  case UI_NORMAL:
+    ui_process_normal(evt);
+    break;    
+  case UI_MENU:
+    ui_process_menu(evt);
+    break;    
+  case UI_NUMERIC:
+    ui_process_numeric(evt);
+    break;    
+  case UI_KEYPAD:
+    ui_process_keypad(evt);
     break;
   }
-  operation_requested = OP_NONE;
-}
-
-/* Triggered when the button is pressed or released. The LED4 is set to ON.*/
-// TODO: hook this up
-static void extcb1() {
-  operation_requested = OP_LEVER;
-  //cur_button = READ_PORT() & BUTTON_MASK;
 }
 
 
 void
 test_touch(int *x, int *y)
 {
-  touch_stop_watchdog();
-
-  *x = touch_measure_x();
-  *y = touch_measure_y();
-
-  touch_start_watchdog();
-}
-
-void
-handle_touch_interrupt(void)
-{
-  operation_requested = OP_TOUCH;
+  UIHW::touchPosition(*x, *y);
 }
 
 void
 ui_init()
 {
-  // TODO: set up button interrupts and a timer
-
-  touch_start_watchdog();
+  uiEnableProcessing();
+  UIHW::emitEvent = [](UIEvent evt) {
+    // process the event on main thread; we are currently in interrupt context.
+    enqueueEvent([evt]() {
+      ui_process(evt);
+    });
+  };
 }

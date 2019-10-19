@@ -1,17 +1,14 @@
 #pragma once
 
 #include <stdint.h>
+#include "uihw.hpp"
 
-/*
- * ui.c
- */
+
 void ui_init(void);
-void ui_process(void);
 
+// only process one event
+void ui_process(UIHW::UIEvent evt);
 
-extern uint8_t operation_requested;
-
-void handle_touch_interrupt(void);
 
 #define TOUCH_THRESHOLD 2000
 
@@ -22,3 +19,5 @@ void touch_position(int *x, int *y);
 void enter_dfu(void);
 
 void ui_mode_menu(void);
+
+void draw_numeric_input(const char *buf);

@@ -2,9 +2,9 @@ MCULIB ?= /persist/mculib
 DEVICE          = stm32f103cc
 OPENCM3_DIR     = /persist/libopencm3
 BOARDNAME		= board_v2_0
-OBJS			+= main2.o $(BOARDNAME)/board.o vna_measurement.o
+OBJS			+= main2.o $(BOARDNAME)/board.o vna_measurement.o xpt2046.o uihw.o common.o
 OBJS			+= globals.o ui.o flash.o plot.o printf.o ili9341.o Font5x7.o numfont20x24.o
-OBJS            += $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
+OBJS            += $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 CFLAGS          += -Os -g
 CPPFLAGS	+= -O2 -g --std=c++0x -fno-exceptions -fno-rtti -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -D_XOPEN_SOURCE=600

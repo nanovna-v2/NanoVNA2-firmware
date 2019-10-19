@@ -5,6 +5,11 @@
 
 using namespace std;
 
+
+// common data structures, constants, and convenience functions.
+// DO NOT ADD NON-CONSTANT VARIABLES OR STATEFUL FUNCTIONS HERE.
+
+
 typedef complex<float> complexf;
 
 // port 1 in, port 1 out, port 2 in
@@ -191,5 +196,8 @@ static const struct {
 static const char * const trc_channel_name[] = {
   "CH0", "CH1"
 };
+
+
+float my_atof(const char *p);
 
 

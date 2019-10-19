@@ -1,5 +1,5 @@
 /*
- * This file is part of the libopencm3 project.
+ * This file is derived from libopencm3 example code.
  *
  * Copyright (C) 2010 Gareth McMullin <gareth@blacksphere.co.nz>
  *
@@ -16,12 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-//#define SERIAL_USE_USBSERIAL
 
 #define PRNT(x)
-// Serial.print(x)
 #define PRNTLN(x)
-// Serial.println(x)
 #include <mculib/fastwiring.hpp>
 #include <mculib/softi2c.hpp>
 #include <mculib/si5351.hpp>
@@ -35,11 +32,14 @@
 #include <board.hpp>
 #include "ili9341.hpp"
 #include "plot.hpp"
+#include "uihw.hpp"
 #include "ui.hpp"
 #include "common.hpp"
 #include "globals.hpp"
 #include "synthesizers.hpp"
 #include "vna_measurement.hpp"
+#include "printf.h"
+#include "fifo.hpp"
 
 #include <libopencm3/stm32/timer.h>
 
@@ -61,6 +61,24 @@ static const int adcBufSize=4096;	// must be power of 2
 volatile uint16_t adcBuffer[adcBufSize];
 
 VNAMeasurement vnaMeasurement;
+
+
+struct usbDataPoint {
+	VNAObservation value;
+};
+usbDataPoint usbTxQueue[32];
+constexpr int usbTxQueueMask = 31;
+volatile int usbTxQueueWPos = 0;
+volatile int usbTxQueueRPos = 0;
+
+// periods of a 1MHz clock; how often to call adc_process()
+static constexpr int tim1Period = 25;	// 1MHz / 25 = 40kHz
+
+// value is in microseconds; increments at 40kHz by TIM1 interrupt
+volatile uint32_t systemTimeCounter = 0;
+
+FIFO<small_function<void()>, 8> eventQueue;
+
 
 void adc_process();
 
@@ -95,8 +113,8 @@ void timer_setup() {
 	
 	// this doesn't really set the period, but the "autoreload value"; actual period is this plus 1.
 	// this should be fixed in libopencm3.
-	// 1MHz / 25 = 40kHz
-	timer_set_period(TIM1, 24);
+	
+	timer_set_period(TIM1, tim1Period - 1);
 
 	timer_enable_preload(TIM1);
 	timer_enable_preload_complementry_enable_bits(TIM1);
@@ -111,7 +129,9 @@ void timer_setup() {
 }
 extern "C" void tim1_up_isr() {
 	TIM1_SR = 0;
+	systemTimeCounter += tim1Period;
 	adc_process();
+	UIHW::checkButtons();
 }
 
 void si5351_doUpdate(uint32_t freq_khz) {
@@ -147,13 +167,9 @@ void adf4350_update(uint32_t freq_khz) {
 	synthesizers::adf4350_set(adf4350_rx, freq_khz + lo_freq/1000);
 }
 
-void setFrequency(uint32_t freq_khz) {
-	/*if(freq_khz > 2000000) {
-		lo_freq = 36000;
-	} else {
-		lo_freq = 12000;
-	}*/
 
+// set the measurement frequency including setting the tx and rx synthesizers
+void setFrequency(uint32_t freq_khz) {
 	if(freq_khz > 2700000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(3));
 	else if(freq_khz > 1500000)
@@ -183,6 +199,7 @@ void adc_setup() {
 	dmaADC.start();
 }
 
+// read and consume data from the adc ring buffer
 void adc_read(volatile uint16_t*& data, int& len) {
 	static uint32_t lastIndex = 0;
 	uint32_t cIndex = dmaADC.position();
@@ -223,6 +240,19 @@ void lcd_setup() {
 	redraw_request |= REDRAW_CELLS;
 	draw_all(true);
 }
+
+/*
+void touch_checkAndDispatch() {
+	eventQueue.enqueue([]() {
+		//digitalWrite(led2, !digitalRead(led2));
+		uint16_t touchX, touchY;
+		xpt2046.getPosition(touchX, touchY);
+		char buf[10];
+		chsnprintf(buf, sizeof buf, "%9d", touchX);
+		draw_numeric_input(buf);
+		//ui_process(UIOperations::OP_TOUCH);
+	});
+}*/
 
 
 /*
@@ -275,17 +305,10 @@ void serialCharHandler(uint8_t* s, int len) {
 }
 
 
-struct usbDataPoint {
-	VNAObservation value;
-};
-usbDataPoint usbTxQueue[32];
-constexpr int usbTxQueueMask = 31;
-volatile int usbTxQueueWPos = 0;
-volatile int usbTxQueueRPos = 0;
 
 
 
-
+// callback called by VNAMeasurement to change rf switch positions.
 void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
@@ -307,6 +330,7 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	}
 }
 
+// callback called by VNAMeasurement when an observation is available.
 void measurementEmitDataPoint(const VNAObservation& v) {
 	// enqueue new data point
 	int wrRPos = usbTxQueueRPos;
@@ -347,6 +371,85 @@ void adc_process() {
 	}
 }
 
+// transmit any outstanding data in the usbTxQueue
+void usb_transmit() {
+	int rdRPos = usbTxQueueRPos;
+	int rdWPos = usbTxQueueWPos;
+	__sync_synchronize();
+
+	if(rdRPos == rdWPos) // queue empty
+		return;
+	
+	usbDataPoint& usbDP = usbTxQueue[rdRPos];
+	VNAObservation& value = usbDP.value;
+	int32_t fwdRe = value[1].real();
+	int32_t fwdIm = value[1].imag();
+	int32_t reflRe = value[0].real();
+	int32_t reflIm = value[0].imag();
+	int32_t thruRe = value[2].real();
+	int32_t thruIm = value[2].imag();
+	uint8_t txbuf[31];
+	txbuf[0] = fwdRe & 0x7F;
+	txbuf[1] = (fwdRe >> 7) | 0x80;
+	txbuf[2] = (fwdRe >> 14) | 0x80;
+	txbuf[3] = (fwdRe >> 21) | 0x80;
+	txbuf[4] = (fwdRe >> 28) | 0x80;
+	
+	txbuf[5] = (fwdIm >> 0) | 0x80;
+	txbuf[6] = (fwdIm >> 7) | 0x80;
+	txbuf[7] = (fwdIm >> 14) | 0x80;
+	txbuf[8] = (fwdIm >> 21) | 0x80;
+	txbuf[9] = (fwdIm >> 28) | 0x80;
+	
+	txbuf[10] = (reflRe >> 0) | 0x80;
+	txbuf[11] = (reflRe >> 7) | 0x80;
+	txbuf[12] = (reflRe >> 14) | 0x80;
+	txbuf[13] = (reflRe >> 21) | 0x80;
+	txbuf[14] = (reflRe >> 28) | 0x80;
+	
+	txbuf[15] = (reflIm >> 0) | 0x80;
+	txbuf[16] = (reflIm >> 7) | 0x80;
+	txbuf[17] = (reflIm >> 14) | 0x80;
+	txbuf[18] = (reflIm >> 21) | 0x80;
+	txbuf[19] = (reflIm >> 28) | 0x80;
+	
+	txbuf[20] = (thruRe >> 0) | 0x80;
+	txbuf[21] = (thruRe >> 7) | 0x80;
+	txbuf[22] = (thruRe >> 14) | 0x80;
+	txbuf[23] = (thruRe >> 21) | 0x80;
+	txbuf[24] = (thruRe >> 28) | 0x80;
+	
+	txbuf[25] = (thruIm >> 0) | 0x80;
+	txbuf[26] = (thruIm >> 7) | 0x80;
+	txbuf[27] = (thruIm >> 14) | 0x80;
+	txbuf[28] = (thruIm >> 21) | 0x80;
+	txbuf[29] = (thruIm >> 28) | 0x80;
+	
+	uint8_t checksum=0b01000110;
+	for(int i=0; i<30; i++)
+		checksum = (checksum xor ((checksum<<1) | 1)) xor txbuf[i];
+	txbuf[30] = checksum | (1<<7);
+	
+	serial.print((char*)txbuf, sizeof(txbuf));
+	__sync_synchronize();
+	usbTxQueueRPos = (rdRPos + 1) & usbTxQueueMask;
+}
+
+void usb_transmit_rawSamples() {
+	volatile uint16_t* buf;
+	int len;
+	adc_read(buf, len);
+	int8_t tmpBuf[adcBufSize];
+	for(int i=0; i<len; i++)
+		tmpBuf[i] = int8_t(buf[i] >> 4) - 128;
+	serial.print((char*)tmpBuf, len);
+	rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
+	//rfsw(RFSW_RECV, ((cnt / 500) % 2) ? RFSW_RECV_REFL : RFSW_RECV_PORT2);
+	//rfsw(RFSW_REFL, ((cnt / 500) % 2) ? RFSW_REFL_ON : RFSW_REFL_OFF);
+	rfsw(RFSW_RECV, RFSW_RECV_REFL);
+	rfsw(RFSW_REFL, RFSW_REFL_ON);
+}
+
 int main(void) {
 	int i;
 	boardInit();
@@ -378,6 +481,7 @@ int main(void) {
 	serial.begin(115200);
 
 	lcd_setup();
+	UIHW::init(tim1Period);
 
 	si5351_i2c.init();
 	if(!si5351_setup())
@@ -395,92 +499,22 @@ int main(void) {
 	bool testSG = false;
 	
 	if(testSG) {
-		//sampleProcessor.sgRate /= 100;
 		while(1) {
 			uint16_t tmp = 1;
 			vnaMeasurement.processSamples(&tmp, 1);
 		}
-	} else {
-		timer_setup();
-		uint32_t cnt = 0;
-		while(1) {
-			if(outputRawSamples) {
-				volatile uint16_t* buf;
-				int len;
-				adc_read(buf, len);
-				cnt += len;
-				int8_t tmpBuf[adcBufSize];
-				for(int i=0; i<len; i++)
-					tmpBuf[i] = int8_t(buf[i] >> 4) - 128;
-				serial.print((char*)tmpBuf, len);
-				rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
-				//rfsw(RFSW_RECV, ((cnt / 500) % 2) ? RFSW_RECV_REFL : RFSW_RECV_PORT2);
-				//rfsw(RFSW_REFL, ((cnt / 500) % 2) ? RFSW_REFL_ON : RFSW_REFL_OFF);
-				rfsw(RFSW_RECV, RFSW_RECV_REFL);
-				rfsw(RFSW_REFL, RFSW_REFL_ON);
-			} else {
-				int rdRPos = usbTxQueueRPos;
-				int rdWPos = usbTxQueueWPos;
-				__sync_synchronize();
+		return 0;
+	}
 
-				if(rdRPos == rdWPos) // queue empty
-					continue;
-				
-				usbDataPoint& usbDP = usbTxQueue[rdRPos];
-				VNAObservation& value = usbDP.value;
-				int32_t fwdRe = value[1].real();
-				int32_t fwdIm = value[1].imag();
-				int32_t reflRe = value[0].real();
-				int32_t reflIm = value[0].imag();
-				int32_t thruRe = value[2].real();
-				int32_t thruIm = value[2].imag();
-				uint8_t txbuf[31];
-				txbuf[0] = fwdRe & 0x7F;
-				txbuf[1] = (fwdRe >> 7) | 0x80;
-				txbuf[2] = (fwdRe >> 14) | 0x80;
-				txbuf[3] = (fwdRe >> 21) | 0x80;
-				txbuf[4] = (fwdRe >> 28) | 0x80;
-				
-				txbuf[5] = (fwdIm >> 0) | 0x80;
-				txbuf[6] = (fwdIm >> 7) | 0x80;
-				txbuf[7] = (fwdIm >> 14) | 0x80;
-				txbuf[8] = (fwdIm >> 21) | 0x80;
-				txbuf[9] = (fwdIm >> 28) | 0x80;
-				
-				txbuf[10] = (reflRe >> 0) | 0x80;
-				txbuf[11] = (reflRe >> 7) | 0x80;
-				txbuf[12] = (reflRe >> 14) | 0x80;
-				txbuf[13] = (reflRe >> 21) | 0x80;
-				txbuf[14] = (reflRe >> 28) | 0x80;
-				
-				txbuf[15] = (reflIm >> 0) | 0x80;
-				txbuf[16] = (reflIm >> 7) | 0x80;
-				txbuf[17] = (reflIm >> 14) | 0x80;
-				txbuf[18] = (reflIm >> 21) | 0x80;
-				txbuf[19] = (reflIm >> 28) | 0x80;
-				
-				txbuf[20] = (thruRe >> 0) | 0x80;
-				txbuf[21] = (thruRe >> 7) | 0x80;
-				txbuf[22] = (thruRe >> 14) | 0x80;
-				txbuf[23] = (thruRe >> 21) | 0x80;
-				txbuf[24] = (thruRe >> 28) | 0x80;
-				
-				txbuf[25] = (thruIm >> 0) | 0x80;
-				txbuf[26] = (thruIm >> 7) | 0x80;
-				txbuf[27] = (thruIm >> 14) | 0x80;
-				txbuf[28] = (thruIm >> 21) | 0x80;
-				txbuf[29] = (thruIm >> 28) | 0x80;
-				
-				uint8_t checksum=0b01000110;
-				for(int i=0; i<30; i++)
-					checksum = (checksum xor ((checksum<<1) | 1)) xor txbuf[i];
-				txbuf[30] = checksum | (1<<7);
-				
-				serial.print((char*)txbuf, sizeof(txbuf));
-				__sync_synchronize();
-				usbTxQueueRPos = (rdRPos + 1) & usbTxQueueMask;
-			}
-		}
+	timer_setup();
+	
+	while(true) {
+		if(!eventQueue.readable()) continue;
+		auto& callback = eventQueue.read();
+		if(!callback)
+			abort();
+		callback();
+		eventQueue.dequeue();
 	}
 }
 
@@ -517,10 +551,6 @@ void set_sweep_frequency(int type, int32_t frequency) {
 	
 }
 uint32_t get_sweep_frequency(int type) {
-	
-}
-
-float my_atof(const char *p) {
 	
 }
 
@@ -561,4 +591,16 @@ void update_frequencies(void) {
 	
 }
 
+void application_doSingleEvent() {
+	if(eventQueue.readable()) {
+		auto& callback = eventQueue.read();
+		if(!callback)
+			abort();
+		callback();
+		eventQueue.dequeue();
+	}
+}
+void enqueueEvent(const small_function<void()>& cb) {
+	eventQueue.enqueue(cb);
+}
 
