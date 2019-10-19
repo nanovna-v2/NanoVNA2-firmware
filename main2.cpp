@@ -509,12 +509,15 @@ int main(void) {
 	timer_setup();
 	
 	while(true) {
-		if(!eventQueue.readable()) continue;
-		auto& callback = eventQueue.read();
+		if(!eventQueue.readable()) {
+			draw_all(true);
+			continue;
+		}
+		auto callback = eventQueue.read();
+		eventQueue.dequeue();
 		if(!callback)
 			abort();
 		callback();
-		eventQueue.dequeue();
 	}
 }
 
@@ -538,69 +541,70 @@ extern "C" void *memcpy(char *dest, const char *src, uint32_t n) {
 
 
 // nanovna UI callbacks
+namespace UIActions {
 
-void cal_collect(int type) {
-	
-}
-void cal_done(void) {
-	
-}
-
-
-void set_sweep_frequency(int type, int32_t frequency) {
-	
-}
-uint32_t get_sweep_frequency(int type) {
-	
-}
-
-void toggle_sweep(void) {
-	
-}
+	void cal_collect(int type) {
+		
+	}
+	void cal_done(void) {
+		
+	}
 
 
+	void set_sweep_frequency(int type, int32_t frequency) {
+		
+	}
+	uint32_t get_sweep_frequency(int type) {
+		
+	}
 
-void set_trace_type(int t, int type) {
-	
-}
-void set_trace_channel(int t, int channel) {
-	
-}
-void set_trace_scale(int t, float scale) {
-	
-}
-void set_trace_refpos(int t, float refpos) {
-	
-}
+	void toggle_sweep(void) {
+		
+	}
 
-void set_electrical_delay(float picoseconds) {
-	
-}
-float get_electrical_delay(void) {
-	
-}
 
-void apply_edelay_at(int i) {
-	
-}
 
-void set_frequencies(uint32_t start, uint32_t stop, int16_t points) {
-	
-}
-void update_frequencies(void) {
-	
-}
+	void set_trace_type(int t, int type) {
+		
+	}
+	void set_trace_channel(int t, int channel) {
+		
+	}
+	void set_trace_scale(int t, float scale) {
+		
+	}
+	void set_trace_refpos(int t, float refpos) {
+		
+	}
 
-void application_doSingleEvent() {
-	if(eventQueue.readable()) {
-		auto& callback = eventQueue.read();
-		if(!callback)
-			abort();
-		callback();
-		eventQueue.dequeue();
+	void set_electrical_delay(float picoseconds) {
+		
+	}
+	float get_electrical_delay(void) {
+		
+	}
+
+	void apply_edelay_at(int i) {
+		
+	}
+
+	void set_frequencies(uint32_t start, uint32_t stop, int16_t points) {
+		
+	}
+	void update_frequencies(void) {
+		
+	}
+
+	void application_doSingleEvent() {
+		if(eventQueue.readable()) {
+			auto callback = eventQueue.read();
+			eventQueue.dequeue();
+			if(!callback)
+				abort();
+			callback();
+		}
+	}
+	void enqueueEvent(const small_function<void()>& cb) {
+		eventQueue.enqueue(cb);
 	}
 }
-void enqueueEvent(const small_function<void()>& cb) {
-	eventQueue.enqueue(cb);
-}
-

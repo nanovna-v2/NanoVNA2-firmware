@@ -34,6 +34,7 @@
 using UIHW::UIEvent;
 using UIHW::UIEventButtons;
 using UIHW::UIEventTypes;
+using namespace UIActions;
 
 
 #define TRUE true
@@ -57,7 +58,7 @@ int8_t selection = 0;
 typedef struct {
   uint8_t type;
   const char *label;
-  void (*callback)(int);
+  void (*callback)(UIEvent evt, int item);
   const void* reference;
 } menuitem_t;
 
@@ -195,6 +196,10 @@ touch_position(int *x, int *y)
 {
   int touchX, touchY;
   UIHW::touchPosition(touchX, touchY);
+  if(touchX == -1) {
+    *x = *y = -1;
+    return;
+  }
   *x = (touchX - config.touch_cal[0]) * 16 / config.touch_cal[2];
   *y = (touchY - config.touch_cal[1]) * 16 / config.touch_cal[3];
 }
@@ -257,14 +262,14 @@ enum {
   MT_CLOSE
 };
 
-typedef void (*menuaction_cb_t)(int item);
+typedef void (*menuaction_cb_t)(UIEvent evt, int item);
 
 
 static void menu_move_back(void);
 
 
 static void
-menu_calop_cb(int item)
+menu_calop_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0: // OPEN
@@ -291,7 +296,7 @@ menu_calop_cb(int item)
 
 extern const menuitem_t menu_save[];
 
-static void menu_caldone_cb(int item)
+static void menu_caldone_cb(UIEvent evt, int item)
 {
   (void)item;
   cal_done();
@@ -301,7 +306,7 @@ static void menu_caldone_cb(int item)
 }
 
 static void
-menu_cal2_cb(int item)
+menu_cal2_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 2: // RESET
@@ -319,7 +324,7 @@ menu_cal2_cb(int item)
 }
 
 static void
-menu_recall_cb(int item)
+menu_recall_cb(UIEvent evt, int item)
 {
   if (item < 0 || item >= 5)
     return;
@@ -332,7 +337,7 @@ menu_recall_cb(int item)
 }
 
 static void
-menu_config_cb(int item)
+menu_config_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0:
@@ -340,6 +345,7 @@ menu_config_cb(int item)
       redraw_frame();
       request_to_redraw_grid();
       draw_menu();
+      uiEnableProcessing();
       break;
   case 1:
       touch_draw_test();
@@ -361,7 +367,7 @@ menu_config_cb(int item)
 }
 
 static void
-menu_dfu_cb(int item)
+menu_dfu_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0:
@@ -370,7 +376,7 @@ menu_dfu_cb(int item)
 }
 
 static void
-menu_save_cb(int item)
+menu_save_cb(UIEvent evt, int item)
 {
   if (item < 0 || item >= 5)
     return;
@@ -396,7 +402,7 @@ choose_active_trace(void)
 }
 
 static void
-menu_trace_cb(int item)
+menu_trace_cb(UIEvent evt, int item)
 {
   if (item < 0 || item >= 4)
     return;
@@ -418,7 +424,7 @@ menu_trace_cb(int item)
 }
 
 static void
-menu_format_cb(int item)
+menu_format_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0:
@@ -444,7 +450,7 @@ menu_format_cb(int item)
 }
 
 static void
-menu_format2_cb(int item)
+menu_format2_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0:
@@ -472,7 +478,7 @@ menu_format2_cb(int item)
 }
 
 static void
-menu_channel_cb(int item)
+menu_channel_cb(UIEvent evt, int item)
 {
   if (item < 0 || item >= 2)
     return;
@@ -482,7 +488,7 @@ menu_channel_cb(int item)
 }
 
 static void
-menu_transform_window_cb(int item)
+menu_transform_window_cb(UIEvent evt, int item)
 {
   // TODO
   switch (item) {
@@ -502,7 +508,7 @@ menu_transform_window_cb(int item)
 }
 
 static void
-menu_transform_cb(int item)
+menu_transform_cb(UIEvent evt, int item)
 {
   int status;
   switch (item) {
@@ -553,20 +559,19 @@ choose_active_marker(void)
 }
 
 static void
-menu_scale_cb(int item)
+menu_scale_cb(UIEvent evt, int item)
 {
-  UIEvent evt = uiWaitEvent();
   if (evt.isLeverLongPress()) {
     ui_mode_numeric(KM_SCALE + item);
-    ui_process_numeric(evt);
+    //ui_process_numeric(evt);
   } else {
     ui_mode_keypad(KM_SCALE + item);
-    ui_process_keypad(evt);
+    //ui_process_keypad(evt);
   }
 }
 
 static void
-menu_stimulus_cb(int item)
+menu_stimulus_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0: /* START */
@@ -575,7 +580,6 @@ menu_stimulus_cb(int item)
   case 3: /* SPAN */
   case 4: /* CW */
   {
-    UIEvent evt = uiWaitEvent();
     if (evt.isLeverLongPress()) {
       ui_mode_numeric(item);
       ui_process_numeric(evt);
@@ -606,7 +610,7 @@ get_marker_frequency(int marker)
 }
 
 static void
-menu_marker_op_cb(int item)
+menu_marker_op_cb(UIEvent evt, int item)
 {
   int32_t freq = get_marker_frequency(active_marker);
   if (freq < 0)
@@ -649,7 +653,7 @@ menu_marker_op_cb(int item)
 }
 
 void 
-active_marker_select(int item)
+active_marker_select(UIEvent evt, int item)
 {
   if (item == -1) {
     active_marker = previous_marker;
@@ -665,20 +669,20 @@ active_marker_select(int item)
 }
 
 static void
-menu_marker_sel_cb(int item)
+menu_marker_sel_cb(UIEvent evt, int item)
 {
   if (item >= 0 && item < 4) {
     if (markers[item].enabled) {
       if (item == active_marker) {
         // disable if active trace is selected
         markers[item].enabled = FALSE;
-        active_marker_select(-1);
+        active_marker_select(evt, -1);
       } else {
-        active_marker_select(item);
+        active_marker_select(evt, item);
       }
     } else {
       markers[item].enabled = TRUE;
-      active_marker_select(item);
+      active_marker_select(evt, item);
     }
   } else if (item == 4) { /* all off */
       markers[0].enabled = FALSE;
@@ -917,7 +921,7 @@ static void menu_move_top(void)
 }
 */
 
-void menu_invoke(int item)
+void menu_invoke(UIEvent evt, int item)
 {
   const menuitem_t *menu = menu_stack[menu_current_level];
   menu = &menu[item];
@@ -934,10 +938,10 @@ void menu_invoke(int item)
     break;
 
   case MT_CALLBACK: {
-    menuaction_cb_t cb = (menuaction_cb_t)menu->reference;
+    menuaction_cb_t cb = (menuaction_cb_t)menu->callback;
     if (cb == NULL)
       return;
-    (*cb)(item);
+    (*cb)(evt, item);
     break;
   }
 
@@ -1203,17 +1207,17 @@ draw_menu_buttons(const menuitem_t *menu)
 }
 
 void
-menu_select_touch(int i)
+menu_select_touch(UIEvent evt, int i)
 {
   selection = i;
   draw_menu();
-  uiWaitEvent();
+  while(uiWaitEvent().type != UIEventTypes::Up);
   selection = -1;
-  menu_invoke(i);
+  menu_invoke(evt, i);
 }
 
 void
-menu_apply_touch(void)
+menu_apply_touch(UIEvent evt)
 {
   int touch_x, touch_y;
   const menuitem_t *menu = menu_stack[menu_current_level];
@@ -1228,7 +1232,7 @@ menu_apply_touch(void)
     int y = 32*i;
     if (y-2 < touch_y && touch_y < y+30+2
         && 320-60 < touch_x) {
-      menu_select_touch(i);
+      menu_select_touch(evt, i);
       return;
     }
   }
@@ -1393,6 +1397,8 @@ ui_mode_keypad(int _keypad_mode)
   if (ui_mode == UI_KEYPAD) 
     return;
 
+  kp_index = 0;
+
   // keypads array
   keypad_mode = _keypad_mode;
   keypads = keypads_mode_tbl[_keypad_mode];
@@ -1460,7 +1466,7 @@ static void
 ui_process_menu(UIEvent evt)
 {
   if (evt.isLeverClick()) {
-    menu_invoke(selection);
+    menu_invoke(evt, selection);
     return;
   }
   if (evt.isJogRight()
@@ -1474,7 +1480,7 @@ ui_process_menu(UIEvent evt)
     draw_menu();
   }
   if(evt.isTouchPress()) {
-    menu_apply_touch();
+    menu_apply_touch(evt);
   }
 }
 
@@ -1681,7 +1687,6 @@ ui_process_numeric(UIEvent evt)
 void
 ui_process_keypad(UIEvent evt)
 {
-  kp_index = 0;
   if (evt.isJogLeft()) {
     selection--;
     if (selection < 0)
@@ -1715,6 +1720,7 @@ ui_process_keypad(UIEvent evt)
       return;
     }
   }
+  return;
 
 return_to_normal:
   redraw_frame();
@@ -1796,10 +1802,10 @@ touch_pickup_marker(void)
 void
 ui_process(UIEvent evt)
 {
-  if(!uiEventsEnabled) {
-    lastUIEvent = evt;
+  lastUIEvent = evt;
+  if(!uiEventsEnabled)
     return;
-  }
+
   if(evt.isTouchPress())
     awd_count++;
 

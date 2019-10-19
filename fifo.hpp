@@ -36,6 +36,7 @@ public:
 		return elements[_rpos];
 	}
 	void dequeue() {
+		if(!readable()) abort();
 		elementStatus[_rpos] = 0;
 		_rpos = (_rpos+1) & sizeMask;
 	}

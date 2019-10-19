@@ -21,8 +21,8 @@ namespace UIHW {
 		Tick			// regular timed event when button is held down
 	};
 	struct UIEvent {
-		UIEventButtons button = UIEventButtons::None;
-		UIEventTypes type = UIEventTypes::None;
+		UIEventButtons button;
+		UIEventTypes type;
 
 		// touchscreen was pressed
 		bool isTouchPress() {

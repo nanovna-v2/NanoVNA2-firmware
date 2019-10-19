@@ -43,6 +43,10 @@ namespace board {
 	static constexpr Pad xpt2046_cs = PB7;
 	static constexpr Pad xpt2046_irq = PB8;
 
+	static constexpr Pad LEVER_LEFT = PB14;
+	static constexpr Pad LEVER_CENTER = PB15;
+	static constexpr Pad LEVER_RIGHT = PA8;
+	static constexpr bool LEVER_POLARITY = false; // pin level when lever/button is pressed
 
 	// ##### board parameters #####
 	extern uint32_t adc_ratecfg;
