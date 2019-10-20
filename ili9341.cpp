@@ -28,7 +28,7 @@
 #define DC_CMD			digitalWrite(ili9341_conf_dc, LOW)
 #define DC_DATA			digitalWrite(ili9341_conf_dc, HIGH)
 
-uint16_t spi_buffer[1024];
+uint16_t ili9341_spi_buffer[1024];
 
 Pad ili9341_conf_cs;
 Pad ili9341_conf_dc;
@@ -188,10 +188,10 @@ void ili9341_fill(int x, int y, int w, int h, int color)
 	send_command(0x2C, 0, NULL);
 
 	constexpr int chunkSize = 512;
-	static_assert(chunkSize <= sizeof(spi_buffer)/sizeof(*spi_buffer));
+	static_assert(chunkSize <= sizeof(ili9341_spi_buffer)/sizeof(*ili9341_spi_buffer));
 
 	for(int i=0; i<chunkSize; i++)
-		spi_buffer[i] = color;
+		ili9341_spi_buffer[i] = color;
 
 	while(len > chunkSize) {
 		ili9341_spi_transfer_bulk(chunkSize);
@@ -206,7 +206,7 @@ void ili9341_bulk(int x, int y, int w, int h)
 {
 	uint8_t xx[4] = { x >> 8, x, (x+w-1) >> 8, (x+w-1) };
 	uint8_t yy[4] = { y >> 8, y, (y+h-1) >> 8, (y+h-1) };
-	uint16_t *buf = spi_buffer;
+	uint16_t *buf = ili9341_spi_buffer;
 	int len = w * h;
 	send_command(0x2A, 4, xx);
 	send_command(0x2B, 4, yy);
@@ -270,7 +270,7 @@ ili9341_read_memory_continue(int len, uint16_t* out)
 void
 ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg)
 {
-  uint16_t *buf = spi_buffer;
+  uint16_t *buf = ili9341_spi_buffer;
   uint16_t bits;
   int c, r;
   for(c = 0; c < 7; c++) {
@@ -296,7 +296,7 @@ ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg)
 void
 ili9341_drawchar_size(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
 {
-  uint16_t *buf = spi_buffer;
+  uint16_t *buf = ili9341_spi_buffer;
   uint16_t bits;
   int c, r;
   for(c = 0; c < 7*size; c++) {
@@ -366,7 +366,7 @@ const font_t NF20x24 = { 20, 24, 1, 24, (const uint32_t *)numfont20x24 };
 void
 ili9341_drawfont(uint8_t ch, const font_t *font, int x, int y, uint16_t fg, uint16_t bg)
 {
-	uint16_t *buf = spi_buffer;
+	uint16_t *buf = ili9341_spi_buffer;
 	uint32_t bits;
 	const uint32_t *bitmap = &font->bitmap[font->slide * ch];
 	int c, r, j;

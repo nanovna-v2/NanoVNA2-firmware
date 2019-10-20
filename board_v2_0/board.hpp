@@ -2,6 +2,7 @@
 #include <libopencm3/stm32/adc.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/flash.h>
+#include <libopencm3/stm32/spi.h>
 #include <mculib/fastwiring.hpp>
 #include <mculib/softi2c.hpp>
 #include <mculib/softspi.hpp>
@@ -38,6 +39,10 @@ namespace board {
 	static constexpr Pad RFSW_REFL = PB0;
 	static constexpr Pad RFSW_RECV = PB1;
 
+	
+	static constexpr Pad lcd_clk = PB3;
+	static constexpr Pad lcd_mosi = PB5;
+	static constexpr Pad lcd_miso = PB4;
 	static constexpr Pad ili9341_cs = PA15;
 	static constexpr Pad ili9341_dc = PB6;
 	static constexpr Pad xpt2046_cs = PB7;
@@ -98,14 +103,6 @@ namespace board {
 
 	// lcd display
 
-	struct spiDelay_fast_t {
-		void operator()() {
-			asm __volatile__ ( "nop" );
-		}
-	};
-	extern SoftSPI<spiDelay_fast_t> ili9341_spi;
-	extern SoftSPI<spiDelay_t> xpt2046_spi;
-
 	extern XPT2046 xpt2046;
 
 	// rf switch positions
@@ -150,4 +147,13 @@ namespace board {
 
 	// set si5351 frequency for tx or rx port
 	void si5351_set(bool isRX, uint32_t freq_khz);
+
+	// sets up hardware spi for ili9341 and touch.
+	// spi peripheral only manages clk, sdi, and sdo.
+	void lcd_spi_init();
+
+	// bits must be 16 or 8
+	uint32_t lcd_spi_transfer(uint32_t sdi, int bits);
+
+	void lcd_spi_transfer_bulk(uint8_t* buf, int bytes);
 }

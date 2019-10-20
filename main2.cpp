@@ -218,14 +218,28 @@ void adc_read(volatile uint16_t*& data, int& len) {
 
 
 void lcd_setup() {
+	lcd_spi_init();
+
 	ili9341_conf_cs = ili9341_cs;
 	ili9341_conf_dc = ili9341_dc;
 	ili9341_spi_transfer = [](uint32_t sdi, int bits) {
-		return ili9341_spi.doTransfer(sdi, bits);
+		return lcd_spi_transfer(sdi, bits);
 	};
 	ili9341_spi_transfer_bulk = [](uint32_t words) {
-		ili9341_spi.doTransfer_bulk_send(spi_buffer, words);
+		int bytes = words*2;
+		lcd_spi_transfer_bulk((uint8_t*)ili9341_spi_buffer, words*2);
 	};
+	
+	xpt2046.spiTransfer = [](uint32_t sdi, int bits) {
+		delayMicroseconds(10);
+		uint32_t ret = lcd_spi_transfer(sdi, bits);
+		delayMicroseconds(10);
+		return ret;
+	};
+	delay(10);
+
+	xpt2046.begin(320, 240);
+	
 	ili9341_init();
 	ili9341_test(5);
 	plot_init();
@@ -241,18 +255,6 @@ void lcd_setup() {
 	draw_all(true);
 }
 
-/*
-void touch_checkAndDispatch() {
-	eventQueue.enqueue([]() {
-		//digitalWrite(led2, !digitalRead(led2));
-		uint16_t touchX, touchY;
-		xpt2046.getPosition(touchX, touchY);
-		char buf[10];
-		chsnprintf(buf, sizeof buf, "%9d", touchX);
-		draw_numeric_input(buf);
-		//ui_process(UIOperations::OP_TOUCH);
-	});
-}*/
 
 
 /*
@@ -509,6 +511,7 @@ int main(void) {
 	timer_setup();
 	
 	while(true) {
+		//usb_transmit();
 		if(!eventQueue.readable()) {
 			draw_all(true);
 			continue;

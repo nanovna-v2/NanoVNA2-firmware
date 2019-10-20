@@ -396,42 +396,6 @@ rectangular_grid_y(int y)
 	return 0;
 }
 
-#if 0
-int
-set_strut_grid(int x)
-{
-	uint16_t *buf = spi_buffer;
-	int y;
-
-	for (y = 0; y < HEIGHT; y++) {
-		int c = rectangular_grid(x, y);
-		c |= smith_grid(x, y);
-		*buf++ = c;
-	}
-	return y;
-}
-
-void
-draw_on_strut(int v0, int d, int color)
-{
-	int v;
-	int v1 = v0 + d;
-	if (v0 < 0) v0 = 0;
-	if (v1 < 0) v1 = 0;
-	if (v0 >= HEIGHT) v0 = HEIGHT-1;
-	if (v1 >= HEIGHT) v1 = HEIGHT-1;
-	if (v0 == v1) {
-		v = v0; d = 2;
-	} else if (v0 < v1) {
-		v = v0; d = v1 - v0 + 1;
-	} else {
-		v = v1; d = v0 - v1 + 1;
-	}
-	while (d-- > 0)
-		spi_buffer[v++] |= color;
-}
-#endif
-
 /*
  * calculate log10(abs(gamma))
  */ 
@@ -877,7 +841,7 @@ cell_drawline(int w, int h, int x0, int y0, int x1, int y1, int c)
 	if (dx >= dy) {
 			e = dy * 2 - dx;
 			while (x0 != x1) {
-					if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  spi_buffer[y0*w+x0] |= c;
+					if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
 					x0++;
 					e += dy * 2;
 					if (e >= 0) {
@@ -885,11 +849,11 @@ cell_drawline(int w, int h, int x0, int y0, int x1, int y1, int c)
 							y0 += sy;
 					}
 			}
-			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  spi_buffer[y0*w+x0] |= c;
+			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
 	} else {
 			e = dx * 2 - dy;
 			while (y0 != y1) {
-					if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  spi_buffer[y0*w+x0] |= c;
+					if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
 					y0 += sy;
 					e += dx * 2;
 					if (e >= 0) {
@@ -897,7 +861,7 @@ cell_drawline(int w, int h, int x0, int y0, int x1, int y1, int c)
 							x0++;
 					}
 			}
-			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  spi_buffer[y0*w+x0] |= c;
+			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
 	}
 }
 
@@ -989,9 +953,9 @@ draw_refpos(int w, int h, int x, int y, int c)
 			int y0 = y - j;
 			int y1 = y + j;
 			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)
-				spi_buffer[y0*w+x0] = c;
+				ili9341_spi_buffer[y0*w+x0] = c;
 			if (j != 0 && y1 >= 0 && y1 < h && x0 >= 0 && x0 < w)
-				spi_buffer[y1*w+x0] = c;
+				ili9341_spi_buffer[y1*w+x0] = c;
 		}
 	}
 }
@@ -1031,7 +995,7 @@ draw_marker(int w, int h, int x, int y, int c, int ch)
 					cc = 0;
 			}
 			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)
-				spi_buffer[y0*w+x0] = cc;
+				ili9341_spi_buffer[y0*w+x0] = cc;
 		}
 	}
 }
@@ -1171,16 +1135,16 @@ draw_cell(int m, int n)
 		for (x = 0; x < w; x++) {
 			uint16_t c = rectangular_grid_x(x+x0off);
 			for (y = 0; y < h; y++)
-				spi_buffer[y * w + x] = c;
+				ili9341_spi_buffer[y * w + x] = c;
 		}
 		for (y = 0; y < h; y++) {
 			uint16_t c = rectangular_grid_y(y+y0);
 			for (x = 0; x < w; x++)
 				if (x+x0off >= 0 && x+x0off <= WIDTH)
-					spi_buffer[y * w + x] |= c;
+					ili9341_spi_buffer[y * w + x] |= c;
 		}
 	} else {
-		memset(spi_buffer, 0, sizeof spi_buffer);
+		memset(ili9341_spi_buffer, 0, sizeof ili9341_spi_buffer);
 	}
 	if (grid_mode & (GRID_SMITH|GRID_ADMIT|GRID_POLAR)) {
 		for (y = 0; y < h; y++) {
@@ -1193,7 +1157,7 @@ draw_cell(int m, int n)
 				//c = smith_grid2(x+x0, y+y0, 0.5);
 				else if (grid_mode & GRID_POLAR)
 					c = polar_grid(x+x0off, y+y0);
-				spi_buffer[y * w + x] |= c;
+				ili9341_spi_buffer[y * w + x] |= c;
 			}
 		}
 	}
@@ -1338,7 +1302,7 @@ cell_drawchar_5x7(int w, int h, uint8_t ch, int x, int y, uint16_t fg, int inver
 			bits = ~bits;
 		for (r = 0; r < 5; r++) {
 			if ((x+r) >= 0 && (x+r) < w && (0x8000 & bits)) 
-				spi_buffer[(y+c)*w + (x+r)] = fg;
+				ili9341_spi_buffer[(y+c)*w + (x+r)] = fg;
 			bits <<= 1;
 		}
 	}
@@ -1539,10 +1503,10 @@ draw_battery_status(void)
 		int w = 10, h = 14;
 		int x = 0, y = 0;
 		int i, c;
-		uint16_t *buf = spi_buffer;
+		uint16_t *buf = ili9341_spi_buffer;
 		uint8_t vbati = vbat2bati(vbat);
 		uint16_t col = vbati == 0 ? RGB565(0, 255, 0) : RGB565(0, 0, 240);
-		memset(spi_buffer, 0, w * h * 2);
+		memset(ili9341_spi_buffer, 0, w * h * 2);
 
 		// battery head
 		x = 3;

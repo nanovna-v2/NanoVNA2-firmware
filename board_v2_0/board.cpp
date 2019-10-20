@@ -37,7 +37,6 @@ namespace board {
 
 	i2cDelay_t i2cDelay;
 	spiDelay_t spiDelay;
-	spiDelay_fast_t spiDelay_fast;
 
 	// TODO(gabu-chan): get rid of template argument after switch to c++17
 	SoftI2C<i2cDelay_t> si5351_i2c(i2cDelay);
@@ -49,9 +48,6 @@ namespace board {
 
 	ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_tx(adf4350_sendWord_t {adf4350_tx_spi});
 	ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_rx(adf4350_sendWord_t {adf4350_rx_spi});
-
-	SoftSPI<spiDelay_fast_t> ili9341_spi(spiDelay_fast);
-	SoftSPI<spiDelay_t> xpt2046_spi(spiDelay);
 
 	XPT2046 xpt2046(xpt2046_cs, xpt2046_irq);
 
@@ -154,7 +150,7 @@ namespace board {
 
 		rcc_periph_clock_enable(RCC_AFIO);
 		// jtag pins should be used as GPIOs (SWD is used for debugging)
-		gpio_primary_remap(AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON,0);
+		gpio_primary_remap(AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON, AFIO_MAPR_SPI1_REMAP);
 		
 		si5351_i2c.clk = PB10;
 		si5351_i2c.sda = PB11;
@@ -169,27 +165,14 @@ namespace board {
 		adf4350_rx_spi.mosi = PA6;
 		adf4350_rx_spi.miso = PA3;
 
-		ili9341_spi.sel = PA15;
-		ili9341_spi.clk = PB3;
-		ili9341_spi.mosi = PB5;
-		ili9341_spi.miso = PB4;
-
-		xpt2046_spi.sel = xpt2046_cs;
-		xpt2046_spi.clk = PB3;
-		xpt2046_spi.mosi = PB5;
-		xpt2046_spi.miso = PB4;
-
-		xpt2046.spiTransfer = [](uint32_t data, int bits) {
-			return xpt2046_spi.doTransfer(data, bits);
-		};
-
 		adf4350_tx_spi.init();
 		adf4350_rx_spi.init();
-		ili9341_spi.init();
-		xpt2046_spi.init();
-		xpt2046.begin(320, 240);
 
+		digitalWrite(ili9341_cs, HIGH);
+		digitalWrite(xpt2046_cs, HIGH);
 		pinMode(ili9341_dc, OUTPUT);
+		pinMode(ili9341_cs, OUTPUT);
+		pinMode(xpt2046_cs, OUTPUT);
 
 		adc_ratecfg = ADC_SMPR_SMP_7DOT5CYC;
 		adc_srate = 6000000/(7.5+12.5);
@@ -302,4 +285,52 @@ namespace board {
 		}
 	}
 
+	void lcd_spi_init() {
+		gpio_set_mode(lcd_clk.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_clk.mask());
+		gpio_set_mode(lcd_mosi.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_mosi.mask());
+		gpio_set_mode(lcd_miso.bank(), GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, lcd_miso.mask());
+
+		rcc_periph_clock_enable(RCC_SPI1);
+		/* Reset SPI, SPI_CR1 register cleared, SPI is disabled */
+		spi_reset(SPI1);
+
+		/* Set up SPI in Master mode with:
+		* Clock baud rate: 1/64 of peripheral clock frequency
+		* Clock polarity: Idle High
+		* Clock phase: Data valid on 1st clock pulse
+		* Data frame format: 16-bit
+		* Frame format: MSB First
+		*/
+		spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_32, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
+						SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_DFF_8BIT, SPI_CR1_MSBFIRST);
+
+		/*
+		* Set NSS management to software.
+		*
+		* Note:
+		* Setting nss high is very important, even if we are controlling the GPIO
+		* ourselves this bit needs to be at least set to 1, otherwise the spi
+		* peripheral will not send any data out.
+		*/
+		spi_enable_software_slave_management(SPI1);
+		spi_set_nss_high(SPI1);
+
+		/* Enable SPI1 periph. */
+		spi_enable(SPI1);
+	}
+	
+	uint32_t lcd_spi_transfer(uint32_t sdi, int bits) {
+		uint32_t ret = 0;
+		if(bits == 16) {
+			ret = uint32_t(spi_xfer(SPI1, (uint16_t) (sdi >> 8))) << 8;
+		}
+		ret |= spi_xfer(SPI1, (uint16_t) sdi);
+		return ret;
+	}
+
+	void lcd_spi_transfer_bulk(uint8_t* buf, int bytes) {
+		for(int i=0; i<bytes; i++) {
+			spi_xfer(SPI1, buf[i]);
+		}
+	}
 }

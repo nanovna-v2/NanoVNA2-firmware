@@ -19,7 +19,7 @@ typedef struct {
 extern const font_t NF20x24;
 
 
-extern uint16_t spi_buffer[1024];
+extern uint16_t ili9341_spi_buffer[1024];
 extern Pad ili9341_conf_cs;
 extern Pad ili9341_conf_dc;
 

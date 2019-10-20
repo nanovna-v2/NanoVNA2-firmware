@@ -23,8 +23,11 @@ XPT2046::XPT2046 (Pad cs_pin, Pad irq_pin)
 }
 
 void XPT2046::begin(uint16_t width, uint16_t height) {
+	digitalWrite(_cs_pin, 1);
 	pinMode(_cs_pin, OUTPUT);
 	pinMode(_irq_pin, INPUT_PULLUP);
+
+	delay(1);
 
 	_width = width;
 	_height = height;
