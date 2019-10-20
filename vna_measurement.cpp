@@ -20,7 +20,8 @@ void VNAMeasurement::setSweep(uint64_t startFreqHz, uint64_t stepFreqHz, int poi
 	sweepDataPointsPerFreq = dataPointsPerFreq;
 
 	currFreq = startFreqHz;
-	periodCounterSynth = dpCounterSynth = 0;
+	periodCounterSynth = nWaitSynth*10;
+	dpCounterSynth = 0;
 	setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 	frequencyChanged(startFreqHz);
 }
@@ -43,12 +44,14 @@ void VNAMeasurement::sweepAdvance() {
 	currFreq = sweepStartHz + sweepStepHz*sweepCurrPoint;
 	frequencyChanged(currFreq);
 
-	periodCounterSynth = 0;
+	periodCounterSynth = nWaitSynth;
+	if(sweepCurrPoint == 0)
+		periodCounterSynth *= 10;
 }
 
 void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
-	if(periodCounterSynth < nWaitSynth) {
-		periodCounterSynth++;
+	if(periodCounterSynth > 0) {
+		periodCounterSynth--;
 		periodCounterSwitch = 0;
 		return;
 	}
@@ -77,7 +80,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		
 		// emit new data point
 		VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
-		emitDataPoint(currFreq, value);
+		emitDataPoint(sweepCurrPoint, currFreq, value);
 
 		dpCounterSynth++;
 		if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {

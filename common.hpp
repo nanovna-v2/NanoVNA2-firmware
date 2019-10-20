@@ -98,7 +98,7 @@ enum {
   TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_OFF
 };
 
-enum {
+enum SweepParameter {
   ST_START, ST_STOP, ST_CENTER, ST_SPAN, ST_CW
 };
 
@@ -119,8 +119,8 @@ typedef struct {
 
 typedef struct {
   int32_t magic;
-  int32_t _frequency0; // start or center
-  int32_t _frequency1; // stop or span
+  int32_t _frequency0; // start
+  int32_t _frequency1; // stop
   int16_t _sweep_points;
   uint16_t _cal_status;
 

@@ -788,6 +788,7 @@ void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX])
 
 	mark_cells_from_index();
 	markmap_all_markers();
+	redraw_request |= REDRAW_CELLS;
 }
 
 const uint8_t INSIDE = 0b0000;

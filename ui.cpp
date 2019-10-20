@@ -236,6 +236,20 @@ show_version(void)
   uiEnableProcessing();
 }
 
+
+void
+show_usb_data_mode(void)
+{
+  int x = 5, y = 5;
+
+  ili9341_fill(0, 0, 320, 240, 0);
+
+  ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
+  y += 50;
+
+  ili9341_drawstring_size("USB MODE", x, y, 0xffff, 0x0000, 4);
+}
+
 void
 enter_dfu(void)
 {

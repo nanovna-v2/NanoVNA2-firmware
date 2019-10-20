@@ -22,14 +22,14 @@ public:
 	static constexpr uint32_t nWaitSwitch = 1;
 
 	// how many periods to wait after changing synthesizer frequency
-	static constexpr uint32_t nWaitSynth = 5;
+	static constexpr uint32_t nWaitSynth = 10;
 
 	// how many periods to average over
-	static constexpr uint32_t nPeriods = 6;
+	static constexpr uint32_t nPeriods = 8;
 
 
 	// called when a new data point is available
-	small_function<void(uint64_t freqHz, const VNAObservationSet& v)> emitDataPoint;
+	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v)> emitDataPoint;
 
 	// called to change rf switch direction;
 	// the function may assume the phase progression is always:
@@ -56,11 +56,11 @@ public:
 	
 	SampleProcessor<_emitValue_t> sampleProcessor;
 
-protected:
+public:
 	// state variables
 	VNAMeasurementPhases measurementPhase = VNAMeasurementPhases::REFERENCE;
 
-	// counts up when waiting for synthesizer
+	// number of periods left to wait
 	uint32_t periodCounterSynth = 0;
 
 	// number of periods since changing rf switches

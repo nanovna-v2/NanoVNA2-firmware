@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <mculib/small_function.hpp>
+#include "common.hpp"
 
 // DO NOT INCLUDE THIS FILE OTHER THAN FROM main2.cpp and ui.cpp!!!!!
 // ONLY ui.cpp IS ALLOWED TO CALL FUNCTIONS DEFINED IN main2.cpp!!!!!
@@ -14,7 +15,7 @@ namespace UIActions {
 	void cal_collect(int type);
 	void cal_done(void);
 
-	void set_sweep_frequency(int type, int32_t frequency);
+	void set_sweep_frequency(SweepParameter type, int32_t frequency);
 	uint32_t get_sweep_frequency(int type);
 
 	void toggle_sweep(void);

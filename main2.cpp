@@ -65,9 +65,10 @@ VNAMeasurement vnaMeasurement;
 
 struct usbDataPoint {
 	VNAObservation value;
+	int freqIndex;
 };
-usbDataPoint usbTxQueue[32];
-constexpr int usbTxQueueMask = 31;
+usbDataPoint usbTxQueue[64];
+constexpr int usbTxQueueMask = 63;
 volatile int usbTxQueueWPos = 0;
 volatile int usbTxQueueRPos = 0;
 
@@ -79,6 +80,7 @@ volatile uint32_t systemTimeCounter = 0;
 
 FIFO<small_function<void()>, 8> eventQueue;
 
+volatile bool usbDataMode = false;
 
 void adc_process();
 
@@ -301,6 +303,7 @@ void serialCharHandler(uint8_t* s, int len) {
 				
 				//setFrequency(freq*10);
 				vnaMeasurement.setSweep(freq*10000, 0, 1);
+				usbDataMode = true;
 			}
 			if(writingRegister == 5) {
 				uint8_t outpMode = ch >> 4;
@@ -341,31 +344,40 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 // callback called by VNAMeasurement when an observation is available.
-void measurementEmitDataPoint(const VNAObservation& v) {
+static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v) {
 	// enqueue new data point
 	int wrRPos = usbTxQueueRPos;
 	int wrWPos = usbTxQueueWPos;
 	__sync_synchronize();
-	if((wrRPos + 1) & usbTxQueueMask == usbTxQueueWPos) {
+	if((wrWPos + 1) & usbTxQueueMask == wrRPos) {
 		// overflow
 	} else {
+		usbTxQueue[wrWPos].freqIndex = freqIndex;
 		usbTxQueue[wrWPos].value = v;
 		__sync_synchronize();
-		usbTxQueueWPos = (wrRPos + 1) & usbTxQueueMask;
+		usbTxQueueWPos = (wrWPos + 1) & usbTxQueueMask;
 	}
+}
+
+
+void updateSweepParams() {
+	uint64_t start = current_props._frequency0;
+	uint64_t step = (current_props._frequency1 - current_props._frequency0) / current_props._sweep_points;
+	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 }
 
 void measurement_setup() {
 	vnaMeasurement.phaseChanged = [](VNAMeasurementPhases ph) {
 		measurementPhaseChanged(ph);
 	};
-	vnaMeasurement.emitDataPoint = [](uint64_t freqHz, const VNAObservation& v) {
-		measurementEmitDataPoint(v);
+	vnaMeasurement.emitDataPoint = [](int freqIndex, uint64_t freqHz, const VNAObservation& v) {
+		measurementEmitDataPoint(freqIndex, freqHz, v);
 	};
 	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
 		setFrequency(freqHz/1000);
 	};
 	vnaMeasurement.init();
+	updateSweepParams();
 }
 
 void adc_process() {
@@ -460,6 +472,21 @@ void usb_transmit_rawSamples() {
 	rfsw(RFSW_REFL, RFSW_REFL_ON);
 }
 
+void processDataPoint() {
+	int rdRPos = usbTxQueueRPos;
+	int rdWPos = usbTxQueueWPos;
+	__sync_synchronize();
+
+	while(rdRPos != rdWPos) {
+		usbDataPoint& usbDP = usbTxQueue[rdRPos];
+		VNAObservation& value = usbDP.value;
+		measured[0][usbDP.freqIndex] = value[0]/value[1];
+		
+		rdRPos = (rdRPos + 1) & usbTxQueueMask;
+	}
+	usbTxQueueRPos = rdRPos;
+}
+
 int main(void) {
 	int i;
 	boardInit();
@@ -518,8 +545,21 @@ int main(void) {
 
 	timer_setup();
 	
+	bool lastUSBDataMode = false;
 	while(true) {
-		//usb_transmit();
+		if(usbDataMode) {
+			usb_transmit();
+			// display "usb mode" screen
+			if(!lastUSBDataMode)
+				show_usb_data_mode();
+			lastUSBDataMode = usbDataMode;
+			continue;
+		}
+		lastUSBDataMode = usbDataMode;
+		processDataPoint();
+		
+		plot_into_index(measured);
+		
 		if(!eventQueue.readable()) {
 			draw_all(true);
 			continue;
@@ -562,8 +602,17 @@ namespace UIActions {
 	}
 
 
-	void set_sweep_frequency(int type, int32_t frequency) {
-		
+	void set_sweep_frequency(SweepParameter type, int32_t frequency) {
+		switch(type) {
+			case ST_START:
+				current_props._frequency0 = frequency;
+				break;
+			case ST_STOP:
+				current_props._frequency1 = frequency;
+				break;
+			default: return;
+		}
+		updateSweepParams();
 	}
 	uint32_t get_sweep_frequency(int type) {
 		
