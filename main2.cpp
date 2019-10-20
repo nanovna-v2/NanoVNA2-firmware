@@ -229,11 +229,19 @@ void lcd_setup() {
 		int bytes = words*2;
 		lcd_spi_transfer_bulk((uint8_t*)ili9341_spi_buffer, words*2);
 	};
-	
+	ili9341_spi_wait_bulk = []() {
+		lcd_spi_waitDMA();
+	};
+
 	xpt2046.spiTransfer = [](uint32_t sdi, int bits) {
+		lcd_spi_waitDMA();
+		digitalWrite(ili9341_cs, HIGH);
+		
+		lcd_spi_slow();
 		delayMicroseconds(10);
 		uint32_t ret = lcd_spi_transfer(sdi, bits);
 		delayMicroseconds(10);
+		lcd_spi_fast();
 		return ret;
 	};
 	delay(10);

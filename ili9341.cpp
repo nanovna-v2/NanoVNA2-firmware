@@ -28,12 +28,17 @@
 #define DC_CMD			digitalWrite(ili9341_conf_dc, LOW)
 #define DC_DATA			digitalWrite(ili9341_conf_dc, HIGH)
 
-uint16_t ili9341_spi_buffer[1024];
+
+uint16_t ili9341_spi_bufferA[1024];
+uint16_t ili9341_spi_bufferB[1024];
+
+uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 
 Pad ili9341_conf_cs;
 Pad ili9341_conf_dc;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
+small_function<void()> ili9341_spi_wait_bulk;
 
 void ssp_wait(void)
 {
@@ -150,6 +155,8 @@ ili9341_init(void)
   delay(10);
   RESET_NEGATE;
 
+  ili9341_spi_wait_bulk();
+
   send_command(0x01, 0, NULL); // SW reset
   delay(5);
   send_command(0x28, 0, NULL); // display off
@@ -170,6 +177,7 @@ void ili9341_pixel(int x, int y, int color)
 	uint8_t xx[4] = { x >> 8, x, (x+1) >> 8, (x+1) };
 	uint8_t yy[4] = { y >> 8, y, (y+1) >> 8, (y+1) };
 	uint8_t cc[2] = { color >> 8, color };
+	ili9341_spi_wait_bulk();
 	send_command(0x2A, 4, xx);
 	send_command(0x2B, 4, yy);
 	send_command(0x2C, 2, cc);
@@ -183,12 +191,13 @@ void ili9341_fill(int x, int y, int w, int h, int color)
 	uint8_t xx[4] = { x >> 8, x, (x+w-1) >> 8, (x+w-1) };
 	uint8_t yy[4] = { y >> 8, y, (y+h-1) >> 8, (y+h-1) };
 	int len = w * h;
+	ili9341_spi_wait_bulk();
 	send_command(0x2A, 4, xx);
 	send_command(0x2B, 4, yy);
 	send_command(0x2C, 0, NULL);
 
 	constexpr int chunkSize = 512;
-	static_assert(chunkSize <= sizeof(ili9341_spi_buffer)/sizeof(*ili9341_spi_buffer));
+	static_assert(chunkSize <= sizeof(ili9341_spi_bufferA)/sizeof(*ili9341_spi_bufferA));
 
 	for(int i=0; i<chunkSize; i++)
 		ili9341_spi_buffer[i] = color;
@@ -201,38 +210,32 @@ void ili9341_fill(int x, int y, int w, int h, int color)
 	  ssp_senddata16(color);
 }
 
-#if 0
-void ili9341_bulk(int x, int y, int w, int h)
-{
-	uint8_t xx[4] = { x >> 8, x, (x+w-1) >> 8, (x+w-1) };
-	uint8_t yy[4] = { y >> 8, y, (y+h-1) >> 8, (y+h-1) };
-	uint16_t *buf = ili9341_spi_buffer;
-	int len = w * h;
-	send_command(0x2A, 4, xx);
-	send_command(0x2B, 4, yy);
-	send_command(0x2C, 0, NULL);
-	while (len-- > 0) 
-	  ssp_senddata16(*buf++);
-}
-#else
 void ili9341_bulk(int x, int y, int w, int h)
 {
 	uint8_t xx[4] = { x >> 8, x, (x+w-1) >> 8, (x+w-1) };
 	uint8_t yy[4] = { y >> 8, y, (y+h-1) >> 8, (y+h-1) };
 	int len = w * h;
+
+	ili9341_spi_wait_bulk();
 
 	send_command(0x2A, 4, xx);
 	send_command(0x2B, 4, yy);
 	send_command(0x2C, 0, NULL);
 
 	ili9341_spi_transfer_bulk(len);
+	
+	// switch buffers so that the user can continue to render while
+	// the bulk transfer is happening.
+	if(ili9341_spi_buffer == ili9341_spi_bufferA)
+		ili9341_spi_buffer = ili9341_spi_bufferB;
+	else ili9341_spi_buffer = ili9341_spi_bufferA;
 }
-#endif
 
 void
 ili9341_read_memory_raw(uint8_t cmd, int len, uint16_t* out)
 {
 	uint8_t r, g, b;
+	ili9341_spi_wait_bulk();
 	send_command(cmd, 0, NULL);
 
 	// require 8bit dummy clock
@@ -254,7 +257,8 @@ ili9341_read_memory(int x, int y, int w, int h, int len, uint16_t *out)
 {
 	uint8_t xx[4] = { x >> 8, x, (x+w-1) >> 8, (x+w-1) };
 	uint8_t yy[4] = { y >> 8, y, (y+h-1) >> 8, (y+h-1) };
-
+	ili9341_spi_wait_bulk();
+	
 	send_command(0x2A, 4, xx);
 	send_command(0x2B, 4, yy);
 

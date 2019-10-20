@@ -65,7 +65,7 @@ namespace board {
 	// baseband ADC
 
 	extern DMADriver dma;
-	extern DMAChannel dmaChannel;
+	extern DMAChannel dmaChannelADC;
 	extern DMAADC dmaADC;
 
 
@@ -78,7 +78,7 @@ namespace board {
 	};
 	struct spiDelay_t {
 		void operator()() {
-			delayMicroseconds(1);
+			_delay_8t(5);
 		}
 	};
 
@@ -152,8 +152,15 @@ namespace board {
 	// spi peripheral only manages clk, sdi, and sdo.
 	void lcd_spi_init();
 
+	// two speed presets for ili9341 and touch controller
+	void lcd_spi_fast();
+	void lcd_spi_slow();
+
 	// bits must be 16 or 8
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits);
 
 	void lcd_spi_transfer_bulk(uint8_t* buf, int bytes);
+	
+	// wait for all bulk transfers to complete
+	void lcd_spi_waitDMA();
 }

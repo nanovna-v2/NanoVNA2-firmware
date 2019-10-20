@@ -31,8 +31,9 @@ namespace board {
 
 
 	DMADriver dma(DMA1);
-	DMAChannel dmaChannel(dma, 1);
-	DMAADC dmaADC(dmaChannel, ADC1);
+	DMAChannel dmaChannelADC(dma, 1);
+	DMAChannel dmaChannelSPI(dma, 3);
+	DMAADC dmaADC(dmaChannelADC, ADC1);
 
 
 	i2cDelay_t i2cDelay;
@@ -286,6 +287,7 @@ namespace board {
 	}
 
 	void lcd_spi_init() {
+		dmaChannelSPI.enable();
 		gpio_set_mode(lcd_clk.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_clk.mask());
 		gpio_set_mode(lcd_mosi.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_mosi.mask());
 		gpio_set_mode(lcd_miso.bank(), GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, lcd_miso.mask());
@@ -301,7 +303,7 @@ namespace board {
 		* Data frame format: 16-bit
 		* Frame format: MSB First
 		*/
-		spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_32, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
+		spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_64, SPI_CR1_CPOL_CLK_TO_1_WHEN_IDLE,
 						SPI_CR1_CPHA_CLK_TRANSITION_2, SPI_CR1_DFF_8BIT, SPI_CR1_MSBFIRST);
 
 		/*
@@ -314,12 +316,41 @@ namespace board {
 		*/
 		spi_enable_software_slave_management(SPI1);
 		spi_set_nss_high(SPI1);
+		
+		spi_enable_tx_dma(SPI1);
 
 		/* Enable SPI1 periph. */
 		spi_enable(SPI1);
 	}
+	void lcd_spi_fast() {
+		spi_set_baudrate_prescaler(SPI1, 0b010);
+	}
+	void lcd_spi_slow() {
+		spi_set_baudrate_prescaler(SPI1, 0b110);
+	}
+	
+	bool lcd_spi_isDMAInProgress = false;
+	
+	void lcd_spi_waitDMA() {
+		if(!lcd_spi_isDMAInProgress)
+			return;
+
+		// wait for dma finish
+		while(!dmaChannelSPI.finished());
+		dmaChannelSPI.stop();
+
+		// wait for all ongoing transfers to complete
+		while (!(SPI_SR(SPI1) & SPI_SR_TXE));
+		while ((SPI_SR(SPI1) & SPI_SR_BSY));
+		
+		// switch back to tx+rx mode
+		spi_set_unidirectional_mode(SPI1);
+		lcd_spi_isDMAInProgress = false;
+	}
 	
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits) {
+		if(lcd_spi_isDMAInProgress)
+			lcd_spi_waitDMA();
 		uint32_t ret = 0;
 		if(bits == 16) {
 			ret = uint32_t(spi_xfer(SPI1, (uint16_t) (sdi >> 8))) << 8;
@@ -329,8 +360,26 @@ namespace board {
 	}
 
 	void lcd_spi_transfer_bulk(uint8_t* buf, int bytes) {
-		for(int i=0; i<bytes; i++) {
-			spi_xfer(SPI1, buf[i]);
-		}
+		if(lcd_spi_isDMAInProgress)
+			lcd_spi_waitDMA();
+
+		lcd_spi_isDMAInProgress = true;
+
+		// switch to tx only mode (do not put garbage in rx register)
+		spi_set_bidirectional_transmit_only_mode(SPI1);
+		DMATransferParams srcParams, dstParams;
+		srcParams.address = buf;
+		srcParams.bytesPerWord = 1;
+		srcParams.increment = true;
+
+		dstParams.address = &SPI_DR(SPI1);
+		dstParams.bytesPerWord = 1;
+		dstParams.increment = false;
+
+		dmaChannelSPI.setTransferParams(srcParams, dstParams,
+								DMADirection::MEMORY_TO_PERIPHERAL,
+								bytes, false);
+		dmaChannelSPI.start();
+		//lcd_spi_waitDMA();
 	}
 }

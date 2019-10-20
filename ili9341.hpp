@@ -18,8 +18,8 @@ typedef struct {
 
 extern const font_t NF20x24;
 
-
-extern uint16_t ili9341_spi_buffer[1024];
+// the buffer that ili9341_bulk() transfers from
+extern uint16_t* ili9341_spi_buffer;
 extern Pad ili9341_conf_cs;
 extern Pad ili9341_conf_dc;
 
@@ -28,8 +28,11 @@ extern Pad ili9341_conf_dc;
 // write sdi onto spi bus while returning read value; does not affect cs pin
 extern small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 
-// write spi_buffer to spi bus up to bytes
+// write spi_buffer to spi bus up to bytes without waiting for completion
 extern small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
+
+// wait for bulk transfers to complete
+extern small_function<void()> ili9341_spi_wait_bulk;
 
 void ili9341_init(void);
 void ili9341_test(int mode);
