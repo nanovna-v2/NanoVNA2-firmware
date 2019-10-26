@@ -125,7 +125,7 @@ void
 touch_cal_exec(void)
 {
   int status;
-  int x1, x2, y1, y2;
+  uint16_t x1, x2, y1, y2;
   UIEvent evt;
   
   uiDisableProcessing();
@@ -194,14 +194,24 @@ touch_draw_test(void)
 void
 touch_position(int *x, int *y)
 {
-  int touchX, touchY;
+  uint16_t touchX, touchY;
   UIHW::touchPosition(touchX, touchY);
-  if(touchX == -1) {
+  if(touchX == (uint16_t) -1) {
     *x = *y = -1;
     return;
   }
-  *x = (touchX - config.touch_cal[0]) * 16 / config.touch_cal[2];
-  *y = (touchY - config.touch_cal[1]) * 16 / config.touch_cal[3];
+  *x = (int(touchX) - config.touch_cal[0]) * 16 / config.touch_cal[2];
+  *y = (int(touchY) - config.touch_cal[1]) * 16 / config.touch_cal[3];
+}
+
+void
+touch_position(int *x, int *y, UIEvent evt) {
+  if(evt.x == (uint16_t) -1) {
+    *x = *y = -1;
+    return;
+  }
+  *x = (int(evt.x) - config.touch_cal[0]) * 16 / config.touch_cal[2];
+  *y = (int(evt.y) - config.touch_cal[1]) * 16 / config.touch_cal[3];
 }
 
 
@@ -1237,7 +1247,7 @@ menu_apply_touch(UIEvent evt)
   const menuitem_t *menu = menu_stack[menu_current_level];
   int i;
 
-  touch_position(&touch_x, &touch_y);
+  touch_position(&touch_x, &touch_y, evt);
   for (i = 0; i < 7; i++) {
     if (menu[i].type == MT_NONE)
       break;
@@ -1566,12 +1576,12 @@ keypad_click(int key)
 }
 
 static int
-keypad_apply_touch(void)
+keypad_apply_touch(UIEvent evt)
 {
   int touch_x, touch_y;
   int i = 0;
 
-  touch_position(&touch_x, &touch_y);
+  touch_position(&touch_x, &touch_y, evt);
 
   while (keypads[i].x) {
     if (keypads[i].x-2 < touch_x && touch_x < keypads[i].x+44+2
@@ -1598,7 +1608,7 @@ static void
 numeric_apply_touch(UIEvent evt)
 {
   int touch_x, touch_y;
-  touch_position(&touch_x, &touch_y);
+  touch_position(&touch_x, &touch_y, evt);
 
   if (touch_x < 64) {
     ui_mode_normal();
@@ -1725,7 +1735,7 @@ ui_process_keypad(UIEvent evt)
   }
 
   if (evt.isTouchPress()) {
-    int key = keypad_apply_touch();
+    int key = keypad_apply_touch(evt);
     if (key >= 0 && keypad_click(key))
       /* exit loop on done or cancel */
       goto return_to_normal;
@@ -1839,12 +1849,6 @@ ui_process(UIEvent evt)
   }
 }
 
-
-void
-test_touch(int *x, int *y)
-{
-  UIHW::touchPosition(*x, *y);
-}
 
 void
 ui_init()

@@ -75,6 +75,10 @@ volatile int usbTxQueueRPos = 0;
 // periods of a 1MHz clock; how often to call adc_process()
 static constexpr int tim1Period = 25;	// 1MHz / 25 = 40kHz
 
+// periods of a 1MHz clock; how often to call UIHW::checkButtons
+static constexpr int tim2Period = 250;	// 1MHz / 250 = 4kHz
+
+
 // value is in microseconds; increments at 40kHz by TIM1 interrupt
 volatile uint32_t systemTimeCounter = 0;
 
@@ -103,36 +107,51 @@ void errorBlink(int cnt) {
 	}
 }
 
-
-void timer_setup() {
+// period is in units of us
+void startTimer(uint32_t timerDevice, int period) {
 	// set the timer to count one tick per us
-	rcc_periph_clock_enable(RCC_TIM1);
-	rcc_periph_reset_pulse(RST_TIM1);
-	timer_set_mode(TIM1, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-	timer_set_prescaler(TIM1, cpu_mhz-1);
-	timer_set_repetition_counter(TIM1, 0);
-	timer_continuous_mode(TIM1);
+	timer_set_mode(timerDevice, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+	timer_set_prescaler(timerDevice, cpu_mhz-1);
+	timer_set_repetition_counter(timerDevice, 0);
+	timer_continuous_mode(timerDevice);
 	
 	// this doesn't really set the period, but the "autoreload value"; actual period is this plus 1.
 	// this should be fixed in libopencm3.
 	
-	timer_set_period(TIM1, tim1Period - 1);
+	timer_set_period(timerDevice, period - 1);
 
-	timer_enable_preload(TIM1);
-	timer_enable_preload_complementry_enable_bits(TIM1);
-	timer_enable_break_main_output(TIM1);
+	timer_enable_preload(timerDevice);
+	timer_enable_preload_complementry_enable_bits(timerDevice);
+	timer_enable_break_main_output(timerDevice);
 	
-	timer_enable_irq(TIM1, TIM_DIER_UIE);
+	timer_enable_irq(timerDevice, TIM_DIER_UIE);
+	
+	TIM_EGR(timerDevice) = TIM_EGR_UG;
+	timer_set_counter(timerDevice, 0);
+	timer_enable_counter(timerDevice);
+}
+void timers_setup() {
+	rcc_periph_clock_enable(RCC_TIM1);
+	rcc_periph_clock_enable(RCC_TIM2);
+	rcc_periph_reset_pulse(RST_TIM1);
+	rcc_periph_reset_pulse(RST_TIM2);
+	
+	// set tim1 to highest priority
+	nvic_set_priority(NVIC_TIM1_UP_IRQ, 15 * 16);
+	nvic_set_priority(NVIC_TIM2_IRQ, 13 * 16);
+
 	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
-	
-	TIM1_EGR = TIM_EGR_UG;
-	timer_set_counter(TIM1, 0);
-	timer_enable_counter(TIM1);
+	nvic_enable_irq(NVIC_TIM2_IRQ);
+	startTimer(TIM1, tim1Period);
+	startTimer(TIM2, tim2Period);
 }
 extern "C" void tim1_up_isr() {
 	TIM1_SR = 0;
 	systemTimeCounter += tim1Period;
 	adc_process();
+}
+extern "C" void tim2_isr() {
+	TIM2_SR = 0;
 	UIHW::checkButtons();
 }
 
@@ -518,7 +537,7 @@ int main(void) {
 	serial.begin(115200);
 
 	lcd_setup();
-	UIHW::init(tim1Period);
+	UIHW::init(tim2Period);
 
 	si5351_i2c.init();
 	if(!si5351_setup())
@@ -528,7 +547,7 @@ int main(void) {
 
 	measurement_setup();
 	adc_setup();
-	timer_setup();
+	timers_setup();
 
 	adf4350_setup();
 
@@ -543,7 +562,6 @@ int main(void) {
 		return 0;
 	}
 
-	timer_setup();
 	
 	bool lastUSBDataMode = false;
 	while(true) {

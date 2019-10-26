@@ -32,6 +32,7 @@ namespace UIHW {
 		if(touchDebouncer.checkChanged()) {
 			evt.button = UIEventButtons::Touch;
 			evt.type = touchDebouncer.state ? UIEventTypes::Up : UIEventTypes::Down;
+			touchPosition(evt.x, evt.y);
 			emitEvent(evt);
 		}
 		UIEventButtons buttons[3] = {UIEventButtons::LeverLeft, UIEventButtons::LeverCenter, UIEventButtons::LeverRight};
@@ -48,14 +49,11 @@ namespace UIHW {
 		}
 	}
 
-	void touchPosition(int& x, int& y) {
-		uint16_t touchX, touchY;
+	void touchPosition(uint16_t& x, uint16_t& y) {
 		if(!board::xpt2046.isTouching()) {
-			x = y = -1;
+			x = y = (uint16_t) -1;
 			return;
 		}
-		board::xpt2046.getRaw(touchX, touchY);
-		x = touchX;
-		y = touchY;
+		board::xpt2046.getRaw(x, y);
 	}
 }

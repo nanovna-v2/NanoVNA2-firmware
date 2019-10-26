@@ -23,6 +23,7 @@ namespace UIHW {
 	struct UIEvent {
 		UIEventButtons button;
 		UIEventTypes type;
+		uint16_t x, y; // only valid for touch down events
 
 		// touchscreen was pressed
 		bool isTouchPress() {
@@ -78,5 +79,5 @@ namespace UIHW {
 	void checkButtons();
 
 	// get current touch position; sets x and y to -1 if there is no touch
-	void touchPosition(int& x, int& y);
+	void touchPosition(uint16_t& x, uint16_t& y);
 }
