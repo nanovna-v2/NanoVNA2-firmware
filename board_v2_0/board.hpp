@@ -73,7 +73,7 @@ namespace board {
 
 	struct i2cDelay_t {
 		void operator()() {
-			delayMicroseconds(1);
+			_delay_8t(10);
 		}
 	};
 	struct spiDelay_t {

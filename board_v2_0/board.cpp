@@ -254,6 +254,45 @@ namespace board {
 		// PLL should be configured between 600 and 900 MHz
 		// round up
 		uint32_t msDiv = 900000/freq_khz;
+		if(freq_khz >= 150000)
+			msDiv = 4;
+		else if(freq_khz >= 100000)
+			msDiv = 6;
+		else if(freq_khz >= 67000)
+			msDiv = 9;
+		else if(freq_khz >= 47000)
+			msDiv = 13;
+		else if(freq_khz >= 32000)
+			msDiv = 19;
+		else if(freq_khz >= 22000)
+			msDiv = 28;
+		else if(freq_khz >= 15000)
+			msDiv = 40;
+		else if(freq_khz >= 10000)
+			msDiv = 60;
+		else if(freq_khz >= 6700)
+			msDiv = 90;
+		else if(freq_khz >= 4700)
+			msDiv = 130;
+		else if(freq_khz >= 3200)
+			msDiv = 190;
+		else if(freq_khz >= 2200)
+			msDiv = 280;
+		else if(freq_khz >= 1500)
+			msDiv = 400;
+		else if(freq_khz >= 1000)
+			msDiv = 600;
+		else if(freq_khz >= 670)
+			msDiv = 900;
+		else if(freq_khz >= 470)
+			msDiv = 1300;
+		else if(freq_khz >= 320)
+			msDiv = 1900;
+		else if(freq_khz >= 220)
+			msDiv = 2800;
+		else if(freq_khz >= 150)
+			msDiv = 4000;
+		
 		uint32_t totalDiv = msDiv;
 		
 		// FIXME: output divider value of 5 is broken for some reason
@@ -274,7 +313,7 @@ namespace board {
 		si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
 		//Si5351_ConfigStruct.PLL[i].PLL_Multiplier_Denominator = xtal_freq;
 		
-		si5351.PLLConfig((PLLChannel) pll);
+		si5351.PLLConfig2((PLLChannel) pll);
 		
 		if(si5351.MS[i].MS_Divider_Integer != msDiv) {
 			si5351.MS[i].MS_Divider_Integer = msDiv;
@@ -346,6 +385,7 @@ namespace board {
 		// switch back to tx+rx mode
 		spi_set_unidirectional_mode(SPI1);
 		lcd_spi_isDMAInProgress = false;
+		delayMicroseconds(10);
 	}
 	
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits) {
