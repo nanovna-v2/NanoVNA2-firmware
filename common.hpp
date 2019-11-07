@@ -24,6 +24,9 @@ typedef VNAObservation VNAObservationSet;
 // S11, S21
 typedef array<complexf, 2> VNARawValue;
 
+typedef uint64_t freqHz_t;
+
+
 // constants and data types used by all modules.
 // DO NOT DECLARE EXTERNAL FUNCTIONS HERE!!!
 
@@ -89,8 +92,9 @@ typedef array<complexf, 2> VNARawValue;
 
 constexpr int lo_freq = 12000; // IF frequency, Hz
 constexpr int xtal_freq = 24000; //19200; // si5351 input frequency, kHz
+constexpr int adf4350_R = 1; // adf4350 reference divide
 constexpr int adf4350_freqStep = 6; // adf4350 resolution, kHz
-constexpr int adf4350_modulus = xtal_freq/adf4350_freqStep;
+constexpr int adf4350_modulus = xtal_freq/adf4350_R/adf4350_freqStep;
 
 
 
@@ -159,7 +163,7 @@ struct uistat_t {
   uint32_t previous_value;
 };
 
-#define CONFIG_MAGIC 0x434f4e45 /* 'CONF' */
+#define CONFIG_MAGIC 0x55378008
 
 
 

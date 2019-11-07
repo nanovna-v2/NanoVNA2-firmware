@@ -34,6 +34,11 @@ int16_t grid_width;
 int area_width = AREA_WIDTH_NORMAL;
 int area_height = HEIGHT;
 
+bool plot_canceled = false;
+
+small_function<freqHz_t(int)> plot_getFrequencyAt;
+small_function<void()> plot_tick;
+
 #define GRID_RECTANGULAR (1<<0)
 #define GRID_SMITH       (1<<1)
 #define GRID_ADMIT       (1<<2)
@@ -679,12 +684,12 @@ trace_get_info(int t, char *buf, int len)
 }
 
 static float time_of_index(int idx) {
-	 return 1.0 / (float)(frequencies[1] - frequencies[0]) / (float)FFT_SIZE * idx;
+	 return 1.0 / (float)(plot_getFrequencyAt(1) - plot_getFrequencyAt(0)) / (float)FFT_SIZE * idx;
 }
 
 static float distance_of_index(int idx) {
 #define SPEED_OF_LIGHT 299792458
-	 float distance = ((float)idx * (float)SPEED_OF_LIGHT) / ( (float)(frequencies[1] - frequencies[0]) * (float)FFT_SIZE * 2.0);
+	 float distance = ((float)idx * (float)SPEED_OF_LIGHT) / ( (float)(plot_getFrequencyAt(1) - plot_getFrequencyAt(0)) * (float)FFT_SIZE * 2.0);
 	 return distance * (velocity_factor / 100.0);
 }
 
@@ -1230,8 +1235,11 @@ draw_all_cells(bool flush_markmap)
 	int m, n;
 	for (m = 0; m < (area_width+CELLWIDTH-1) / CELLWIDTH; m++)
 		for (n = 0; n < (area_height+CELLHEIGHT-1) / CELLHEIGHT; n++) {
-			if (is_mapmarked(m, n))
+			if (is_mapmarked(m, n)) {
 				draw_cell(m, n);
+				plot_tick();
+				if(plot_canceled) return;
+			}
 		}
 
 	if (flush_markmap) {
@@ -1245,6 +1253,7 @@ draw_all_cells(bool flush_markmap)
 void
 draw_all(bool flush)
 {
+	plot_canceled = false;
 	if (redraw_request & REDRAW_CELLS)
 		draw_all_cells(flush);
 	if (redraw_request & REDRAW_FREQUENCY)
@@ -1353,7 +1362,7 @@ cell_draw_marker_info(int m, int n, int w, int h)
 		trace_get_info(t, buf, sizeof buf);
 		cell_drawstring_5x7(w, h, buf, xpos, ypos, config.trace_color[t]);
 		xpos += 64;
-		trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel][idx], frequencies[idx]);
+		trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel][idx], plot_getFrequencyAt(idx));
 		cell_drawstring_5x7(w, h, buf, xpos, ypos, config.trace_color[t]);
 		j++;
 	}    
@@ -1367,7 +1376,7 @@ cell_draw_marker_info(int m, int n, int w, int h)
 	cell_drawstring_5x7(w, h, buf, xpos, ypos, 0xffff);
 	xpos += 16;
 	if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
-			frequency_string(buf, sizeof buf, frequencies[idx]);
+			frequency_string(buf, sizeof buf, plot_getFrequencyAt(idx));
 			cell_drawstring_5x7(w, h, buf, xpos, ypos, 0xffff);
 	} else {
 			chsnprintf(buf, sizeof buf, "%d ns %.1f m", (uint16_t)(time_of_index(idx) * 1e9), distance_of_index(idx));
@@ -1383,7 +1392,7 @@ cell_draw_marker_info(int m, int n, int w, int h)
 		chsnprintf(buf, sizeof buf, "\001%d:", previous_marker+1);
 		cell_drawstring_5x7(w, h, buf, xpos, ypos, 0xffff);
 		xpos += 16;
-		frequency_string(buf, sizeof buf, frequencies[idx] - frequencies[idx0]);
+		frequency_string(buf, sizeof buf, plot_getFrequencyAt(idx) - plot_getFrequencyAt(idx0));
 		cell_drawstring_5x7(w, h, buf, xpos, ypos, 0xffff);
 	}
 }
@@ -1587,4 +1596,8 @@ void
 plot_init(void)
 {
 	force_set_markmap();
+}
+
+void plot_cancel() {
+	plot_canceled = true;
 }

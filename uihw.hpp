@@ -23,7 +23,6 @@ namespace UIHW {
 	struct UIEvent {
 		UIEventButtons button;
 		UIEventTypes type;
-		uint16_t x, y; // only valid for touch down events
 
 		// touchscreen was pressed
 		bool isTouchPress() {

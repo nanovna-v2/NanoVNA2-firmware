@@ -23,7 +23,7 @@ config_t config = {
 
 properties_t current_props = {
   /* magic */   CONFIG_MAGIC,
-  /* frequency0 */ 200000000, // start = 200MHz
+  /* frequency0 */ 100000000, // start = 100MHz
   /* frequency1 */ 900000000, // end = 900MHz
   /* sweep_points */     101,
   /* cal_status */         0,

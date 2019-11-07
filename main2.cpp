@@ -85,6 +85,7 @@ volatile uint32_t systemTimeCounter = 0;
 FIFO<small_function<void()>, 8> eventQueue;
 
 volatile bool usbDataMode = false;
+volatile bool refreshEnabled = true;
 
 void adc_process();
 
@@ -96,7 +97,7 @@ static inline void pinMode(const array<Pad, N>& p, int mode) {
 
 void errorBlink(int cnt) {
 	digitalWrite(led, HIGH);
-	while (1) {
+	//while (1) {
 		for(int i=0;i<cnt;i++) {
 			digitalWrite(led, HIGH);
 			delay(200);
@@ -104,7 +105,7 @@ void errorBlink(int cnt) {
 			delay(200);
 		}
 		delay(1000);
-	}
+	//}
 }
 
 // period is in units of us
@@ -137,8 +138,8 @@ void timers_setup() {
 	rcc_periph_reset_pulse(RST_TIM2);
 	
 	// set tim1 to highest priority
-	nvic_set_priority(NVIC_TIM1_UP_IRQ, 15 * 16);
-	nvic_set_priority(NVIC_TIM2_IRQ, 13 * 16);
+	nvic_set_priority(NVIC_TIM1_UP_IRQ, 1 * 16);
+	nvic_set_priority(NVIC_TIM2_IRQ, 3 * 16);
 
 	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 	nvic_enable_irq(NVIC_TIM2_IRQ);
@@ -191,22 +192,24 @@ void adf4350_update(uint32_t freq_khz) {
 
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(uint32_t freq_khz) {
-	if(freq_khz > 2700000)
+	if(freq_khz > 2500000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(3));
-	else if(freq_khz > 1500000)
+	else if(freq_khz > 2300000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
 	else
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
 
 	// use adf4350 for f > 140MHz
 	if(freq_khz > 140000) {
 		adf4350_update(freq_khz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
+		vnaMeasurement.nWaitSynth = 12;
 	} else {
 		si5351_update(freq_khz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
+		vnaMeasurement.nWaitSynth = 40;
 	}
 }
 
@@ -276,6 +279,9 @@ void lcd_setup() {
 	//redraw_request = REDRAW_CELLS | REDRAW_FREQUENCY | REDRAW_CAL_STATUS;
 	//draw_all(true);
 	ui_init();
+	plot_tick = []() {
+		UIActions::application_doEvents();
+	};
 	//handle_touch_interrupt();
 	//ui_process();
 	//ui_mode_menu();
@@ -284,6 +290,10 @@ void lcd_setup() {
 	draw_all(true);
 }
 
+void enterUSBDataMode() {
+	usbDataMode = true;
+	vnaMeasurement.nPeriods = 4;
+}
 
 
 /*
@@ -298,10 +308,9 @@ void lcd_setup() {
 --   [3..2]: LO output power
 --   [7..4]: output data mode:
 --				0: normal
---				1: adc0 data (filtered and decimated to 19.2MSPS)
---				2: adc1 data (filtered and decimated to 19.2MSPS)
---				3: adc0 data unfiltered (downsampled to 19.2MSPS)
---				4: adc1 data unfiltered (downsampled to 19.2MSPS)
+--				1: adc data
+-- 06: auto-sweep params
+--   06: 
 -- note: the output signal frequency is pll_frequency * 10kHz*/
 
 void serialCharHandler(uint8_t* s, int len) {
@@ -322,7 +331,8 @@ void serialCharHandler(uint8_t* s, int len) {
 				
 				//setFrequency(freq*10);
 				vnaMeasurement.setSweep(freq*10000, 0, 1);
-				usbDataMode = true;
+				if(!usbDataMode)
+					enterUSBDataMode();
 			}
 			if(writingRegister == 5) {
 				uint8_t outpMode = ch >> 4;
@@ -346,7 +356,7 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
-			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
+			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 			break;
 		case VNAMeasurementPhases::REFL1:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
@@ -368,7 +378,7 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 	int wrRPos = usbTxQueueRPos;
 	int wrWPos = usbTxQueueWPos;
 	__sync_synchronize();
-	if((wrWPos + 1) & usbTxQueueMask == wrRPos) {
+	if(((wrWPos + 1) & usbTxQueueMask) == wrRPos) {
 		// overflow
 	} else {
 		usbTxQueue[wrWPos].freqIndex = freqIndex;
@@ -476,6 +486,7 @@ void usb_transmit() {
 	usbTxQueueRPos = (rdRPos + 1) & usbTxQueueMask;
 }
 
+static int cnt = 0;
 void usb_transmit_rawSamples() {
 	volatile uint16_t* buf;
 	int len;
@@ -484,11 +495,14 @@ void usb_transmit_rawSamples() {
 	for(int i=0; i<len; i++)
 		tmpBuf[i] = int8_t(buf[i] >> 4) - 128;
 	serial.print((char*)tmpBuf, len);
+	
+	cnt += len;
+
 	rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 	//rfsw(RFSW_RECV, ((cnt / 500) % 2) ? RFSW_RECV_REFL : RFSW_RECV_PORT2);
 	//rfsw(RFSW_REFL, ((cnt / 500) % 2) ? RFSW_REFL_ON : RFSW_REFL_OFF);
-	rfsw(RFSW_RECV, RFSW_RECV_REFL);
-	rfsw(RFSW_REFL, RFSW_REFL_ON);
+	rfsw(RFSW_RECV, RFSW_RECV_PORT2);
+	rfsw(RFSW_REFL, RFSW_REFL_OFF);
 }
 
 void processDataPoint() {
@@ -566,20 +580,27 @@ int main(void) {
 	bool lastUSBDataMode = false;
 	while(true) {
 		if(usbDataMode) {
-			usb_transmit();
+			if(outputRawSamples)
+				usb_transmit_rawSamples();
+			else
+				usb_transmit();
 			// display "usb mode" screen
-			if(!lastUSBDataMode)
+			if(!lastUSBDataMode) {
 				show_usb_data_mode();
+				
+			}
 			lastUSBDataMode = usbDataMode;
 			continue;
 		}
 		lastUSBDataMode = usbDataMode;
 		processDataPoint();
-		
-		plot_into_index(measured);
-		
+
+		// if we have no pending events, use idle cycles to refresh the graph
 		if(!eventQueue.readable()) {
-			draw_all(true);
+			if(refreshEnabled) {
+				plot_into_index(measured);
+				draw_all(true);
+			}
 			continue;
 		}
 		auto callback = eventQueue.read();
@@ -633,11 +654,23 @@ namespace UIActions {
 		updateSweepParams();
 	}
 	uint32_t get_sweep_frequency(int type) {
-		
+		switch (type) {
+		case ST_START: return frequency0;
+		case ST_STOP: return frequency1;
+		case ST_CENTER: return (frequency0 + frequency1)/2;
+		case ST_SPAN: return frequency1 - frequency0;
+		case ST_CW: return (frequency0 + frequency1)/2;
+		}
+	}
+	freqHz_t frequencyAt(int index) {
+		return vnaMeasurement.sweepStartHz + vnaMeasurement.sweepStepHz * index;
 	}
 
 	void toggle_sweep(void) {
 		
+	}
+	void enable_refresh(bool enable) {
+		refreshEnabled = enable;
 	}
 
 
@@ -666,11 +699,14 @@ namespace UIActions {
 		
 	}
 
-	void set_frequencies(uint32_t start, uint32_t stop, int16_t points) {
-		
-	}
-	void update_frequencies(void) {
-		
+	void application_doEvents() {
+		while(eventQueue.readable()) {
+			auto callback = eventQueue.read();
+			eventQueue.dequeue();
+			if(!callback)
+				abort();
+			callback();
+		}
 	}
 
 	void application_doSingleEvent() {

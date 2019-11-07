@@ -29,7 +29,6 @@
 #define FLOAT_PRECISION 9
 
 
-
 static char *long_to_string_with_divisor(char *p, long num, unsigned radix, long divisor) {
 	int i;
 	char *q;
@@ -209,7 +208,6 @@ int chvprintf(const putChar_t& putChar, const char* fmt, va_list ap) {
 			}
 			p = ch_ltoa(p, l, 10);
 			break;
-#if CHPRINTF_USE_FLOAT
 		case 'f':
 			f = (float) va_arg(ap, double);
 			if (f < 0) {
@@ -218,7 +216,6 @@ int chvprintf(const putChar_t& putChar, const char* fmt, va_list ap) {
 			}
 			p = ftoa(p, f, precision);
 			break;
-#endif
 		case 'X':
 		case 'x':
 			c = 16;

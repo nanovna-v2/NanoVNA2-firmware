@@ -17,8 +17,10 @@ namespace UIActions {
 
 	void set_sweep_frequency(SweepParameter type, int32_t frequency);
 	uint32_t get_sweep_frequency(int type);
+	freqHz_t frequencyAt(int index);
 
 	void toggle_sweep(void);
+	void enable_refresh(bool enable);
 
 	void set_trace_type(int t, int type);
 	void set_trace_channel(int t, int channel);
@@ -30,8 +32,8 @@ namespace UIActions {
 
 	void apply_edelay_at(int i);
 
-	void set_frequencies(uint32_t start, uint32_t stop, int16_t points);
-	void update_frequencies(void);
+	// process all outstanding events in the main event queue.
+	void application_doEvents();
 
 	// process up to one outstanding event in the main event queue.
 	// This can lead to ui_process() being called.

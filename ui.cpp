@@ -206,12 +206,7 @@ touch_position(int *x, int *y)
 
 void
 touch_position(int *x, int *y, UIEvent evt) {
-  if(evt.x == (uint16_t) -1) {
-    *x = *y = -1;
-    return;
-  }
-  *x = (int(evt.x) - config.touch_cal[0]) * 16 / config.touch_cal[2];
-  *y = (int(evt.y) - config.touch_cal[1]) * 16 / config.touch_cal[3];
+  touch_position(x, y);
 }
 
 
@@ -630,7 +625,7 @@ get_marker_frequency(int marker)
     return -1;
   if (!markers[marker].enabled)
     return -1;
-  return frequencies[markers[marker].index];
+  return frequencyAt(markers[marker].index);
 }
 
 static void
@@ -1394,6 +1389,7 @@ ui_mode_menu(void)
   area_height = HEIGHT;
   ensure_selection();
   draw_menu();
+  enable_refresh(true);
 }
 
 void
@@ -1413,6 +1409,7 @@ ui_mode_numeric(int _keypad_mode)
   draw_numeric_area_frame();
   fetch_numeric_target();
   draw_numeric_area();
+  enable_refresh(false);
 }
 
 void
@@ -1438,6 +1435,8 @@ ui_mode_keypad(int _keypad_mode)
   draw_keypad();
   draw_numeric_area_frame();
   draw_numeric_input("");
+  enable_refresh(false);
+  plot_cancel();
 }
 
 void
@@ -1450,6 +1449,7 @@ ui_mode_normal(void)
   area_height = HEIGHT;
   leave_ui_mode();
   ui_mode = UI_NORMAL;
+  enable_refresh(true);
 }
 
 static void
@@ -1462,12 +1462,12 @@ ui_process_normal(UIEvent evt)
     if (active_marker >= 0 && markers[active_marker].enabled) {
       if (evt.isJogLeft() && markers[active_marker].index > 0) {
         markers[active_marker].index--;
-        markers[active_marker].frequency = frequencies[markers[active_marker].index];
+        markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
         redraw_marker(active_marker, FALSE);
       }
       if (evt.isJogRight() && markers[active_marker].index < 100) {
         markers[active_marker].index++;
-        markers[active_marker].frequency = frequencies[markers[active_marker].index];
+        markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
         redraw_marker(active_marker, FALSE);
       }
     }
@@ -1770,7 +1770,7 @@ drag_marker(int t, int m)
     index = search_nearest_index(touch_x, touch_y, t);
     if (index >= 0) {
       markers[m].index = index;
-      markers[m].frequency = frequencies[index];
+      markers[m].frequency = frequencyAt(index);
       redraw_marker(m, TRUE);
     }
   }
@@ -1853,6 +1853,9 @@ ui_process(UIEvent evt)
 void
 ui_init()
 {
+  plot_getFrequencyAt = [](int index) {
+    return frequencyAt(index);
+  };
   uiEnableProcessing();
   UIHW::emitEvent = [](UIEvent evt) {
     // process the event on main thread; we are currently in interrupt context.

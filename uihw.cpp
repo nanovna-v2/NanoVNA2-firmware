@@ -32,7 +32,6 @@ namespace UIHW {
 		if(touchDebouncer.checkChanged()) {
 			evt.button = UIEventButtons::Touch;
 			evt.type = touchDebouncer.state ? UIEventTypes::Up : UIEventTypes::Down;
-			touchPosition(evt.x, evt.y);
 			emitEvent(evt);
 		}
 		UIEventButtons buttons[3] = {UIEventButtons::LeverLeft, UIEventButtons::LeverCenter, UIEventButtons::LeverRight};

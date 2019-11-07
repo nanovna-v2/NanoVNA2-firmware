@@ -2,28 +2,35 @@
 from math import *
 from scipy import signal
 
-N = 25
+# sine period in samples
+N = 50
+
+# integration period
+accumPeriod = 50
+
+# window decay length
+windowN = 0
+
 scale = (2**15 - 1)
 
-accumPeriod = N*2
+if windowN > 0:
+	window = signal.gaussian(windowN, std=7)
+	#window = signal.bartlett(N)
 
-window = signal.gaussian(N, std=7)
-#window = signal.bartlett(N)
+	rectWindow = signal.boxcar(windowN)
+	finalWindow = signal.convolve(window, rectWindow)
 
-rectWindow = signal.boxcar(N)
-finalWindow = signal.convolve(window, rectWindow)
+	finalWindow.resize(len(finalWindow) + 1)
 
-finalWindow.resize(len(finalWindow) + 1)
+	print len(finalWindow)
+	assert len(finalWindow) == accumPeriod
 
-print len(finalWindow)
-assert len(finalWindow) == accumPeriod
+	windowMax = 0
+	for x in finalWindow:
+		if abs(x) > windowMax:
+			windowMax = abs(x)
 
-windowMax = 0
-for x in finalWindow:
-	if abs(x) > windowMax:
-		windowMax = abs(x)
-
-finalWindow /= windowMax
+	finalWindow /= windowMax
 
 print 'const int16_t sinTable[%d] = {' % (accumPeriod*2)
 for i in range(accumPeriod):
@@ -31,7 +38,8 @@ for i in range(accumPeriod):
 	re = cos(arg)
 	im = sin(arg)
 	vals = [re, im]
-	vals = [x*finalWindow[i] for x in vals]
+	if windowN > 0:
+		vals = [x*finalWindow[i] for x in vals]
 	vals = [int(round(x*scale)) for x in vals]
 	vals = [str(x) for x in vals]
 	print vals[0] + ', ' + vals[1] + ','

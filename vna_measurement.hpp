@@ -22,10 +22,10 @@ public:
 	static constexpr uint32_t nWaitSwitch = 1;
 
 	// how many periods to wait after changing synthesizer frequency
-	static constexpr uint32_t nWaitSynth = 10;
+	uint32_t nWaitSynth = 30;
 
 	// how many periods to average over
-	static constexpr uint32_t nPeriods = 8;
+	uint32_t nPeriods = 8;
 
 
 	// called when a new data point is available

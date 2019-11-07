@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include <mculib/small_function.hpp>
 
 #define OFFSETX 15
 #define OFFSETY 0
@@ -16,8 +17,17 @@ extern int area_height;
 
 #define GRIDY 29
 
+// this function is called to determine frequency in hz at a marker point
+extern small_function<freqHz_t(int index)> plot_getFrequencyAt;
+
+// this function is called periodically during plotting and can be used
+// to process events in the event queue.
+extern small_function<void()> plot_tick;
 
 void plot_init(void);
+
+// cancel ongoing draw operations further up the stack
+void plot_cancel();
 void update_grid(void);
 void request_to_redraw_grid(void);
 void redraw_frame(void);
