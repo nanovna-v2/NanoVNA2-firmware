@@ -7,14 +7,15 @@ OBJS			+= globals.o ui.o flash.o plot.o printf.o ili9341.o Font5x7.o numfont20x2
 OBJS            += $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 CFLAGS          += -Os -g
-CPPFLAGS	+= -O2 -g --std=c++0x -fno-exceptions -fno-rtti -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -D_XOPEN_SOURCE=600
+CPPFLAGS		+= -Os -g --std=c++0x -fno-exceptions -fno-rtti -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -D_XOPEN_SOURCE=600
 LDFLAGS         += -static -nostartfiles
 LDLIBS          += -Wl,--start-group -lgcc -lnosys -Wl,--end-group -lm
 
-LDSCRIPT = ./gd32f303cc.ld
 
 include $(OPENCM3_DIR)/mk/genlink-config.mk
 include $(OPENCM3_DIR)/mk/gcc-config.mk
+
+LDSCRIPT = ./gd32f303cc.ld
 
 .PHONY: clean all
 
