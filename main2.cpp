@@ -391,7 +391,7 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 
 void updateSweepParams() {
 	uint64_t start = current_props._frequency0;
-	uint64_t step = (current_props._frequency1 - current_props._frequency0) / current_props._sweep_points;
+	uint64_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 }
 
