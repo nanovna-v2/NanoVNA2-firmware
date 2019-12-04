@@ -650,6 +650,26 @@ namespace UIActions {
 			case ST_STOP:
 				current_props._frequency1 = frequency;
 				break;
+			case ST_CENTER:
+			{
+				freqHz_t span = current_props._frequency1 - current_props._frequency0;
+				current_props._frequency0 = frequency - span/2;
+				current_props._frequency1 = frequency + span/2;
+				break;
+			}
+			case ST_SPAN:
+			{
+				freqHz_t center = (frequency0 + frequency1)/2;
+				current_props._frequency0 = center - frequency/2;
+				current_props._frequency1 = center + frequency/2;
+				break;
+			}
+			case ST_CW:
+			{
+				current_props._frequency0 = frequency;
+				current_props._frequency1 = frequency;
+				break;
+			}
 			default: return;
 		}
 		updateSweepParams();
