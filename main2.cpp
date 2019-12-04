@@ -174,7 +174,7 @@ void si5351_update(uint32_t freq_khz) {
 
 void adf4350_setup() {
 	adf4350_rx.N = 120;
-	adf4350_rx.rfPower = 0b11;
+	adf4350_rx.rfPower = 0b00;
 	adf4350_rx.sendConfig();
 	adf4350_rx.sendN();
 
@@ -193,28 +193,28 @@ void adf4350_update(uint32_t freq_khz) {
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(uint32_t freq_khz) {
 	if(freq_khz > 2500000)
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(3));
-	else if(freq_khz > 2300000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
+	else if(freq_khz > 140000)
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
 	else
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
 
 	// use adf4350 for f > 140MHz
 	if(freq_khz > 140000) {
 		adf4350_update(freq_khz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
-		vnaMeasurement.nWaitSynth = 12;
+		vnaMeasurement.nWaitSynth = 10;
 	} else {
 		si5351_update(freq_khz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
-		vnaMeasurement.nWaitSynth = 40;
+		vnaMeasurement.nWaitSynth = 35;
 	}
 }
 
 void adc_setup() {
-	static uint8_t channel_array[16] = {1};
+	static uint8_t channel_array[16] = {adc_rxChannel};
 	dmaADC.buffer = adcBuffer;
 	dmaADC.bufferSizeBytes = sizeof(adcBuffer);
 	dmaADC.init(channel_array, 1);

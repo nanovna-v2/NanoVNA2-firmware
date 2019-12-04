@@ -16,8 +16,12 @@ namespace synthesizers {
 			O = 4;
 		else if(freq_khz	> 275000)
 			O = 8;
-		else //if(freq_khz	> 137500)
+		else if(freq_khz	> 137500)
 			O = 16;
+		else if(freq_khz	> 68750)
+			O = 32;
+		else //if(freq_khz	> 34375)
+			O = 64;
 
 		uint32_t N = freq_khz*O/adf4350_freqStep;
 

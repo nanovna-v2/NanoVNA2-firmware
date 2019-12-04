@@ -29,15 +29,15 @@ namespace board {
 
 	// ##### pin assignments #####
 
-	static constexpr Pad led = PA9;
-	static constexpr Pad led2 = PA10;
+	static constexpr Pad led = PA6;
+	static constexpr Pad led2 = PA7;
 
 	static constexpr array<Pad, 2> RFSW_ECAL = {PC13, PC14};
-	static constexpr array<Pad, 2> RFSW_BBGAIN = {PB13, PB12};
-	static constexpr Pad RFSW_TXSYNTH = PB9;
-	static constexpr Pad RFSW_RXSYNTH = PA4;
-	static constexpr Pad RFSW_REFL = PB0;
-	static constexpr Pad RFSW_RECV = PB1;
+	static constexpr array<Pad, 2> RFSW_BBGAIN = {PB15, PB14};
+	static constexpr Pad RFSW_TXSYNTH = PA5;
+	static constexpr Pad RFSW_RXSYNTH = PA10;
+	static constexpr Pad RFSW_REFL = PA8;
+	static constexpr Pad RFSW_RECV = PA9;
 
 	
 	static constexpr Pad lcd_clk = PB3;
@@ -48,16 +48,16 @@ namespace board {
 	static constexpr Pad xpt2046_cs = PB7;
 	static constexpr Pad xpt2046_irq = PB8;
 
-	static constexpr Pad LEVER_LEFT = PB14;
-	static constexpr Pad LEVER_CENTER = PB15;
-	static constexpr Pad LEVER_RIGHT = PA8;
+	static constexpr Pad LEVER_LEFT = PB11;
+	static constexpr Pad LEVER_CENTER = PB12;
+	static constexpr Pad LEVER_RIGHT = PB13;
 	static constexpr bool LEVER_POLARITY = false; // pin level when lever/button is pressed
 
 	// ##### board parameters #####
 	extern uint32_t adc_ratecfg;
 	extern uint32_t adc_srate; // Hz
 	extern uint32_t adc_period_cycles, adc_clk;
-	constexpr int adc_rxChannel = 1;
+	constexpr int adc_rxChannel = 0;
 
 
 
@@ -79,7 +79,7 @@ namespace board {
 	};
 	struct spiDelay_t {
 		void operator()() {
-			_delay_8t(5);
+			_delay_8t(2);
 		}
 	};
 
@@ -108,9 +108,9 @@ namespace board {
 
 	// rf switch positions
 
-	static constexpr auto RFSW_ECAL_SHORT = RFSWState::RF2;
+	static constexpr auto RFSW_ECAL_SHORT = RFSWState::RF4;
 	static constexpr auto RFSW_ECAL_OPEN = RFSWState::RF3;
-	static constexpr auto RFSW_ECAL_LOAD = RFSWState::RF4;
+	static constexpr auto RFSW_ECAL_LOAD = RFSWState::RF2;
 	static constexpr auto RFSW_ECAL_NORMAL = RFSWState::RF1;
 
 	static constexpr int RFSW_TXSYNTH_LF = 0;
@@ -122,8 +122,8 @@ namespace board {
 	static constexpr int RFSW_REFL_ON = 1;
 	static constexpr int RFSW_REFL_OFF = 0;
 
-	static constexpr int RFSW_RECV_REFL = 1;
-	static constexpr int RFSW_RECV_PORT2 = 0;
+	static constexpr int RFSW_RECV_REFL = 0;
+	static constexpr int RFSW_RECV_PORT2 = 1;
 
 	// gain is an integer from 0 to 3, 0 being lowest gain
 	static inline RFSWState RFSW_BBGAIN_GAIN(int gain) {
