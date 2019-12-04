@@ -642,7 +642,7 @@ namespace UIActions {
 	}
 
 
-	void set_sweep_frequency(SweepParameter type, int32_t frequency) {
+	void set_sweep_frequency(SweepParameter type, freqHz_t frequency) {
 		switch(type) {
 			case ST_START:
 				current_props._frequency0 = frequency;
@@ -654,7 +654,7 @@ namespace UIActions {
 		}
 		updateSweepParams();
 	}
-	uint32_t get_sweep_frequency(int type) {
+	freqHz_t get_sweep_frequency(int type) {
 		switch (type) {
 		case ST_START: return frequency0;
 		case ST_STOP: return frequency1;

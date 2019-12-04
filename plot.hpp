@@ -34,6 +34,7 @@ void redraw_frame(void);
 //void redraw_all(void);
 void request_to_draw_cells_behind_menu(void);
 void request_to_draw_cells_behind_numeric_input(void);
+void request_to_redraw_marker(int marker, int update_info);
 void redraw_marker(int marker, int update_info);
 void trace_get_info(int t, char *buf, int len);
 void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX]);

@@ -15,7 +15,7 @@
 
 
 static void cell_draw_marker_info(int m, int n, int w, int h);
-void frequency_string(char *buf, size_t len, int32_t freq);
+void frequency_string(char *buf, size_t len, freqHz_t freq);
 void markmap_all_markers(void);
 
 //#define GRID_COLOR 0x0863
@@ -1264,7 +1264,7 @@ draw_all(bool flush)
 }
 
 void
-redraw_marker(int marker, int update_info)
+request_to_redraw_marker(int marker, int update_info)
 {
 	// mark map on new position of marker
 	markmap_marker(marker);
@@ -1272,8 +1272,14 @@ redraw_marker(int marker, int update_info)
 	// mark cells on marker info
 	if (update_info)
 		markmap[current_mappage][0] = 0xffff;
+}
 
-	draw_all_cells(TRUE);
+
+void
+redraw_marker(int marker, int update_info)
+{
+	request_to_redraw_marker(marker, update_info);
+	draw_all_cells(true);
 }
 
 void
@@ -1398,7 +1404,7 @@ cell_draw_marker_info(int m, int n, int w, int h)
 }
 
 void
-frequency_string(char *buf, size_t len, int32_t freq)
+frequency_string(char *buf, size_t len, freqHz_t freq)
 {
 	if (freq < 0) {
 		freq = -freq;

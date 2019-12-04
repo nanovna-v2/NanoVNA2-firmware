@@ -711,7 +711,7 @@ menu_marker_sel_cb(UIEvent evt, int item)
       previous_marker = -1;
       active_marker = -1;      
   }
-  redraw_marker(active_marker, TRUE);
+  request_to_redraw_marker(active_marker, TRUE);
   draw_menu();
 }
 
@@ -1463,18 +1463,18 @@ ui_process_normal(UIEvent evt)
       if (evt.isJogLeft() && markers[active_marker].index > 0) {
         markers[active_marker].index--;
         markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
-        redraw_marker(active_marker, FALSE);
+        request_to_redraw_marker(active_marker, FALSE);
       }
       if (evt.isJogRight() && markers[active_marker].index < 100) {
         markers[active_marker].index++;
         markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
-        redraw_marker(active_marker, FALSE);
+        request_to_redraw_marker(active_marker, FALSE);
       }
     }
   }
   if(evt.isJogEnd()) {
     if (active_marker >= 0)
-      redraw_marker(active_marker, TRUE);
+      request_to_redraw_marker(active_marker, TRUE);
   }
   if(evt.isTouchPress()) {
     if (touch_pickup_marker()) {
@@ -1806,7 +1806,7 @@ touch_pickup_marker(void)
         if (active_marker != m) {
           previous_marker = active_marker;
           active_marker = m;
-          redraw_marker(active_marker, TRUE);
+          request_to_redraw_marker(active_marker, TRUE);
         }
         // select trace
         uistat.current_trace = t;

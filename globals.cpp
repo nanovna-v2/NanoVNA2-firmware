@@ -27,7 +27,6 @@ properties_t current_props = {
   /* frequency1 */ 900000000, // end = 900MHz
   /* sweep_points */     101,
   /* cal_status */         0,
-  /* frequencies */       {},
   /* cal_data */          {},
   /* electrical_delay */   0,
   /* trace[4] */

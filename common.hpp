@@ -118,17 +118,16 @@ typedef struct {
 typedef struct {
   int8_t enabled;
   int16_t index;
-  uint32_t frequency;
+  freqHz_t frequency;
 } marker_t;
 
 typedef struct {
   int32_t magic;
-  int32_t _frequency0; // start
-  int32_t _frequency1; // stop
+  freqHz_t _frequency0; // start
+  freqHz_t _frequency1; // stop
   int16_t _sweep_points;
   uint16_t _cal_status;
 
-  uint32_t _frequencies[SWEEP_POINTS_MAX];
   complexf _cal_data[5][SWEEP_POINTS_MAX];
   float _electrical_delay; // picoseconds
   

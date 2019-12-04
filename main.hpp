@@ -15,8 +15,8 @@ namespace UIActions {
 	void cal_collect(int type);
 	void cal_done(void);
 
-	void set_sweep_frequency(SweepParameter type, int32_t frequency);
-	uint32_t get_sweep_frequency(int type);
+	void set_sweep_frequency(SweepParameter type, freqHz_t frequency);
+	freqHz_t get_sweep_frequency(int type);
 	freqHz_t frequencyAt(int index);
 
 	void toggle_sweep(void);
