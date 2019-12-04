@@ -90,6 +90,6 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	}
 }
 
-void VNAMeasurement::_emitValue_t::operator()(int32_t valRe, int32_t valIm) {
-	m->sampleProcessor_emitValue(valRe, valIm);
+void VNAMeasurement::_emitValue_t::operator()(int32_t* valRe, int32_t* valIm) {
+	m->sampleProcessor_emitValue(*valRe, *valIm);
 }

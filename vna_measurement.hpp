@@ -11,7 +11,9 @@ enum class VNAMeasurementPhases {
 	THRU
 };
 
-// implements sweep, rf switch timing, and dsp.
+// implements sweep, rf switch timing, and dsp for single-receiver
+// switched path VNAs (one receiver with switches to select reference,
+// reflected, and thru paths).
 // given switch & synthesizer controls and adc data feed, emit a stream
 // of data points.
 class VNAMeasurement {
@@ -51,7 +53,7 @@ public:
 
 	struct _emitValue_t {
 		VNAMeasurement* m;
-		void operator()(int32_t valRe, int32_t valIm);
+		void operator()(int32_t* valRe, int32_t* valIm);
 	};
 	
 	SampleProcessor<_emitValue_t> sampleProcessor;
