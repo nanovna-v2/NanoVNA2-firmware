@@ -61,6 +61,9 @@ namespace UIHW {
 			return button == UIEventButtons::LeverRight &&
 				(type == UIEventTypes::Down || type == UIEventTypes::Tick);
 		}
+		bool isTick() {
+			return type == UIEventTypes::Tick;
+		}
 	};
 
 	// hooks

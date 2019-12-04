@@ -6,6 +6,9 @@ namespace UIHW {
 	small_function<void(UIEvent evt)> emitEvent;
 	Debouncer touchDebouncer;
 	Debouncer buttonDebouncer[3];
+	int32_t tickCounter[3] = {};
+	int32_t tickIntervalMicros = 100000, tickDelayMicros = 500000;
+	int32_t tickInterval = 0, tickDelay = 0;
 
 	void init(uint32_t buttonCheckIntervalMicros) {
 		// touch
@@ -25,6 +28,8 @@ namespace UIHW {
 			buttonDebouncer[i].transitionThreshold = touchDebouncer.transitionThreshold;
 			buttonDebouncer[i].init();
 		}
+		tickInterval = tickIntervalMicros / buttonCheckIntervalMicros;
+		tickDelay = tickDelayMicros / buttonCheckIntervalMicros;
 	}
 
 	void checkButtons() {
@@ -43,6 +48,27 @@ namespace UIHW {
 				if(evt.type == UIEventTypes::Up) {
 					evt.type = UIEventTypes::Click;
 					emitEvent(evt);
+				}
+			}
+			// ticks are only generated on lever left and right
+			if(i == 0 || i == 2) {
+				if(buttonDebouncer[i].state == board::LEVER_POLARITY) {
+					// button is depressed
+					if(tickCounter[i] < 0) {
+						// tick has started
+						tickCounter[i]--;
+						if(tickCounter[i] <= -tickInterval) {
+							evt.type = UIEventTypes::Tick;
+							emitEvent(evt);
+							tickCounter[i] = -1;
+						}
+					} else {
+						tickCounter[i]++;
+						if(tickCounter[i] >= tickDelay)
+							tickCounter[i] = -1;
+					}
+				} else {
+					tickCounter[i] = 0;
 				}
 			}
 		}

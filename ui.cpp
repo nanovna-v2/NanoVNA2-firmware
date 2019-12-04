@@ -1461,12 +1461,12 @@ ui_process_normal(UIEvent evt)
   if(evt.isJog()) {
     if (active_marker >= 0 && markers[active_marker].enabled) {
       if (evt.isJogLeft() && markers[active_marker].index > 0) {
-        markers[active_marker].index--;
+        markers[active_marker].index -= evt.isTick() ? 2 : 1;
         markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
         request_to_redraw_marker(active_marker, FALSE);
       }
       if (evt.isJogRight() && markers[active_marker].index < 100) {
-        markers[active_marker].index++;
+        markers[active_marker].index += evt.isTick() ? 2 : 1;
         markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
         request_to_redraw_marker(active_marker, FALSE);
       }
