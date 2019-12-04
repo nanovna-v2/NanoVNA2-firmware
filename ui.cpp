@@ -1458,14 +1458,20 @@ ui_process_normal(UIEvent evt)
   }
   if(evt.isJog()) {
     if (active_marker >= 0 && markers[active_marker].enabled) {
-      if (evt.isJogLeft() && markers[active_marker].index > 0) {
-        markers[active_marker].index -= evt.isTick() ? 2 : 1;
-        markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
-        request_to_redraw_marker(active_marker, FALSE);
-      }
-      if (evt.isJogRight() && markers[active_marker].index < 100) {
-        markers[active_marker].index += evt.isTick() ? 2 : 1;
-        markers[active_marker].frequency = frequencyAt(markers[active_marker].index);
+      auto& am = markers[active_marker];
+      if (evt.isJogLeft() || evt.isJogRight()) {
+        int step = evt.isTick() ? 2 : 1;
+        if (evt.isJogLeft()) {
+          am.index -= step;
+          if(am.index < 0)
+            am.index = 0;
+        }
+        if (evt.isJogRight()) {
+          am.index += step;
+          if(am.index >= current_props._sweep_points)
+            am.index = current_props._sweep_points - 1;
+        }
+        am.frequency = frequencyAt(am.index);
         request_to_redraw_marker(active_marker, FALSE);
       }
     }
