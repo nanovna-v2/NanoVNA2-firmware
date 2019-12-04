@@ -601,10 +601,8 @@ menu_stimulus_cb(UIEvent evt, int item)
   {
     if (evt.isLeverLongPress()) {
       ui_mode_numeric(item);
-      ui_process_numeric(evt);
     } else {
       ui_mode_keypad(item);
-      ui_process_keypad(evt);
     }
     break;
   }
