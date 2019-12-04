@@ -35,7 +35,7 @@ properties_t current_props = {
     { 1, TRC_LOGMAG, 0, 0, 1.0, 7.0 },
     { 1, TRC_LOGMAG, 1, 0, 1.0, 7.0 },
     { 1, TRC_SMITH,  0, 1, 1.0, 0.0 },
-    { 1, TRC_PHASE,  1, 0, 1.0, 4.0 }
+    { 1, TRC_PHASE,  0, 0, 1.0, 4.0 }
   },
   /* markers[4] */ {
     { 1, 30, 0 }, { 0, 40, 0 }, { 0, 60, 0 }, { 0, 80, 0 }

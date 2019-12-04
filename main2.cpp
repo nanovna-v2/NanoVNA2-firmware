@@ -514,6 +514,7 @@ void processDataPoint() {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		VNAObservation& value = usbDP.value;
 		measured[0][usbDP.freqIndex] = value[0]/value[1];
+		measured[1][usbDP.freqIndex] = value[2]/value[1];
 		
 		rdRPos = (rdRPos + 1) & usbTxQueueMask;
 	}
