@@ -102,6 +102,8 @@ namespace board {
 	extern ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_tx;
 	extern ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_rx;
 
+	constexpr int si5351_rxPLL = 0, si5351_txPLL = 1;
+	constexpr int si5351_rxPort = 0, si5351_txPort = 2, si5351_passthruPort = 1;
 
 
 	// lcd display

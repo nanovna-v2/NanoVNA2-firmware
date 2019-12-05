@@ -52,7 +52,7 @@ void VNAMeasurement::sweepAdvance() {
 		ecalCounterOffset = 0;
 	ecalCounter = ecalCounterOffset;
 	if(sweepCurrPoint == 0)
-		periodCounterSynth *= 10;
+		periodCounterSynth *= 2;
 }
 
 void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {

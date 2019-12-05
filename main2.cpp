@@ -157,18 +157,17 @@ extern "C" void tim2_isr() {
 	UIHW::checkButtons();
 }
 
-void si5351_doUpdate(uint32_t freq_khz) {
-	si5351_set(true, freq_khz+lo_freq/1000);
-	si5351_set(false, freq_khz);
-	si5351.PLLReset2();
+int si5351_doUpdate(uint32_t freqHz) {
+	return synthesizers::si5351_set(freqHz+lo_freq, freqHz);
 }
 
-void si5351_update(uint32_t freq_khz) {
+int si5351_update(uint32_t freqHz) {
 	static uint32_t prevFreq = 0;
-	si5351_doUpdate(freq_khz);
-	if(freq_khz < prevFreq)
-		si5351_doUpdate(freq_khz);
-	prevFreq = freq_khz;
+	int ret = si5351_doUpdate(freqHz);
+	if(freqHz < prevFreq)
+		si5351_doUpdate(freqHz);
+	prevFreq = freqHz;
+	return ret;
 }
 
 
@@ -192,25 +191,30 @@ void adf4350_update(uint32_t freq_khz) {
 
 
 // set the measurement frequency including setting the tx and rx synthesizers
-void setFrequency(uint32_t freq_khz) {
-	if(freq_khz > 2500000)
+void setFrequency(freqHz_t freqHz) {
+	if(freqHz > 2500000000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
-	else if(freq_khz > 140000)
+	else if(freqHz > 140000000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
 	else
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
 
 	// use adf4350 for f > 140MHz
-	if(freq_khz > 140000) {
-		adf4350_update(freq_khz);
+	if(freqHz > 140000000) {
+		adf4350_update(freqHz/1000);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
 		vnaMeasurement.nWaitSynth = 10;
 	} else {
-		si5351_update(freq_khz);
+		int ret = si5351_update(freqHz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
-		vnaMeasurement.nWaitSynth = 40;
+		if(ret == 0)
+			vnaMeasurement.nWaitSynth = 18;
+		if(ret == 1)
+			vnaMeasurement.nWaitSynth = 60;
+		if(ret == 2)
+			vnaMeasurement.nWaitSynth = 60;
 	}
 }
 
@@ -368,11 +372,12 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
+			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			break;
 		case VNAMeasurementPhases::ECALLOAD:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
-			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
+			//rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
 			break;
 		case VNAMeasurementPhases::ECALSHORT:
 			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
@@ -384,18 +389,21 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
-		if(ecalComplete) {
-			scale *= 0.1f;
-			measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.9f + ecal[0] * scale;
-			measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.9f + ecal[1] * scale;
-			measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.9f + ecal[2] * scale;
+		if(ecalState == ECAL_STATE_DONE) {
+			scale *= 0.2f;
+			measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal[0] * scale;
+			measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
+			measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
 		} else {
 			measuredEcal[0][freqIndex] = ecal[0] * scale;
 			measuredEcal[1][freqIndex] = ecal[1] * scale;
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
 		}
-		if(freqIndex == vnaMeasurement.sweepPoints - 1) {
-			ecalComplete = true;
+		if(ecalState == ECAL_STATE_MEASURING
+				&& freqIndex == vnaMeasurement.sweepPoints - 1) {
+			ecalState = ECAL_STATE_2NDSWEEP;
+		} else if(ecalState == ECAL_STATE_2NDSWEEP) {
+			ecalState = ECAL_STATE_DONE;
 			vnaMeasurement.ecalIntervalPoints = 8;
 		}
 	}
@@ -417,10 +425,10 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 void updateSweepParams() {
 	uint64_t start = current_props._frequency0;
 	uint64_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
-	ecalComplete = false;
+	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
-	ecalComplete = false;
+	ecalState = ECAL_STATE_MEASURING;
 }
 
 void measurement_setup() {
@@ -431,7 +439,7 @@ void measurement_setup() {
 		measurementEmitDataPoint(freqIndex, freqHz, v, ecal);
 	};
 	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
-		setFrequency(freqHz/1000);
+		setFrequency(freqHz);
 	};
 	vnaMeasurement.init();
 	updateSweepParams();
@@ -542,7 +550,7 @@ void processDataPoint() {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		VNAObservation& value = usbDP.value;
 		measured[0][usbDP.freqIndex] = value[0]/value[1] - measuredEcal[0][usbDP.freqIndex];
-		measured[1][usbDP.freqIndex] = value[2]/value[1] - measuredEcal[2][usbDP.freqIndex];
+		measured[1][usbDP.freqIndex] = value[2]/value[1] - measuredEcal[2][usbDP.freqIndex]*0.8f;
 		
 		rdRPos = (rdRPos + 1) & usbTxQueueMask;
 	}
@@ -585,10 +593,10 @@ int main(void) {
 	UIHW::init(tim2Period);
 
 	si5351_i2c.init();
-	if(!si5351_setup())
+	if(!synthesizers::si5351_setup())
 		errorBlink(2);
 
-	setFrequency(56000);
+	setFrequency(56000000);
 
 	measurement_setup();
 	adc_setup();

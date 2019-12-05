@@ -30,7 +30,14 @@ extern config_t config;
 
 extern complexf measured[2][SWEEP_POINTS_MAX];
 extern complexf measuredEcal[3][SWEEP_POINTS_MAX];
-extern volatile bool ecalComplete;
+
+
+enum EcalStates {
+	ECAL_STATE_MEASURING,
+	ECAL_STATE_2NDSWEEP,
+	ECAL_STATE_DONE
+};
+extern volatile EcalStates ecalState;
 
 extern uistat_t uistat;
 

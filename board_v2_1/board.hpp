@@ -19,7 +19,7 @@
 #include "../common.hpp"
 #include "../xpt2046.hpp"
 
-#define BOARD_NAME "NanoVNA V2_0"
+#define BOARD_NAME "NanoVNA V2_1"
 
 using namespace mculib;
 using namespace std;
@@ -76,7 +76,7 @@ namespace board {
 
 	struct i2cDelay_t {
 		void operator()() {
-			_delay_8t(12);
+			_delay_8t(5);
 		}
 	};
 	struct spiDelay_t {
@@ -101,6 +101,9 @@ namespace board {
 	};
 	extern ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_tx;
 	extern ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_rx;
+
+	constexpr int si5351_rxPLL = 0, si5351_txPLL = 1;
+	constexpr int si5351_rxPort = 0, si5351_txPort = 2, si5351_passthruPort = -1;
 
 
 
@@ -144,12 +147,6 @@ namespace board {
 
 	// blink the status led
 	void ledPulse();
-
-	// initialize and configure si5351
-	bool si5351_setup();
-
-	// set si5351 frequency for tx or rx port
-	void si5351_set(bool isRX, uint32_t freq_khz);
 
 	// sets up hardware spi for ili9341 and touch.
 	// spi peripheral only manages clk, sdi, and sdo.

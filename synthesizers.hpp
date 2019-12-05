@@ -3,6 +3,16 @@
 
 namespace synthesizers {
 
+	// initialize and configure si5351
+	bool si5351_setup();
+
+	// set si5351 frequency for tx and rx port.
+	// returns 0 if one output divider changed;
+	// returns 1 if two output dividers changed;
+	// returns 2 if pll updated.
+	int si5351_set(uint32_t rxFreqHz, uint32_t txFreqHz);
+
+
 	// freq_khz must be a multiple of adf4350_freqStep
 	template<class T>
 	static void adf4350_set(T& adf4350, uint32_t freq_khz) {

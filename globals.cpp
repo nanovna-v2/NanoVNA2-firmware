@@ -51,7 +51,8 @@ properties_t* active_props = &current_props;
 
 complexf measured[2][SWEEP_POINTS_MAX];
 complexf measuredEcal[3][SWEEP_POINTS_MAX];
-volatile bool ecalComplete = false;
+
+volatile EcalStates ecalState = ECAL_STATE_MEASURING;
 
 uistat_t uistat = {
  digit: 6,
