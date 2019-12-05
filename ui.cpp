@@ -32,6 +32,7 @@
 #include <mculib/message_log.hpp>
 #include <mculib/printf.hpp>
 #include <mculib/printk.hpp>
+#include "gitversion.hpp"
 
 using UIHW::UIEvent;
 using UIHW::UIEventButtons;
@@ -219,9 +220,12 @@ show_version(void)
   ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
   y += 25;
 
-  ili9341_drawstring_5x7("2016-2019 Copyright @edy555, gabu-chan et al", x, y += 10, 0xffff, 0x0000);
-  ili9341_drawstring_5x7("Licensed under GPL. See: https://github.com/ttrftech/NanoVNA", x, y += 10, 0xffff, 0x0000);
-  ili9341_drawstring_5x7("Version: " VERSION, x, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("Software copyright @edy555 et al", x, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("Hardware designed by OwOComm", x, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("Licensed under GPL. ", x, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("https://github.com/ttrftech/NanoVNA", x + 10, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("https://github.com/nanovna/NanoVNA-V2", x + 10, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("Version: " GITVERSION, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Build Time: " __DATE__ " - " __TIME__, x, y += 10, 0xffff, 0x0000);
   y += 5;
   ili9341_drawstring_5x7("Kernel: " CH_KERNEL_VERSION, x, y += 10, 0xffff, 0x0000);

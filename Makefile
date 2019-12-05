@@ -2,7 +2,7 @@ MCULIB ?= /persist/mculib
 DEVICE          = stm32f103cc
 OPENCM3_DIR     = /persist/libopencm3
 BOARDNAME		= board_v2_1
-OBJS			+= main2.o $(BOARDNAME)/board.o vna_measurement.o xpt2046.o uihw.o common.o synthesizers.o
+OBJS			+= main2.o $(BOARDNAME)/board.o vna_measurement.o xpt2046.o uihw.o common.o synthesizers.o gitversion.hpp
 OBJS			+= globals.o ui.o flash.o plot.o ili9341.o Font5x7.o numfont20x24.o
 OBJS            += $(MCULIB)/message_log.o $(MCULIB)/printf.o $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
@@ -11,6 +11,7 @@ CPPFLAGS		+= -O2 -g --std=c++17 -fno-exceptions -fno-rtti -I$(BOARDNAME) -I$(MCU
 LDFLAGS         += -static -nostartfiles
 LDLIBS          += -Wl,--start-group -lgcc -lnosys -Wl,--end-group -lm
 
+GITVERSION		= "$(shell git log -n 1 --pretty=format:"git-%ad%h" --date=format:"%Y%m%d-")"
 
 include $(OPENCM3_DIR)/mk/genlink-config.mk
 include $(OPENCM3_DIR)/mk/gcc-config.mk
@@ -20,6 +21,9 @@ LDSCRIPT = ./gd32f303cc.ld
 .PHONY: clean all
 
 all: binary.elf binary.hex
+
+gitversion.hpp: .git/HEAD .git/index
+	echo "#define GITVERSION \"$(GITVERSION)\"" > $@
 
 clean:
 	$(Q)$(RM) -rf binary.* *.o
