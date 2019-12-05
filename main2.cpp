@@ -40,6 +40,7 @@
 #include "synthesizers.hpp"
 #include "vna_measurement.hpp"
 #include "fifo.hpp"
+#include "flash.hpp"
 
 #include <libopencm3/stm32/timer.h>
 
@@ -551,6 +552,8 @@ int main(void) {
 	// baud rate is ignored for usbserial
 	serial.begin(115200);
 
+	flash_config_recall();
+
 	lcd_setup();
 	UIHW::init(tim2Period);
 
@@ -688,7 +691,7 @@ namespace UIActions {
 	}
 
 	void toggle_sweep(void) {
-		
+		refreshEnabled = !refreshEnabled;
 	}
 	void enable_refresh(bool enable) {
 		refreshEnabled = enable;
@@ -718,6 +721,22 @@ namespace UIActions {
 
 	void apply_edelay_at(int i) {
 		
+	int caldata_save(int id) {
+		int ret = flash_caldata_save(id);
+		return ret;
+	}
+	int caldata_recall(int id) {
+		int ret = flash_caldata_recall(id);
+		if(ret == 0)
+			updateSweepParams();
+		return ret;
+	}
+
+	int config_save() {
+		return flash_config_save();
+	}
+	int config_recall() {
+		return flash_config_recall();
 	}
 
 	void application_doEvents() {

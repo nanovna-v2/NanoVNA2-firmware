@@ -32,6 +32,14 @@ namespace UIActions {
 
 	void apply_edelay_at(int i);
 
+
+	int caldata_save(int id);
+	int caldata_recall(int id);
+
+	int config_save();
+	int config_recall();
+
+
 	// process all outstanding events in the main event queue.
 	void application_doEvents();
 

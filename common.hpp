@@ -121,7 +121,7 @@ typedef struct {
   freqHz_t frequency;
 } marker_t;
 
-typedef struct {
+struct alignas(4) properties_t {
   int32_t magic;
   freqHz_t _frequency0; // start
   freqHz_t _frequency1; // stop
@@ -138,19 +138,19 @@ typedef struct {
   uint8_t _velocity_factor; // %
 
   int32_t checksum;
-} properties_t;
+};
 
 
 typedef struct {
   int32_t magic;
-  uint16_t dac_value;
+  uint16_t dac_value; // unused
   uint16_t grid_color;
   uint16_t menu_normal_color;
   uint16_t menu_active_color;
   uint16_t trace_color[TRACES_MAX];
   int16_t touch_cal[4];
   int8_t default_loadcal;
-  uint32_t harmonic_freq_threshold;
+  uint32_t harmonic_freq_threshold; // unused
   int32_t checksum;
 } config_t;
 
