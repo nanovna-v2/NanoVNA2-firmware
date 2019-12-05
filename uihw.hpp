@@ -80,6 +80,6 @@ namespace UIHW {
 	// application should call this from a timer interrupt.
 	void checkButtons();
 
-	// get current touch position; sets x and y to -1 if there is no touch
-	void touchPosition(uint16_t& x, uint16_t& y);
+	// get current touch position; returns false if there is no touch
+	bool touchPosition(uint16_t& x, uint16_t& y);
 }

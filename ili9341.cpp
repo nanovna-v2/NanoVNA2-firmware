@@ -297,6 +297,18 @@ ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg)
   }
 }
 
+
+void
+ili9341_drawstring_5x7(const char *str, int len, int x, int y, uint16_t fg, uint16_t bg)
+{
+  const char* end = str + len;
+  while (str < end) {
+	ili9341_drawchar_5x7(*str, x, y, fg, bg);
+	x += 5;
+	str++;
+  }
+}
+
 void
 ili9341_drawchar_size(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
 {

@@ -181,8 +181,8 @@ touch_draw_test(void)
   touch_position(&x0, &y0);
 
   while(true) {
-    touch_position(&x1, &y1);
-    if(x1 == -1) break;
+    if(!touch_position(&x1, &y1))
+      break;
     ili9341_line(x0, y0, x1, y1, 0xffff);
     x0 = x1;
     y0 = y1;
@@ -193,22 +193,18 @@ touch_draw_test(void)
 }
 
 
-void
-touch_position(int *x, int *y)
+bool touch_position(int *x, int *y)
 {
   uint16_t touchX, touchY;
-  UIHW::touchPosition(touchX, touchY);
-  if(touchX == (uint16_t) -1) {
-    *x = *y = -1;
-    return;
-  }
+  if(!UIHW::touchPosition(touchX, touchY))
+    return false;
   *x = (int(touchX) - config.touch_cal[0]) * 16 / config.touch_cal[2];
   *y = (int(touchY) - config.touch_cal[1]) * 16 / config.touch_cal[3];
+  return true;
 }
 
-void
-touch_position(int *x, int *y, UIEvent evt) {
-  touch_position(x, y);
+bool touch_position(int *x, int *y, UIEvent evt) {
+  return touch_position(x, y);
 }
 
 
@@ -233,6 +229,56 @@ show_version(void)
   ili9341_drawstring_5x7("Architecture: " PORT_ARCHITECTURE_NAME " Core Variant: " PORT_CORE_VARIANT_NAME, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Port Info: " PORT_INFO, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Platform: " PLATFORM_NAME, x, y += 10, 0xffff, 0x0000);
+
+  while (true) {
+    UIEvent evt = uiWaitEvent();
+    if(evt.isTouchPress() || evt.isLeverClick())
+      break;
+  }
+
+  uiEnableProcessing();
+}
+
+
+void
+show_dmesg(void)
+{
+  printk("show dmesg\n");
+  int x = 5, y = 5;
+  
+  uiDisableProcessing();
+  ili9341_fill(0, 0, 320, 240, 0);
+
+  int maxLines = 23;
+  
+  const char* msg = dmesg();
+  int len = strlen(msg);
+  const char* end = msg + len;
+
+  // leave only last maxLines lines
+  const char* pos = end - 1;
+  const char* lines[maxLines];
+  int nextLineIndex = maxLines - 1;
+  while(pos >= msg && pos < end) {
+    if((*pos) == '\n') {
+      lines[nextLineIndex] = pos + 1;
+      nextLineIndex--;
+      if(nextLineIndex < 0) break;
+    }
+    pos--;
+  }
+
+  if(nextLineIndex >= 0) {
+    lines[nextLineIndex] = msg;
+    nextLineIndex--;
+  }
+
+  for(int i = nextLineIndex+1; i<maxLines; i++) {
+    int len = (i < (maxLines-1)) ? (lines[i+1] - lines[i]) : (end - lines[i]);
+    if(len > 0) len--;
+    ili9341_drawstring_5x7(lines[i], len, x, y, 0xffff, 0x0000);
+    y += 10;
+  }
 
   while (true) {
     UIEvent evt = uiWaitEvent();
@@ -354,6 +400,11 @@ menu_recall_cb(UIEvent evt, int item)
     ui_mode_normal();
     update_grid();
     draw_cal_status();
+  } else {
+    show_dmesg();
+    redraw_frame();
+    request_to_redraw_grid();
+    draw_menu();
   }
 }
 
@@ -384,6 +435,13 @@ menu_config_cb(UIEvent evt, int item)
       redraw_frame();
       request_to_redraw_grid();
       draw_menu();
+      break;
+  case 4:
+      show_dmesg();
+      redraw_frame();
+      request_to_redraw_grid();
+      draw_menu();
+      break;
   }
 }
 
@@ -405,6 +463,11 @@ menu_save_cb(UIEvent evt, int item)
     menu_move_back();
     ui_mode_normal();
     draw_cal_status();
+  } else {
+    show_dmesg();
+    redraw_frame();
+    request_to_redraw_grid();
+    draw_menu();
   }
 }
 
@@ -875,6 +938,7 @@ const menuitem_t menu_config[] = {
   { MT_CALLBACK, "TOUCH TEST", menu_config_cb },
   { MT_CALLBACK, "SAVE", menu_config_cb },
   { MT_CALLBACK, "VERSION", menu_config_cb },
+  { MT_CALLBACK, "DMESG", menu_config_cb },
   { MT_SUBMENU, S_RARROW"DFU", NULL, menu_dfu },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
@@ -1230,7 +1294,9 @@ menu_select_touch(UIEvent evt, int i)
 {
   selection = i;
   draw_menu();
+  uiDisableProcessing();
   while(uiWaitEvent().type != UIEventTypes::Up);
+  uiEnableProcessing();
   selection = -1;
   menu_invoke(evt, i);
 }
@@ -1242,7 +1308,8 @@ menu_apply_touch(UIEvent evt)
   const menuitem_t *menu = menu_stack[menu_current_level];
   int i;
 
-  touch_position(&touch_x, &touch_y, evt);
+  if(!touch_position(&touch_x, &touch_y, evt))
+    return;
   for (i = 0; i < 7; i++) {
     if (menu[i].type == MT_NONE)
       break;
@@ -1587,7 +1654,8 @@ keypad_apply_touch(UIEvent evt)
   int touch_x, touch_y;
   int i = 0;
 
-  touch_position(&touch_x, &touch_y, evt);
+  if(!touch_position(&touch_x, &touch_y, evt))
+    return -1;
 
   while (keypads[i].x) {
     if (keypads[i].x-2 < touch_x && touch_x < keypads[i].x+44+2
@@ -1595,7 +1663,9 @@ keypad_apply_touch(UIEvent evt)
       // draw focus
       selection = i;
       draw_keypad();
+      uiDisableProcessing();
       uiWaitEvent();
+      uiEnableProcessing();
       // erase focus
       selection = -1;
       draw_keypad();
@@ -1614,7 +1684,8 @@ static void
 numeric_apply_touch(UIEvent evt)
 {
   int touch_x, touch_y;
-  touch_position(&touch_x, &touch_y, evt);
+  if(!touch_position(&touch_x, &touch_y, evt))
+    return;
 
   if (touch_x < 64) {
     ui_mode_normal();
@@ -1769,8 +1840,8 @@ drag_marker(int t, int m)
   while(true) {
     int touch_x, touch_y;
     int index;
-    touch_position(&touch_x, &touch_y);
-    if(touch_x == -1) break;
+    if(!touch_position(&touch_x, &touch_y))
+      break;
     touch_x -= OFFSETX;
     touch_y -= OFFSETY;
     index = search_nearest_index(touch_x, touch_y, t);
@@ -1793,7 +1864,8 @@ touch_pickup_marker(void)
 {
   int touch_x, touch_y;
   int m, t;
-  touch_position(&touch_x, &touch_y);
+  if(!touch_position(&touch_x, &touch_y))
+    return FALSE;
   touch_x -= OFFSETX;
   touch_y -= OFFSETY;
 
@@ -1832,9 +1904,12 @@ touch_pickup_marker(void)
 void
 ui_process(UIEvent evt)
 {
-  lastUIEvent = evt;
-  if(!uiEventsEnabled)
+  if(uiEventsEnabled)
+    lastUIEvent = {};
+  else {
+    lastUIEvent = evt;
     return;
+  }
 
   if(evt.isTouchPress())
     awd_count++;

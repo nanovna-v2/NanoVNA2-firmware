@@ -74,11 +74,10 @@ namespace UIHW {
 		}
 	}
 
-	void touchPosition(uint16_t& x, uint16_t& y) {
-		if(!board::xpt2046.isTouching()) {
-			x = y = (uint16_t) -1;
-			return;
-		}
+	bool touchPosition(uint16_t& x, uint16_t& y) {
+		if(!board::xpt2046.isTouching())
+			return false;
 		board::xpt2046.getRaw(x, y);
+		return board::xpt2046.isTouching();
 	}
 }
