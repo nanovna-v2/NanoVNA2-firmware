@@ -4,9 +4,9 @@
 #include "globals.hpp"
 #include "plot.hpp"
 #include "ili9341.hpp"
-#include "printf.h"
 #include "Font5x7.h"
 #include <board.hpp>
+#include <mculib/printf.hpp>
 
 #define TRUE true
 #define FALSE false

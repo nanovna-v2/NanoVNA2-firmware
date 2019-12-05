@@ -24,6 +24,7 @@
 #include <mculib/si5351.hpp>
 #include <mculib/dma_adc.hpp>
 #include <mculib/usbserial.hpp>
+#include <mculib/printf.hpp>
 
 #include <array>
 #include <complex>
@@ -38,7 +39,6 @@
 #include "globals.hpp"
 #include "synthesizers.hpp"
 #include "vna_measurement.hpp"
-#include "printf.h"
 #include "fifo.hpp"
 
 #include <libopencm3/stm32/timer.h>

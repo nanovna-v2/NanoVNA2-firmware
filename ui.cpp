@@ -18,7 +18,6 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "printf.h"
 #include "common.hpp"
 #include "main.hpp"
 #include "flash.hpp"
@@ -30,6 +29,9 @@
 #include "board.hpp"
 #include <stdlib.h>
 #include <string.h>
+#include <mculib/message_log.hpp>
+#include <mculib/printf.hpp>
+#include <mculib/printk.hpp>
 
 using UIHW::UIEvent;
 using UIHW::UIEventButtons;
