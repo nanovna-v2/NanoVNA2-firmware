@@ -210,7 +210,7 @@ void setFrequency(uint32_t freq_khz) {
 		si5351_update(freq_khz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
-		vnaMeasurement.nWaitSynth = 35;
+		vnaMeasurement.nWaitSynth = 40;
 	}
 }
 
@@ -359,10 +359,7 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 			break;
-		case VNAMeasurementPhases::REFL1:
-			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
-			break;
-		case VNAMeasurementPhases::REFL2:
+		case VNAMeasurementPhases::REFL:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			break;
 		case VNAMeasurementPhases::THRU:
@@ -370,11 +367,38 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_REFL, RFSW_REFL_OFF);
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
 			break;
+		case VNAMeasurementPhases::ECALTHRU:
+			rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			break;
+		case VNAMeasurementPhases::ECALLOAD:
+			rfsw(RFSW_REFL, RFSW_REFL_ON);
+			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
+			break;
+		case VNAMeasurementPhases::ECALSHORT:
+			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
+			break;
 	}
 }
 
 // callback called by VNAMeasurement when an observation is available.
-static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v) {
+static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
+	if(ecal != nullptr) {
+		complexf scale = complexf(1., 0.)/v[1];
+		if(ecalComplete) {
+			scale *= 0.1f;
+			measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.9f + ecal[0] * scale;
+			measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.9f + ecal[1] * scale;
+			measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.9f + ecal[2] * scale;
+		} else {
+			measuredEcal[0][freqIndex] = ecal[0] * scale;
+			measuredEcal[1][freqIndex] = ecal[1] * scale;
+			measuredEcal[2][freqIndex] = ecal[2] * scale;
+		}
+		if(freqIndex == vnaMeasurement.sweepPoints - 1) {
+			ecalComplete = true;
+			vnaMeasurement.ecalIntervalPoints = 8;
+		}
+	}
 	// enqueue new data point
 	int wrRPos = usbTxQueueRPos;
 	int wrWPos = usbTxQueueWPos;
@@ -393,15 +417,18 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 void updateSweepParams() {
 	uint64_t start = current_props._frequency0;
 	uint64_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
+	ecalComplete = false;
+	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
+	ecalComplete = false;
 }
 
 void measurement_setup() {
 	vnaMeasurement.phaseChanged = [](VNAMeasurementPhases ph) {
 		measurementPhaseChanged(ph);
 	};
-	vnaMeasurement.emitDataPoint = [](int freqIndex, uint64_t freqHz, const VNAObservation& v) {
-		measurementEmitDataPoint(freqIndex, freqHz, v);
+	vnaMeasurement.emitDataPoint = [](int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
+		measurementEmitDataPoint(freqIndex, freqHz, v, ecal);
 	};
 	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
 		setFrequency(freqHz/1000);
@@ -500,10 +527,10 @@ void usb_transmit_rawSamples() {
 	cnt += len;
 
 	rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
-	//rfsw(RFSW_RECV, ((cnt / 500) % 2) ? RFSW_RECV_REFL : RFSW_RECV_PORT2);
+	rfsw(RFSW_RECV, ((cnt / 500) % 2) ? RFSW_RECV_REFL : RFSW_RECV_PORT2);
 	//rfsw(RFSW_REFL, ((cnt / 500) % 2) ? RFSW_REFL_ON : RFSW_REFL_OFF);
-	rfsw(RFSW_RECV, RFSW_RECV_PORT2);
-	rfsw(RFSW_REFL, RFSW_REFL_OFF);
+	//rfsw(RFSW_RECV, RFSW_RECV_REFL);
+	rfsw(RFSW_REFL, RFSW_REFL_ON);
 }
 
 void processDataPoint() {
@@ -514,8 +541,8 @@ void processDataPoint() {
 	while(rdRPos != rdWPos) {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		VNAObservation& value = usbDP.value;
-		measured[0][usbDP.freqIndex] = value[0]/value[1];
-		measured[1][usbDP.freqIndex] = value[2]/value[1];
+		measured[0][usbDP.freqIndex] = value[0]/value[1] - measuredEcal[0][usbDP.freqIndex];
+		measured[1][usbDP.freqIndex] = value[2]/value[1] - measuredEcal[2][usbDP.freqIndex];
 		
 		rdRPos = (rdRPos + 1) & usbTxQueueMask;
 	}

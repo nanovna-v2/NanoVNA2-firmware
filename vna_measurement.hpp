@@ -6,9 +6,12 @@
 
 enum class VNAMeasurementPhases {
 	REFERENCE,
-	REFL1,
-	REFL2,
-	THRU
+	REFL,
+	THRU,
+
+	ECALLOAD,
+	ECALSHORT,
+	ECALTHRU
 };
 
 // implements sweep, rf switch timing, and dsp for single-receiver
@@ -27,11 +30,14 @@ public:
 	uint32_t nWaitSynth = 30;
 
 	// how many periods to average over
-	uint32_t nPeriods = 8;
+	uint32_t nPeriods = 14;
+
+	// every ecalIntervalPoints we will measure one frequency point for ecal
+	uint32_t ecalIntervalPoints = 8;
 
 
 	// called when a new data point is available
-	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v)> emitDataPoint;
+	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v, const complexf* ecal)> emitDataPoint;
 
 	// called to change rf switch direction;
 	// the function may assume the phase progression is always:
@@ -48,7 +54,7 @@ public:
 	void processSamples(uint16_t* buf, int len);
 
 	// if points is 1, sets frequency to startFreqHz and disables sweep
-	void setSweep(uint64_t startFreqHz, uint64_t stepFreqHz, int points, int dataPointsPerFreq=1);
+	void setSweep(freqHz_t startFreqHz, freqHz_t stepFreqHz, int points, int dataPointsPerFreq=1);
 
 
 	struct _emitValue_t {
@@ -71,6 +77,10 @@ public:
 	// number of data points since synthesizer frequency change
 	uint32_t dpCounterSynth = 0;
 
+	// counts up every data point; resets when it reaches ecalIntervalPoints
+	uint32_t ecalCounter = 0;
+	uint32_t ecalCounterOffset = 0;
+
 	// number of frequency points since start of sweep
 	int sweepCurrPoint = 0;
 
@@ -78,11 +88,13 @@ public:
 	complexi currDP, currFwd, currRefl, currThru;
 
 	// sweep params
-	uint64_t sweepStartHz = 0, sweepStepHz = 0;
+	freqHz_t sweepStartHz = 0, sweepStepHz = 0;
 	int sweepPoints = 1;
 	int sweepDataPointsPerFreq = 1;
 
 	uint64_t currFreq;
+	
+	complexf ecal[3];
 
 
 	void setMeasurementPhase(VNAMeasurementPhases ph);

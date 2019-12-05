@@ -26,6 +26,7 @@ void VNAMeasurement::setSweep(uint64_t startFreqHz, uint64_t stepFreqHz, int poi
 	frequencyChanged(startFreqHz);
 }
 
+
 void VNAMeasurement::setMeasurementPhase(VNAMeasurementPhases ph) {
 	phaseChanged(ph);
 	measurementPhase = ph;
@@ -45,6 +46,11 @@ void VNAMeasurement::sweepAdvance() {
 	frequencyChanged(currFreq);
 
 	periodCounterSynth = nWaitSynth;
+
+	ecalCounterOffset++;
+	if(ecalCounterOffset >= ecalIntervalPoints)
+		ecalCounterOffset = 0;
+	ecalCounter = ecalCounterOffset;
 	if(sweepCurrPoint == 0)
 		periodCounterSynth *= 10;
 }
@@ -61,26 +67,51 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	periodCounterSwitch++;
 
 	if(measurementPhase == VNAMeasurementPhases::REFERENCE
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods*2)) {
+		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
 		currFwd = currDP;
-		setMeasurementPhase(VNAMeasurementPhases::REFL1);
-	} else if(measurementPhase == VNAMeasurementPhases::REFL1
+		setMeasurementPhase(VNAMeasurementPhases::REFL);
+	} else if(measurementPhase == VNAMeasurementPhases::REFL
 		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
 		currRefl = currDP;
-		setMeasurementPhase(VNAMeasurementPhases::REFL2);
-	} else if(measurementPhase == VNAMeasurementPhases::REFL2
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
-		//currRefl = (currRefl - currDP) * int32_t(2);
-		currRefl += currDP;
 		setMeasurementPhase(VNAMeasurementPhases::THRU);
 	} else if(measurementPhase == VNAMeasurementPhases::THRU
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods*2)) {
+		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
 		currThru = currDP;
+
+		if(ecalCounter == 0) {
+			setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
+		} else {
+			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+			
+			// emit new data point
+			VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
+			emitDataPoint(sweepCurrPoint, currFreq, value, nullptr);
+
+			dpCounterSynth++;
+			if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
+				dpCounterSynth = 0;
+				sweepAdvance();
+			}
+		}
+		ecalCounter++;
+		if(ecalCounter >= ecalIntervalPoints)
+			ecalCounter = 0;
+	} else if(measurementPhase == VNAMeasurementPhases::ECALTHRU
+		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		ecal[2] = to_complexf(currDP);
+		setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
+	} else if(measurementPhase == VNAMeasurementPhases::ECALLOAD
+		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		ecal[0] = to_complexf(currDP);
+		setMeasurementPhase(VNAMeasurementPhases::ECALSHORT);
+	} else if(measurementPhase == VNAMeasurementPhases::ECALSHORT
+		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		ecal[1] = to_complexf(currDP);
 		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-		
+
 		// emit new data point
 		VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
-		emitDataPoint(sweepCurrPoint, currFreq, value);
+		emitDataPoint(sweepCurrPoint, currFreq, value, ecal);
 
 		dpCounterSynth++;
 		if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {

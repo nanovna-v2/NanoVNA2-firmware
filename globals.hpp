@@ -29,6 +29,8 @@ extern config_t config;
 
 
 extern complexf measured[2][SWEEP_POINTS_MAX];
+extern complexf measuredEcal[3][SWEEP_POINTS_MAX];
+extern volatile bool ecalComplete;
 
 extern uistat_t uistat;
 
