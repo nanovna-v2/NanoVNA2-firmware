@@ -700,27 +700,82 @@ namespace UIActions {
 
 
 	void set_trace_type(int t, int type) {
-		
+		int polar = (type == TRC_SMITH || type == TRC_POLAR);
+		int enabled = type != TRC_OFF;
+		bool force = false;
+
+		if (trace[t].polar != polar) {
+			trace[t].polar = polar;
+			force = true;
+		}
+		if (trace[t].enabled != enabled) {
+			trace[t].enabled = enabled;
+			force = true;
+		}
+		if (trace[t].type != type) {
+			trace[t].type = type;
+			trace[t].refpos = trace_info[type].refpos;
+			if (polar)
+				force = true;
+		}
+		if (force) {
+			plot_into_index(measured);
+			force_set_markmap();
+		}
 	}
-	void set_trace_channel(int t, int channel) {
-		
-	}
-	void set_trace_scale(int t, float scale) {
-		
-	}
-	void set_trace_refpos(int t, float refpos) {
-		
+	void set_trace_channel(int t, int channel)
+	{
+		if (trace[t].channel != channel) {
+			trace[t].channel = channel;
+			force_set_markmap();
+		}
 	}
 
-	void set_electrical_delay(float picoseconds) {
-		
+	void set_trace_scale(int t, float scale)
+	{
+		scale /= trace_info[trace[t].type].scale_unit;
+		if (trace[t].scale != scale) {
+			trace[t].scale = scale;
+			force_set_markmap();
+		}
 	}
-	float get_electrical_delay(void) {
-		
+
+
+	void set_trace_refpos(int t, float refpos)
+	{
+		if (trace[t].refpos != refpos) {
+			trace[t].refpos = refpos;
+			force_set_markmap();
+		}
+	}
+
+	void set_electrical_delay(float picoseconds)
+	{
+		if (electrical_delay != picoseconds) {
+			electrical_delay = picoseconds;
+			force_set_markmap();
+		}
+	}
+
+	float get_electrical_delay(void)
+	{
+		return electrical_delay;
 	}
 
 	void apply_edelay_at(int i) {
-		
+		float w = 2 * M_PI * electrical_delay * frequencyAt(i) * 1E-12;
+		float s = sin(w);
+		float c = cos(w);
+		float real = measured[0][i].real();
+		float imag = measured[0][i].imag();
+		measured[0][i] = {real * c - imag * s,
+							imag * c + real * s};
+		real = measured[1][i].real();
+		imag = measured[1][i].imag();
+		measured[1][i] = {real * c - imag * s,
+							imag * c + real * s};
+	}
+	
 	int caldata_save(int id) {
 		int ret = flash_caldata_save(id);
 		return ret;
