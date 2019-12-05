@@ -1431,8 +1431,8 @@ draw_frequencies(void)
 	char buf[24];
 	if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 			if (frequency1 > 0) {
-				int start = frequency0;
-				int stop = frequency1;
+				auto start = frequency0;
+				auto stop = frequency1;
 				strcpy(buf, "START ");
 				frequency_string(buf+6, 24-6, start);
 				strcat(buf, "    ");
@@ -1442,8 +1442,8 @@ draw_frequencies(void)
 				strcat(buf, "    ");
 				ili9341_drawstring_5x7(buf, 205, 233, 0xffff, 0x0000);
 			} else if (frequency1 < 0) {
-				int fcenter = frequency0;
-				int fspan = -frequency1;
+				auto fcenter = frequency0;
+				auto fspan = -frequency1;
 				strcpy(buf, "CENTER ");
 				frequency_string(buf+7, 24-7, fcenter);
 				strcat(buf, "    ");
@@ -1453,7 +1453,7 @@ draw_frequencies(void)
 				strcat(buf, "    ");
 				ili9341_drawstring_5x7(buf, 205, 233, 0xffff, 0x0000);
 			} else {
-				int fcenter = frequency0;
+				auto fcenter = frequency0;
 				chsnprintf(buf, 24, "CW %d.%03d %03d MHz    ",
 									 (int)(fcenter / 1000000),
 									 (int)((fcenter / 1000) % 1000),

@@ -278,20 +278,19 @@ void lcd_setup() {
 	xpt2046.begin(320, 240);
 	
 	ili9341_init();
+
+	// show test pattern
 	ili9341_test(5);
+	// clear screen
+	ili9341_fill(0, 0, 320, 240, 0);
+
 	plot_init();
-	//redraw_frame();
-	//redraw_request = REDRAW_CELLS | REDRAW_FREQUENCY | REDRAW_CAL_STATUS;
-	//draw_all(true);
 	ui_init();
 	plot_tick = []() {
 		UIActions::application_doEvents();
 	};
-	//handle_touch_interrupt();
-	//ui_process();
-	//ui_mode_menu();
 	plot_into_index(measured);
-	redraw_request |= REDRAW_CELLS;
+	redraw_request |= 0xff;
 	draw_all(true);
 }
 
