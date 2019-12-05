@@ -726,7 +726,7 @@ clear_markmap(void)
 	memset(markmap[current_mappage], 0, sizeof markmap[current_mappage]);
 }
 
-inline void
+void
 force_set_markmap(void)
 {
 	memset(markmap[current_mappage], 0xff, sizeof markmap[current_mappage]);
