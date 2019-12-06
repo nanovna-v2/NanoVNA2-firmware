@@ -21,5 +21,8 @@ void enter_dfu(void);
 void ui_mode_menu(void);
 void show_usb_data_mode(void);
 void draw_numeric_input(const char *buf);
+void draw_menu();
+
+void ui_cal_collected();
 
 void show_dmesg();

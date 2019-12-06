@@ -50,7 +50,6 @@ typedef uint64_t freqHz_t;
 #define CAL_OPEN 1
 #define CAL_SHORT 2
 #define CAL_THRU 3
-#define CAL_ISOLN 4
 
 #define CALSTAT_LOAD (1<<0)
 #define CALSTAT_OPEN (1<<1)
@@ -97,6 +96,11 @@ constexpr int adf4350_freqStep = 6; // adf4350 resolution, kHz
 constexpr int adf4350_modulus = xtal_freq/adf4350_R/adf4350_freqStep;
 
 
+constexpr int MEASUREMENT_NPERIODS_NORMAL = 14;
+constexpr int MEASUREMENT_NPERIODS_CALIBRATING = 30;
+constexpr int MEASUREMENT_ECAL_INTERVAL = 8;
+
+
 
 enum {
   TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_OFF
@@ -128,7 +132,7 @@ struct alignas(4) properties_t {
   int16_t _sweep_points;
   uint16_t _cal_status;
 
-  complexf _cal_data[5][SWEEP_POINTS_MAX];
+  complexf _cal_data[4][SWEEP_POINTS_MAX];
   float _electrical_delay; // picoseconds
   
   trace_t _trace[TRACES_MAX];

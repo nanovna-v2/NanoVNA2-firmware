@@ -57,6 +57,7 @@ enum {
 uint8_t ui_mode = UI_NORMAL;
 uint8_t keypad_mode;
 int8_t selection = 0;
+bool ui_disabled = false;
 
 typedef struct {
   uint8_t type;
@@ -352,18 +353,20 @@ menu_calop_cb(UIEvent evt, int item)
   case 2: // LOAD
     cal_collect(CAL_LOAD);
     break;
-  case 3: // ISOLN
-    cal_collect(CAL_ISOLN);
-    break;
   case 4: // THRU
     cal_collect(CAL_THRU);
     break;
   }
-  selection = item+1;
+  //selection = item+1;
+  ui_disabled = true;
   draw_cal_status();
   draw_menu();
 }
 
+void ui_cal_collected() {
+  ui_disabled = false;
+  draw_menu();
+}
 
 extern const menuitem_t menu_save[];
 
@@ -786,7 +789,6 @@ const menuitem_t menu_calop[] = {
   { MT_CALLBACK, "OPEN", menu_calop_cb },
   { MT_CALLBACK, "SHORT", menu_calop_cb },
   { MT_CALLBACK, "LOAD", menu_calop_cb },
-  { MT_CALLBACK, "ISOLN", menu_calop_cb },
   { MT_CALLBACK, "THRU", menu_calop_cb },
   { MT_CALLBACK, "DONE", menu_caldone_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
@@ -1263,6 +1265,10 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
         *fg = 0xffff;
       }
   }
+  if(*bg == 0x0000 && ui_disabled)
+    *bg = 0x6666;
+  if(*fg == 0x0000 && ui_disabled)
+    *fg = 0x6666;
 }
 
 void
@@ -1914,6 +1920,8 @@ ui_process(UIEvent evt)
     lastUIEvent = evt;
     return;
   }
+
+  if(ui_disabled) return;
 
   if(evt.isTouchPress())
     awd_count++;

@@ -41,6 +41,7 @@
 #include "vna_measurement.hpp"
 #include "fifo.hpp"
 #include "flash.hpp"
+#include "calibration.hpp"
 
 #include <libopencm3/stm32/timer.h>
 
@@ -87,6 +88,11 @@ FIFO<small_function<void()>, 8> eventQueue;
 
 volatile bool usbDataMode = false;
 volatile bool refreshEnabled = true;
+
+volatile int collectMeasurementType = -1;
+int collectMeasurementOffset = -1;
+int collectMeasurementState = 0;
+small_function<void()> collectMeasurementCB;
 
 void adc_process();
 
@@ -388,22 +394,45 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
-		if(ecalState == ECAL_STATE_DONE) {
-			scale *= 0.2f;
-			measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal[0] * scale;
-			measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
-			measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
-		} else {
+
+		if(collectMeasurementType >= 0) {
+			// we are collecting a measurement for calibration
 			measuredEcal[0][freqIndex] = ecal[0] * scale;
 			measuredEcal[1][freqIndex] = ecal[1] * scale;
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
-		}
-		if(ecalState == ECAL_STATE_MEASURING
-				&& freqIndex == vnaMeasurement.sweepPoints - 1) {
-			ecalState = ECAL_STATE_2NDSWEEP;
-		} else if(ecalState == ECAL_STATE_2NDSWEEP) {
-			ecalState = ECAL_STATE_DONE;
-			vnaMeasurement.ecalIntervalPoints = 8;
+			current_props._cal_data[collectMeasurementType][freqIndex] = v[0]/v[1] - measuredEcal[0][freqIndex];
+
+			if(collectMeasurementState == 0) {
+				collectMeasurementState = 1;
+				collectMeasurementOffset = freqIndex;
+			} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
+				collectMeasurementState = 2;
+				collectMeasurementOffset += 2;
+				if(collectMeasurementOffset >= vnaMeasurement.sweepPoints)
+					collectMeasurementOffset -= vnaMeasurement.sweepPoints;
+			} else if(collectMeasurementState == 2 && collectMeasurementOffset == freqIndex) {
+				collectMeasurementState = 0;
+				collectMeasurementType = -1;
+				eventQueue.enqueue(collectMeasurementCB);
+			}
+		} else {
+			if(ecalState == ECAL_STATE_DONE) {
+				scale *= 0.2f;
+				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal[0] * scale;
+				measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
+				measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
+			} else {
+				measuredEcal[0][freqIndex] = ecal[0] * scale;
+				measuredEcal[1][freqIndex] = ecal[1] * scale;
+				measuredEcal[2][freqIndex] = ecal[2] * scale;
+			}
+			if(ecalState == ECAL_STATE_MEASURING
+					&& freqIndex == vnaMeasurement.sweepPoints - 1) {
+				ecalState = ECAL_STATE_2NDSWEEP;
+			} else if(ecalState == ECAL_STATE_2NDSWEEP) {
+				ecalState = ECAL_STATE_DONE;
+				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
+			}
 		}
 	}
 	// enqueue new data point
@@ -440,6 +469,7 @@ void measurement_setup() {
 	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
 		setFrequency(freqHz);
 	};
+	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 	vnaMeasurement.init();
 	updateSweepParams();
 }
@@ -548,8 +578,19 @@ void processDataPoint() {
 	while(rdRPos != rdWPos) {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		VNAObservation& value = usbDP.value;
-		measured[0][usbDP.freqIndex] = value[0]/value[1] - measuredEcal[0][usbDP.freqIndex];
-		measured[1][usbDP.freqIndex] = value[2]/value[1] - measuredEcal[2][usbDP.freqIndex]*0.8f;
+		int freqIndex = usbDP.freqIndex;
+		auto refl = value[0]/value[1] - measuredEcal[0][freqIndex];
+		auto thru = value[2]/value[1] - measuredEcal[2][freqIndex]*0.8f;
+		if(current_props._cal_status & CALSTAT_APPLY) {
+			//refl -= current_props._cal_data[CAL_LOAD][usbDP.freqIndex];
+			refl = SOL_compute_reflection(
+						current_props._cal_data[CAL_SHORT][freqIndex],
+						current_props._cal_data[CAL_OPEN][freqIndex],
+						current_props._cal_data[CAL_LOAD][freqIndex],
+						refl);
+		}
+		measured[0][usbDP.freqIndex] = refl;
+		measured[1][usbDP.freqIndex] = thru;
 		
 		rdRPos = (rdRPos + 1) & usbTxQueueMask;
 	}
@@ -672,10 +713,19 @@ extern "C" void *memcpy(char *dest, const char *src, uint32_t n) {
 namespace UIActions {
 
 	void cal_collect(int type) {
-		
+		collectMeasurementCB = [type]() {
+			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
+			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+			current_props._cal_status |= (1 << type);
+			ui_cal_collected();
+		};
+		__sync_synchronize();
+		vnaMeasurement.ecalIntervalPoints = 1;
+		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
+		collectMeasurementType = type;
 	}
 	void cal_done(void) {
-		
+		current_props._cal_status |= CALSTAT_APPLY;
 	}
 
 
@@ -710,6 +760,8 @@ namespace UIActions {
 			default: return;
 		}
 		updateSweepParams();
+		current_props._cal_status = 0;
+		draw_cal_status();
 	}
 	freqHz_t get_sweep_frequency(int type) {
 		switch (type) {
