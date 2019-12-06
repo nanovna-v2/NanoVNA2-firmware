@@ -123,10 +123,6 @@ namespace synthesizers {
 				si5351.PLL[pll].PLL_Multiplier_Denominator = xtal_freq;
 				
 				si5351.PLLConfig2((PLLChannel) pll);
-				
-				if(freqHz == 100000000) {
-					printk("freq %d, N %d, frac %d\n", freqHz, N, frac);
-				}
 			}
 			si5351.PLLReset2();
 			
