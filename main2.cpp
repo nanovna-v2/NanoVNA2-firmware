@@ -59,7 +59,7 @@ int cpu_mhz = 24;
 
 USBSerial serial;
 
-static const int adcBufSize=4096;	// must be power of 2
+static const int adcBufSize=1024;	// must be power of 2
 volatile uint16_t adcBuffer[adcBufSize];
 
 VNAMeasurement vnaMeasurement;
