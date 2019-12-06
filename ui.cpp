@@ -248,7 +248,6 @@ show_version(void)
 void
 show_dmesg(void)
 {
-  printk("show dmesg\n");
   int x = 5, y = 5;
   
   uiDisableProcessing();

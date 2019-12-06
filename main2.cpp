@@ -25,6 +25,7 @@
 #include <mculib/dma_adc.hpp>
 #include <mculib/usbserial.hpp>
 #include <mculib/printf.hpp>
+#include <mculib/printk.hpp>
 
 #include <array>
 #include <complex>
@@ -44,6 +45,8 @@
 #include "calibration.hpp"
 
 #include <libopencm3/stm32/timer.h>
+#include <libopencm3/cm3/scb.h>
+#include <libopencm3/cm3/vector.h>
 
 using namespace mculib;
 using namespace std;
@@ -138,21 +141,24 @@ void startTimer(uint32_t timerDevice, int period) {
 	timer_set_counter(timerDevice, 0);
 	timer_enable_counter(timerDevice);
 }
-void timers_setup() {
-	rcc_periph_clock_enable(RCC_TIM1);
+void ui_timer_setup() {
 	rcc_periph_clock_enable(RCC_TIM2);
-	rcc_periph_reset_pulse(RST_TIM1);
 	rcc_periph_reset_pulse(RST_TIM2);
-	
-	// set tim1 to highest priority
-	nvic_set_priority(NVIC_TIM1_UP_IRQ, 1 * 16);
 	nvic_set_priority(NVIC_TIM2_IRQ, 3 * 16);
-
-	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 	nvic_enable_irq(NVIC_TIM2_IRQ);
-	startTimer(TIM1, tim1Period);
 	startTimer(TIM2, tim2Period);
 }
+
+
+void dsp_timer_setup() {
+	rcc_periph_clock_enable(RCC_TIM1);
+	rcc_periph_reset_pulse(RST_TIM1);
+	// set tim1 to highest priority
+	nvic_set_priority(NVIC_TIM1_UP_IRQ, 1 * 16);
+	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
+	startTimer(TIM1, tim1Period);
+}
+
 extern "C" void tim1_up_isr() {
 	TIM1_SR = 0;
 	systemTimeCounter += tim1Period;
@@ -295,9 +301,7 @@ void lcd_setup() {
 	plot_tick = []() {
 		UIActions::application_doEvents();
 	};
-	plot_into_index(measured);
 	redraw_request |= 0xff;
-	draw_all(true);
 }
 
 void enterUSBDataMode() {
@@ -598,6 +602,24 @@ void processDataPoint() {
 }
 
 int main(void) {
+	uint32_t fpuEnable = 0b1111 << 20;
+	bool shouldShowDmesg = false;
+
+	if((SCB_CPACR & fpuEnable) != fpuEnable) {
+		SCB_CPACR |= fpuEnable;
+		if((SCB_CPACR & fpuEnable) != fpuEnable) {
+			// printk1() does not invoke printf() and does not use fpu
+
+			// if you encounter this error, see:
+			// https://www.amobbs.com/thread-5719892-1-1.html
+			printk1("FPU NOT DETECTED! CHECK GD32F303 BATCH\n");
+		} else {
+			printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
+		}
+#ifndef GD32F3_NOFPU
+		shouldShowDmesg = true;
+#endif
+	}
 	int i;
 	boardInit();
 
@@ -631,6 +653,11 @@ int main(void) {
 
 	lcd_setup();
 	UIHW::init(tim2Period);
+	ui_timer_setup();
+
+	if(shouldShowDmesg) {
+		show_dmesg();
+	}
 
 	si5351_i2c.init();
 	if(!synthesizers::si5351_setup())
@@ -640,7 +667,7 @@ int main(void) {
 
 	measurement_setup();
 	adc_setup();
-	timers_setup();
+	dsp_timer_setup();
 
 	adf4350_setup();
 

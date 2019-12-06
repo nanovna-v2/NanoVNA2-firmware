@@ -49,8 +49,8 @@ properties_t current_props = {
 properties_t* active_props = &current_props;
 
 
-complexf measured[2][SWEEP_POINTS_MAX];
-complexf measuredEcal[3][SWEEP_POINTS_MAX];
+complexf measured[2][SWEEP_POINTS_MAX] alignas(8);
+complexf measuredEcal[3][SWEEP_POINTS_MAX] alignas(8);
 
 volatile EcalStates ecalState = ECAL_STATE_MEASURING;
 
