@@ -406,6 +406,14 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
 			current_props._cal_data[collectMeasurementType][freqIndex] = v[0]/v[1] - measuredEcal[0][freqIndex];
 
+			auto tmp = v[2]/v[1];
+			if(collectMeasurementType == CAL_OPEN)
+				current_props._cal_data[CAL_ISOLN_OPEN][freqIndex] = tmp;
+			else if(collectMeasurementType == CAL_SHORT)
+				current_props._cal_data[CAL_ISOLN_SHORT][freqIndex] = tmp;
+			else if(collectMeasurementType == CAL_THRU)
+				current_props._cal_data[CAL_THRU][freqIndex] = tmp;
+
 			if(collectMeasurementState == 0) {
 				collectMeasurementState = 1;
 				collectMeasurementOffset = freqIndex;
@@ -584,9 +592,16 @@ void processDataPoint() {
 		VNAObservation& value = usbDP.value;
 		int freqIndex = usbDP.freqIndex;
 		auto refl = value[0]/value[1] - measuredEcal[0][freqIndex];
-		auto thru = value[2]/value[1] - measuredEcal[2][freqIndex]*0.8f;
+		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;
 		if(current_props._cal_status & CALSTAT_APPLY) {
-			//refl -= current_props._cal_data[CAL_LOAD][usbDP.freqIndex];
+			auto x1 = current_props._cal_data[CAL_SHORT][freqIndex],
+				y1 = current_props._cal_data[CAL_ISOLN_SHORT][freqIndex],
+				x2 = current_props._cal_data[CAL_OPEN][freqIndex],
+				y2 = current_props._cal_data[CAL_ISOLN_OPEN][freqIndex];
+			auto cal_thru_leak_r = (y1-y2)/(x1-x2);
+			auto cal_thru_leak = y2-cal_thru_leak_r*x2;
+			thru = thru - (cal_thru_leak + refl*cal_thru_leak_r);
+
 			refl = SOL_compute_reflection(
 						current_props._cal_data[CAL_SHORT][freqIndex],
 						current_props._cal_data[CAL_OPEN][freqIndex],

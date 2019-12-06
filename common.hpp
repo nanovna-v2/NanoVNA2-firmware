@@ -50,6 +50,8 @@ typedef uint64_t freqHz_t;
 #define CAL_OPEN 1
 #define CAL_SHORT 2
 #define CAL_THRU 3
+#define CAL_ISOLN_OPEN 4
+#define CAL_ISOLN_SHORT 5
 
 #define CALSTAT_LOAD (1<<0)
 #define CALSTAT_OPEN (1<<1)
@@ -132,7 +134,7 @@ struct alignas(4) properties_t {
   int16_t _sweep_points;
   uint16_t _cal_status;
 
-  complexf _cal_data[4][SWEEP_POINTS_MAX];
+  complexf _cal_data[6][SWEEP_POINTS_MAX];
   float _electrical_delay; // picoseconds
   
   trace_t _trace[TRACES_MAX];
