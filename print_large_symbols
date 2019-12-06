@@ -1,0 +1,1 @@
+arm-none-eabi-nm --print-size --size-sort -t d binary.elf
