@@ -67,15 +67,15 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	periodCounterSwitch++;
 
 	if(measurementPhase == VNAMeasurementPhases::REFERENCE
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		currFwd = currDP;
 		setMeasurementPhase(VNAMeasurementPhases::REFL);
 	} else if(measurementPhase == VNAMeasurementPhases::REFL
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		currRefl = currDP;
 		setMeasurementPhase(VNAMeasurementPhases::THRU);
 	} else if(measurementPhase == VNAMeasurementPhases::THRU
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		currThru = currDP;
 
 		if(ecalCounter == 0) {
@@ -97,15 +97,15 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		if(ecalCounter >= ecalIntervalPoints)
 			ecalCounter = 0;
 	} else if(measurementPhase == VNAMeasurementPhases::ECALTHRU
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		ecal[2] = to_complexf(currDP);
 		setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 	} else if(measurementPhase == VNAMeasurementPhases::ECALLOAD
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		ecal[0] = to_complexf(currDP);
 		setMeasurementPhase(VNAMeasurementPhases::ECALSHORT);
 	} else if(measurementPhase == VNAMeasurementPhases::ECALSHORT
-		&& periodCounterSwitch == (nWaitSwitch + nPeriods)) {
+		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		ecal[1] = to_complexf(currDP);
 		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 
