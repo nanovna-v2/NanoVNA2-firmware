@@ -56,6 +56,7 @@ public:
 	// if points is 1, sets frequency to startFreqHz and disables sweep
 	void setSweep(freqHz_t startFreqHz, freqHz_t stepFreqHz, int points, int dataPointsPerFreq=1);
 
+	void resetSweep();
 
 	struct _emitValue_t {
 		VNAMeasurement* m;
@@ -82,7 +83,7 @@ public:
 	uint32_t ecalCounterOffset = 0;
 
 	// number of frequency points since start of sweep
-	int sweepCurrPoint = 0;
+	volatile int sweepCurrPoint = 0;
 
 	// current data point variables
 	complexi currDP, currFwd, currRefl, currThru;

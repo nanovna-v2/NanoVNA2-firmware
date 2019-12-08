@@ -3,13 +3,13 @@ from math import *
 from scipy import signal
 
 # sine period in samples
-N = 50
+N = 25
 
 # integration period
 accumPeriod = 50
 
 # window decay length
-windowN = 0
+windowN = 25
 
 scale = (2**15 - 1)
 
@@ -36,7 +36,7 @@ print 'const int16_t sinTable[%d] = {' % (accumPeriod*2)
 for i in range(accumPeriod):
 	arg = float(i) / N * 2*pi
 	re = cos(arg)
-	im = sin(arg)
+	im = -sin(arg)
 	vals = [re, im]
 	if windowN > 0:
 		vals = [x*finalWindow[i] for x in vals]

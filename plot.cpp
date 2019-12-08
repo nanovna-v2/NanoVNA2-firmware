@@ -55,7 +55,7 @@ small_function<void()> plot_tick;
  * CELL_X[5:9] position in the cell
  * CELL_Y[0:4]
  */
-uint32_t trace_index[TRACES_MAX][101];
+uint32_t trace_index[TRACES_MAX][SWEEP_POINTS_MAX];
 
 #define INDEX(x, y, n) \
 	((((x)&0x03e0UL)<<22) | (((y)&0x03e0UL)<<17) | (((n)&0x0fffUL)<<10)  \
@@ -872,7 +872,7 @@ cell_drawline(int w, int h, int x0, int y0, int x1, int y1, int c)
 }
 
 int
-search_index_range(int x, int y, uint32_t index[101], int *i0, int *i1)
+search_index_range(int x, int y, uint32_t* index, int *i0, int *i1)
 {
 	int i, j;
 	int head = 0;
@@ -909,7 +909,7 @@ search_index_range(int x, int y, uint32_t index[101], int *i0, int *i1)
 }
 
 int
-search_index_range_x(int x, uint32_t index[101], int *i0, int *i1)
+search_index_range_x(int x, uint32_t* index, int *i0, int *i1)
 {
 	int i, j;
 	int head = 0;
@@ -1180,7 +1180,7 @@ draw_cell(int m, int n)
 		if (search_index_range_x(x0, trace_index[t], &i0, &i1)) {
 			if (i0 > 0)
 				i0--;
-			if (i1 < 101-1)
+			if (i1 < current_props._sweep_points-1)
 				i1++;
 			for (i = i0; i < i1; i++) {
 				int x1 = CELL_X(trace_index[t][i]);
@@ -1467,7 +1467,7 @@ draw_frequencies(void)
 			ili9341_drawstring_5x7(buf, OFFSETX, 233, 0xffff, 0x0000);
 
 			strcpy(buf, "STOP ");
-			chsnprintf(buf+5, 24-5, "%d ns", (uint16_t)(time_of_index(101) * 1e9));
+			chsnprintf(buf+5, 24-5, "%d ns", (uint16_t)(time_of_index(current_props._sweep_points) * 1e9));
 			strcat(buf, "          ");
 			ili9341_drawstring_5x7(buf, 205, 233, 0xffff, 0x0000);
 	}

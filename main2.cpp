@@ -144,7 +144,7 @@ void startTimer(uint32_t timerDevice, int period) {
 void ui_timer_setup() {
 	rcc_periph_clock_enable(RCC_TIM2);
 	rcc_periph_reset_pulse(RST_TIM2);
-	nvic_set_priority(NVIC_TIM2_IRQ, 3 * 16);
+	nvic_set_priority(NVIC_TIM2_IRQ, 0x80);
 	nvic_enable_irq(NVIC_TIM2_IRQ);
 	startTimer(TIM2, tim2Period);
 }
@@ -154,7 +154,7 @@ void dsp_timer_setup() {
 	rcc_periph_clock_enable(RCC_TIM1);
 	rcc_periph_reset_pulse(RST_TIM1);
 	// set tim1 to highest priority
-	nvic_set_priority(NVIC_TIM1_UP_IRQ, 1 * 16);
+	nvic_set_priority(NVIC_TIM1_UP_IRQ, 0x00);
 	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 	startTimer(TIM1, tim1Period);
 }
@@ -311,56 +311,235 @@ void enterUSBDataMode() {
 
 
 /*
+-- command types:
+-- bytes (hex):
+--  0  1  2  3  4  5
+-- 00					: nop
+-- 0d					: return ascii '2' (0x32)
+-- 10 AA				: read register (address in AA)
+-- 11 AA				: read 2-byte register (address in AA)
+-- 12 AA				: read 4-byte register (address in AA)
+-- 13 AA NN				: read N values from FIFO (bytes per value is implementation defined)
+-- 20 AA XX				: write register (address in AA, value in XX)
+-- 21 AA XX XX			: write 2-byte register (address in AA, values in XX)
+-- 22 AA XX XX XX XX	: write 4-byte register (address in AA, values in XX)
+-- 23 AA XX XX XX XX	: write 8-byte register (address in AA, values in XX)
+
 -- register map:
--- 00: pll_frequency [23..16]
--- 01: pll_frequency [15..8]
--- 02: pll_frequency [7..0]
--- 03: update_trigger; write 1 to update all plls
--- 04: attenuation, in 0.5dB increments
--- 05: 
---   [1..0]: signal generator output power
---   [3..2]: LO output power
---   [7..4]: output data mode:
---				0: normal
---				1: adc data
--- 06: auto-sweep params
---   06: 
--- note: the output signal frequency is pll_frequency * 10kHz*/
+-- 00: sweepStartHz[7..0]
+-- 01: sweepStartHz[15..8]
+-- 02: sweepStartHz[23..16]
+-- 03: sweepStartHz[31..24]
+-- 04: sweepStartHz[39..32]
+-- 05: sweepStartHz[47..40]
+-- 06: sweepStartHz[55..48]
+-- 07: sweepStartHz[63..56]
+-- 10: sweepStepHz[7..0]
+-- 11: sweepStepHz[15..8]
+-- 12: sweepStepHz[23..16]
+-- 13: sweepStepHz[31..24]
+-- 14: sweepStepHz[39..32]
+-- 15: sweepStepHz[47..40]
+-- 16: sweepStepHz[55..48]
+-- 17: sweepStepHz[63..56]
+-- 20: sweepPoints[7..0]
+-- 21: sweepPoints[15..8]
+-- 30: valuesFIFO
+-- 38: write 01 to clear valuesFIFO
+-- 31: device variant (01)
+-- 32: protocol version (01)
+-- 33: hardware revision
+
+-- register descriptions:
+-- sweepStartHz - Sweep start frequency in Hz.
+-- sweepStepHz - Sweep step frequency in Hz.
+-- sweepPoints - Number of points in sweep.
+-- valuesFIFO - Only command 0x13 supported; returns VNA data.
+*/
+
+int cmdPhase = 0;
+uint8_t cmdOpcode = 0;
+uint8_t cmdAddress = 0xff;
+uint8_t cmdEndAddress = 0xff;
+uint8_t cmdStartAddress = 0;
+
+void cmdReadFIFO(int address, int nValues);
+void cmdRegisterWrite(int address);
 
 void serialCharHandler(uint8_t* s, int len) {
-	static uint8_t writingRegister = 255;
-	for(int i=0;i<len;i++) {
-		uint8_t ch=s[i];
-		if(writingRegister == 255) // set write address
-			writingRegister = (ch == 0 ? 255 : (ch - 1));
-		else { // write reg
-			if(writingRegister < sizeof(registers)) {
-				registers[writingRegister] = ch;
+	uint8_t* end = s + len;
+	while(s < end) {
+		uint8_t c = *s;
+		if(cmdPhase == 0) {
+			cmdOpcode = c;
+			if(cmdOpcode == 0)
+				goto cont;
+			if(cmdOpcode == 0x0d) {
+				serial.print("2", 1);
+				goto cont;
 			}
-			if(writingRegister == 3) {
-				// update pll
-				uint32_t freq = (uint32_t(registers[0]) << 16)
-						| (uint32_t(registers[1]) << 8)
-						| (uint32_t(registers[2]) << 0);
-				
-				//setFrequency(freq*10);
-				vnaMeasurement.setSweep(freq*10000, 0, 1);
-				if(!usbDataMode)
-					enterUSBDataMode();
-			}
-			if(writingRegister == 5) {
-				uint8_t outpMode = ch >> 4;
-				if(outpMode > 0)
-					outputRawSamples = true;
-				else
-					outputRawSamples = false;
-			}
-			writingRegister = 255;
+			cmdPhase++;
+			goto cont;
 		}
+		if(cmdPhase == 1) {
+			cmdStartAddress = cmdAddress = c;
+			if(cmdOpcode == 0x21)
+				cmdEndAddress = cmdAddress + 2;
+			if(cmdOpcode == 0x22)
+				cmdEndAddress = cmdAddress + 4;
+			if(cmdOpcode == 0x23)
+				cmdEndAddress = cmdAddress + 8;
+			cmdPhase++;
+			if((cmdAddress + 4) > sizeof(registers)) {
+				cmdPhase = 0;
+			}
+			goto cont;
+		}
+		switch(cmdOpcode) {
+			case 0x10:
+				serial.print((char*) registers + cmdAddress, 1);
+				cmdPhase = 0;
+				break;
+			case 0x11:
+				serial.print((char*) registers + cmdAddress, 2);
+				cmdPhase = 0;
+				break;
+			case 0x12:
+				serial.print((char*) registers + cmdAddress, 4);
+				cmdPhase = 0;
+				break;
+			case 0x13:
+				cmdReadFIFO(cmdAddress, c);
+				cmdPhase = 0;
+				break;
+			case 0x20:
+				registers[cmdAddress] = c;
+				cmdPhase = 0;
+				cmdRegisterWrite(cmdAddress);
+				break;
+			case 0x21:
+			case 0x22:
+			case 0x23:
+				registers[cmdAddress] = c;
+				cmdAddress++;
+				if(cmdAddress == cmdEndAddress) {
+					cmdPhase = 0;
+					cmdRegisterWrite(cmdStartAddress);
+				}
+				break;
+			default:
+				cmdPhase = 0;
+				break;
+		}
+	cont:
+		s++;
+	}
+}
+//1425tX^^^^^^^^^^^^^^XXXXXXXXXXXXXXXXXXXXXXMMMMMM%Vc222$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$44443 \uuuuuuuuuuuuiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiyhz<ggggggggggggggggggggggggggggggggggg
+
+void cmdReadFIFO(int address, int nValues) {
+	if(address != 0x30) return;
+	if(!usbDataMode)
+		enterUSBDataMode();
+
+	for(int i=0; i<nValues;) {
+		int rdRPos = usbTxQueueRPos;
+		int rdWPos = usbTxQueueWPos;
+		__sync_synchronize();
+
+		if(rdRPos == rdWPos) { // queue empty
+			adc_process(); // FIXME: fix interrupt preemption and remove this
+			continue;
+		}
+
+		usbDataPoint& usbDP = usbTxQueue[rdRPos];
+		VNAObservation& value = usbDP.value;
+		value[0] -= measuredEcal[0][usbDP.freqIndex] * value[1];
+
+		int32_t fwdRe = value[1].real();
+		int32_t fwdIm = value[1].imag();
+		int32_t reflRe = value[0].real();
+		int32_t reflIm = value[0].imag();
+		int32_t thruRe = value[2].real();
+		int32_t thruIm = value[2].imag();
+
+		uint8_t txbuf[32];
+		txbuf[0] = uint8_t(fwdRe >> 0);
+		txbuf[1] = uint8_t(fwdRe >> 8);
+		txbuf[2] = uint8_t(fwdRe >> 16);
+		txbuf[3] = uint8_t(fwdRe >> 24);
+
+		txbuf[4] = uint8_t(fwdIm >> 0);
+		txbuf[5] = uint8_t(fwdIm >> 8);
+		txbuf[6] = uint8_t(fwdIm >> 16);
+		txbuf[7] = uint8_t(fwdIm >> 24);
+
+		txbuf[8] = uint8_t(reflRe >> 0);
+		txbuf[9] = uint8_t(reflRe >> 8);
+		txbuf[10] = uint8_t(reflRe >> 16);
+		txbuf[11] = uint8_t(reflRe >> 24);
+
+		txbuf[12] = uint8_t(reflIm >> 0);
+		txbuf[13] = uint8_t(reflIm >> 8);
+		txbuf[14] = uint8_t(reflIm >> 16);
+		txbuf[15] = uint8_t(reflIm >> 24);
+
+		txbuf[16] = uint8_t(thruRe >> 0);
+		txbuf[17] = uint8_t(thruRe >> 8);
+		txbuf[18] = uint8_t(thruRe >> 16);
+		txbuf[19] = uint8_t(thruRe >> 24);
+
+		txbuf[20] = uint8_t(thruIm >> 0);
+		txbuf[21] = uint8_t(thruIm >> 8);
+		txbuf[22] = uint8_t(thruIm >> 16);
+		txbuf[23] = uint8_t(thruIm >> 24);
+
+		txbuf[24] = (uint8_t) usbDP.freqIndex;
+		
+		txbuf[25] = 0;
+		txbuf[26] = 0;
+		txbuf[27] = 0;
+		txbuf[28] = 0;
+		txbuf[29] = 0;
+		txbuf[30] = 0;
+		txbuf[31] = 0;
+
+		uint8_t checksum=0b01000110;
+		for(int i=0; i<31; i++)
+			checksum = (checksum xor ((checksum<<1) | 1)) xor txbuf[i];
+		txbuf[31] = checksum;
+
+		serial.print((char*)txbuf, sizeof(txbuf));
+		__sync_synchronize();
+		usbTxQueueRPos = (rdRPos + 1) & usbTxQueueMask;
+		i++;
 	}
 }
 
-
+void cmdRegisterWrite(int address) {
+	if(!usbDataMode)
+		enterUSBDataMode();
+	if(address == 0x00) {
+		vnaMeasurement.sweepStartHz = *(uint64_t*)(registers + 0x00);
+		vnaMeasurement.resetSweep();
+	}
+	if(address == 0x10) {
+		vnaMeasurement.sweepStepHz = *(uint64_t*)(registers + 0x10);
+		vnaMeasurement.resetSweep();
+	}
+	if(address == 0x20) {
+		vnaMeasurement.sweepPoints = *(uint16_t*)(registers + 0x20);
+		vnaMeasurement.resetSweep();
+	}
+	if(address == 0x00 || address == 0x10 || address == 0x20) {
+		ecalState = ECAL_STATE_MEASURING;
+		vnaMeasurement.ecalIntervalPoints = 1;
+		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
+	}
+	if(address == 0x38 && registers[0x38] == 1) {
+		usbTxQueueRPos = usbTxQueueWPos;
+	}
+}
 
 
 
@@ -444,6 +623,7 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 			} else if(ecalState == ECAL_STATE_2NDSWEEP) {
 				ecalState = ECAL_STATE_DONE;
 				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
+				vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 			}
 		}
 	}
@@ -467,6 +647,7 @@ void updateSweepParams() {
 	uint64_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
+	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 	ecalState = ECAL_STATE_MEASURING;
 }
@@ -497,70 +678,6 @@ void adc_process() {
 			digitalWrite(led, vnaMeasurement.sampleProcessor.clipFlag?1:0);
 		}
 	}
-}
-
-// transmit any outstanding data in the usbTxQueue
-void usb_transmit() {
-	int rdRPos = usbTxQueueRPos;
-	int rdWPos = usbTxQueueWPos;
-	__sync_synchronize();
-
-	if(rdRPos == rdWPos) // queue empty
-		return;
-	
-	usbDataPoint& usbDP = usbTxQueue[rdRPos];
-	VNAObservation& value = usbDP.value;
-	int32_t fwdRe = value[1].real();
-	int32_t fwdIm = value[1].imag();
-	int32_t reflRe = value[0].real();
-	int32_t reflIm = value[0].imag();
-	int32_t thruRe = value[2].real();
-	int32_t thruIm = value[2].imag();
-	uint8_t txbuf[31];
-	txbuf[0] = fwdRe & 0x7F;
-	txbuf[1] = (fwdRe >> 7) | 0x80;
-	txbuf[2] = (fwdRe >> 14) | 0x80;
-	txbuf[3] = (fwdRe >> 21) | 0x80;
-	txbuf[4] = (fwdRe >> 28) | 0x80;
-	
-	txbuf[5] = (fwdIm >> 0) | 0x80;
-	txbuf[6] = (fwdIm >> 7) | 0x80;
-	txbuf[7] = (fwdIm >> 14) | 0x80;
-	txbuf[8] = (fwdIm >> 21) | 0x80;
-	txbuf[9] = (fwdIm >> 28) | 0x80;
-	
-	txbuf[10] = (reflRe >> 0) | 0x80;
-	txbuf[11] = (reflRe >> 7) | 0x80;
-	txbuf[12] = (reflRe >> 14) | 0x80;
-	txbuf[13] = (reflRe >> 21) | 0x80;
-	txbuf[14] = (reflRe >> 28) | 0x80;
-	
-	txbuf[15] = (reflIm >> 0) | 0x80;
-	txbuf[16] = (reflIm >> 7) | 0x80;
-	txbuf[17] = (reflIm >> 14) | 0x80;
-	txbuf[18] = (reflIm >> 21) | 0x80;
-	txbuf[19] = (reflIm >> 28) | 0x80;
-	
-	txbuf[20] = (thruRe >> 0) | 0x80;
-	txbuf[21] = (thruRe >> 7) | 0x80;
-	txbuf[22] = (thruRe >> 14) | 0x80;
-	txbuf[23] = (thruRe >> 21) | 0x80;
-	txbuf[24] = (thruRe >> 28) | 0x80;
-	
-	txbuf[25] = (thruIm >> 0) | 0x80;
-	txbuf[26] = (thruIm >> 7) | 0x80;
-	txbuf[27] = (thruIm >> 14) | 0x80;
-	txbuf[28] = (thruIm >> 21) | 0x80;
-	txbuf[29] = (thruIm >> 28) | 0x80;
-	
-	uint8_t checksum=0b01000110;
-	for(int i=0; i<30; i++)
-		checksum = (checksum xor ((checksum<<1) | 1)) xor txbuf[i];
-	txbuf[30] = checksum | (1<<7);
-	
-	serial.print((char*)txbuf, sizeof(txbuf));
-	__sync_synchronize();
-	usbTxQueueRPos = (rdRPos + 1) & usbTxQueueMask;
 }
 
 static int cnt = 0;
@@ -637,6 +754,8 @@ int main(void) {
 	}
 	int i;
 	boardInit();
+	constexpr uint32_t NVIC_PRIORITYGROUP_4 = 0x00000003U;
+	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
 
 	pinMode(led, OUTPUT);
 	pinMode(led2, OUTPUT);
@@ -664,7 +783,11 @@ int main(void) {
 	// baud rate is ignored for usbserial
 	serial.begin(115200);
 
+	nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, 0xf0);
+
 	flash_config_recall();
+
+	UIActions::printTouchCal();
 
 	lcd_setup();
 	UIHW::init(tim2Period);
@@ -703,12 +826,9 @@ int main(void) {
 		if(usbDataMode) {
 			if(outputRawSamples)
 				usb_transmit_rawSamples();
-			else
-				usb_transmit();
 			// display "usb mode" screen
 			if(!lastUSBDataMode) {
 				show_usb_data_mode();
-				
 			}
 			lastUSBDataMode = usbDataMode;
 			continue;
@@ -921,6 +1041,14 @@ namespace UIActions {
 	int config_recall() {
 		return flash_config_recall();
 	}
+
+	void printTouchCal() {
+		printk1("touch cal:\n");
+		printk("    %d, %d\n    %d, %d\n",
+				(int)config.touch_cal[0], (int)config.touch_cal[1],
+				(int)config.touch_cal[2], (int)config.touch_cal[3]);
+	}
+
 
 	void application_doEvents() {
 		while(eventQueue.readable()) {

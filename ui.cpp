@@ -162,6 +162,8 @@ touch_cal_exec(void)
   config.touch_cal[2] = (x2 - x1) * 16 / 320;
   config.touch_cal[3] = (y2 - y1) * 16 / 240;
 
+  UIActions::printTouchCal();
+
   uiEnableProcessing();
 }
 

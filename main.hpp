@@ -39,6 +39,7 @@ namespace UIActions {
 	int config_save();
 	int config_recall();
 
+	void printTouchCal();
 
 	// process all outstanding events in the main event queue.
 	void application_doEvents();

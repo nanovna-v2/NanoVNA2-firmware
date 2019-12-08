@@ -4,7 +4,7 @@
 int8_t sweep_enabled;
 int16_t vbat;
 
-uint8_t registers[32];
+uint8_t registers[64];
 
 int16_t lastsaveid = 0;
 
