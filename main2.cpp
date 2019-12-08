@@ -494,9 +494,9 @@ void cmdReadFIFO(int address, int nValues) {
 		txbuf[22] = uint8_t(thruIm >> 16);
 		txbuf[23] = uint8_t(thruIm >> 24);
 
-		txbuf[24] = (uint8_t) usbDP.freqIndex;
-		
-		txbuf[25] = 0;
+		txbuf[24] = uint8_t(usbDP.freqIndex >> 0);
+		txbuf[25] = uint8_t(usbDP.freqIndex >> 8);
+
 		txbuf[26] = 0;
 		txbuf[27] = 0;
 		txbuf[28] = 0;
