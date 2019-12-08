@@ -95,10 +95,11 @@ public:
 
 	uint64_t currFreq;
 	
-	complexf ecal[3];
+	complexf ecal[ECAL_CHANNELS];
 
 
 	void setMeasurementPhase(VNAMeasurementPhases ph);
 	void sweepAdvance();
 	void sampleProcessor_emitValue(int32_t valRe, int32_t valIm);
+	void doEmitValue(bool ecal);
 };

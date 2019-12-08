@@ -41,9 +41,16 @@ typedef uint64_t freqHz_t;
 
 
 #define SWEEP_POINTS_MAX 128
+#define USB_POINTS_MAX 1024
 #define TRACES_MAX 4
 #define FFT_SIZE 256
+#define ECAL_PARTIAL
 
+#ifdef ECAL_PARTIAL
+#define ECAL_CHANNELS 1
+#else
+#define ECAL_CHANNELS 3
+#endif
 
 
 #define CAL_LOAD 0
@@ -100,7 +107,7 @@ constexpr int adf4350_modulus = xtal_freq/adf4350_R/adf4350_freqStep;
 
 constexpr int MEASUREMENT_NPERIODS_NORMAL = 14;
 constexpr int MEASUREMENT_NPERIODS_CALIBRATING = 30;
-constexpr int MEASUREMENT_ECAL_INTERVAL = 8;
+constexpr int MEASUREMENT_ECAL_INTERVAL = 5;
 
 
 

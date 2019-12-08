@@ -86,45 +86,48 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		currThru = currDP;
 
 		if(ecalCounter == 0) {
+#ifdef ECAL_PARTIAL
+			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
+#else
 			setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
+#endif
 		} else {
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-			
-			// emit new data point
-			VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
-			emitDataPoint(sweepCurrPoint, currFreq, value, nullptr);
-
-			dpCounterSynth++;
-			if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
-				dpCounterSynth = 0;
-				sweepAdvance();
-			}
+			doEmitValue(false);
 		}
 		ecalCounter++;
 		if(ecalCounter >= ecalIntervalPoints)
 			ecalCounter = 0;
 	} else if(measurementPhase == VNAMeasurementPhases::ECALTHRU
 		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
+
 		ecal[2] = to_complexf(currDP);
 		setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 	} else if(measurementPhase == VNAMeasurementPhases::ECALLOAD
 		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		ecal[0] = to_complexf(currDP);
+#ifdef ECAL_PARTIAL
+		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+		doEmitValue(true);
+#else
 		setMeasurementPhase(VNAMeasurementPhases::ECALSHORT);
+#endif
 	} else if(measurementPhase == VNAMeasurementPhases::ECALSHORT
 		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		ecal[1] = to_complexf(currDP);
 		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+		doEmitValue(true);
+	}
+}
+void VNAMeasurement::doEmitValue(bool ecal) {
+	// emit new data point
+	VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
+	emitDataPoint(sweepCurrPoint, currFreq, value, ecal ? this->ecal : nullptr);
 
-		// emit new data point
-		VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
-		emitDataPoint(sweepCurrPoint, currFreq, value, ecal);
-
-		dpCounterSynth++;
-		if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
-			dpCounterSynth = 0;
-			sweepAdvance();
-		}
+	dpCounterSynth++;
+	if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
+		dpCounterSynth = 0;
+		sweepAdvance();
 	}
 }
 

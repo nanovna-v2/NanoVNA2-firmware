@@ -528,7 +528,10 @@ void cmdRegisterWrite(int address) {
 		vnaMeasurement.resetSweep();
 	}
 	if(address == 0x20) {
-		vnaMeasurement.sweepPoints = *(uint16_t*)(registers + 0x20);
+		int points = *(uint16_t*)(registers + 0x20);
+		if(points > USB_POINTS_MAX)
+			points = USB_POINTS_MAX;
+		vnaMeasurement.sweepPoints = points;
 		vnaMeasurement.resetSweep();
 	}
 	if(address == 0x00 || address == 0x10 || address == 0x20) {
@@ -565,7 +568,8 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			break;
 		case VNAMeasurementPhases::ECALLOAD:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
-			//rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
+			rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
 			break;
 		case VNAMeasurementPhases::ECALSHORT:
 			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
@@ -581,8 +585,10 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 		if(collectMeasurementType >= 0) {
 			// we are collecting a measurement for calibration
 			measuredEcal[0][freqIndex] = ecal[0] * scale;
+#ifndef ECAL_PARTIAL
 			measuredEcal[1][freqIndex] = ecal[1] * scale;
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
+#endif
 			current_props._cal_data[collectMeasurementType][freqIndex] = v[0]/v[1] - measuredEcal[0][freqIndex];
 
 			auto tmp = v[2]/v[1];
@@ -610,12 +616,16 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAOb
 			if(ecalState == ECAL_STATE_DONE) {
 				scale *= 0.2f;
 				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal[0] * scale;
-				measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
-				measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
+				#ifndef ECAL_PARTIAL
+					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
+					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
+				#endif
 			} else {
 				measuredEcal[0][freqIndex] = ecal[0] * scale;
-				measuredEcal[1][freqIndex] = ecal[1] * scale;
-				measuredEcal[2][freqIndex] = ecal[2] * scale;
+				#ifndef ECAL_PARTIAL
+					measuredEcal[1][freqIndex] = ecal[1] * scale;
+					measuredEcal[2][freqIndex] = ecal[2] * scale;
+				#endif
 			}
 			if(ecalState == ECAL_STATE_MEASURING
 					&& freqIndex == vnaMeasurement.sweepPoints - 1) {

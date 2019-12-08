@@ -29,7 +29,7 @@ extern config_t config;
 
 
 extern complexf measured[2][SWEEP_POINTS_MAX];
-extern complexf measuredEcal[3][SWEEP_POINTS_MAX];
+extern complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX];
 
 
 enum EcalStates {
