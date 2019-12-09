@@ -539,7 +539,7 @@ void cmdRegisterWrite(int address) {
 		vnaMeasurement.ecalIntervalPoints = 1;
 		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	}
-	if(address == 0x38 && registers[0x38] == 1) {
+	if(address == 0x30) {
 		usbTxQueueRPos = usbTxQueueWPos;
 	}
 }
