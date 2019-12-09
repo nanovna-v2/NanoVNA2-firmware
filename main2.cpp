@@ -67,6 +67,11 @@ volatile uint16_t adcBuffer[adcBufSize];
 
 VNAMeasurement vnaMeasurement;
 
+uint8_t usbRxQueue[128];
+constexpr int usbRxQueueMask = sizeof(usbRxQueue) - 1;
+volatile int usbRxQueueWPos = 0;
+volatile int usbRxQueueRPos = 0;
+
 
 struct usbDataPoint {
 	VNAObservation value;
@@ -314,16 +319,16 @@ void enterUSBDataMode() {
 -- command types:
 -- bytes (hex):
 --  0  1  2  3  4  5
--- 00					: nop
--- 0d					: return ascii '2' (0x32)
--- 10 AA				: read register (address in AA)
--- 11 AA				: read 2-byte register (address in AA)
--- 12 AA				: read 4-byte register (address in AA)
--- 13 AA NN				: read N values from FIFO (bytes per value is implementation defined)
--- 20 AA XX				: write register (address in AA, value in XX)
--- 21 AA XX XX			: write 2-byte register (address in AA, values in XX)
--- 22 AA XX XX XX XX	: write 4-byte register (address in AA, values in XX)
--- 23 AA XX XX XX XX	: write 8-byte register (address in AA, values in XX)
+-- 00                   : nop
+-- 0d                   : return ascii '2' (0x32)
+-- 10 AA                : read register (address in AA)
+-- 11 AA                : read 2-byte register (address in AA)
+-- 12 AA                : read 4-byte register (address in AA)
+-- 14 AA NN             : read up to N values from FIFO (bytes per value is implementation defined)
+-- 20 AA XX             : write register (address in AA, value in XX)
+-- 21 AA XX XX          : write 2-byte register (address in AA, values in XX)
+-- 22 AA XX XX XX XX    : write 4-byte register (address in AA, values in XX)
+-- 23 AA XX XX XX XX    : write 8-byte register (address in AA, values in XX)
 
 -- register map:
 -- 00: sweepStartHz[7..0]
@@ -344,17 +349,50 @@ void enterUSBDataMode() {
 -- 17: sweepStepHz[63..56]
 -- 20: sweepPoints[7..0]
 -- 21: sweepPoints[15..8]
--- 30: valuesFIFO
--- 38: write 01 to clear valuesFIFO
--- 31: device variant (01)
--- 32: protocol version (01)
--- 33: hardware revision
+-- 30: valuesFIFO - returns data points; elements are 32-byte. See below for data format.
+--                  command 0x14 reads FIFO data; writing any value clears FIFO.
+-- f0: device variant (01)
+-- f1: protocol version (01)
+-- f2: hardware revision
 
 -- register descriptions:
 -- sweepStartHz - Sweep start frequency in Hz.
 -- sweepStepHz - Sweep step frequency in Hz.
 -- sweepPoints - Number of points in sweep.
 -- valuesFIFO - Only command 0x13 supported; returns VNA data.
+
+-- valuesFIFO element data format:
+-- bytes:
+-- 00: fwd0Re[7..0]
+-- 01: fwd0Re[15..8]
+-- 02: fwd0Re[23..16]
+-- 03: fwd0Re[31..24]
+-- 04: fwd0Im[7..0]
+-- 05: fwd0Im[15..8]
+-- 06: fwd0Im[23..16]
+-- 07: fwd0Im[31..24]
+
+-- 08: rev0Re[7..0]
+-- 09: rev0Re[15..8]
+-- 0a: rev0Re[23..16]
+-- 0b: rev0Re[31..24]
+-- 0c: rev0Im[7..0]
+-- 0d: rev0Im[15..8]
+-- 0e: rev0Im[23..16]
+-- 0f: rev0Im[31..24]
+
+-- 10: rev1Re[7..0]
+-- 11: rev1Re[15..8]
+-- 12: rev1Re[23..16]
+-- 13: rev1Re[31..24]
+-- 14: rev1Im[7..0]
+-- 15: rev1Im[15..8]
+-- 16: rev1Im[23..16]
+-- 17: rev1Im[31..24]
+
+-- 18: freqIndex[7..0]
+-- 19: freqIndex[15..8]
+-- 1a - 1f: reserved
 */
 
 int cmdPhase = 0;
@@ -367,6 +405,21 @@ void cmdReadFIFO(int address, int nValues);
 void cmdRegisterWrite(int address);
 
 void serialCharHandler(uint8_t* s, int len) {
+	uint32_t wrRPos = usbRxQueueRPos;
+	uint32_t wrWPos = usbRxQueueWPos;
+	__sync_synchronize();
+	uint32_t spaceLeft = (wrRPos - wrWPos - 1) & usbRxQueueMask;
+	if(len > spaceLeft) len = spaceLeft;
+	uint32_t target = (wrWPos + len) & usbRxQueueMask;
+
+	for(uint32_t i = wrWPos; i != target; i = ((i+1) & usbRxQueueMask)) {
+		usbRxQueue[i] = *s;
+		s++;
+	}
+	__sync_synchronize();
+	usbRxQueueWPos = target;
+}
+void cmdHandleInput(uint8_t* s, int len) {
 	uint8_t* end = s + len;
 	while(s < end) {
 		uint8_t c = *s;
@@ -437,6 +490,22 @@ void serialCharHandler(uint8_t* s, int len) {
 }
 //1425tX^^^^^^^^^^^^^^XXXXXXXXXXXXXXXXXXXXXXMMMMMM%Vc222$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$44443 \uuuuuuuuuuuuiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiyhz<ggggggggggggggggggggggggggggggggggg
 
+
+bool cmdProcessInput() {
+	uint32_t rdRPos = usbRxQueueRPos;
+	uint32_t rdWPos = usbRxQueueWPos;
+	__sync_synchronize();
+	if(rdRPos == rdWPos)
+		return false;
+	if(rdWPos > rdRPos) {
+		cmdHandleInput(usbRxQueue + rdRPos, rdWPos - rdRPos);
+	} else {
+		cmdHandleInput(usbRxQueue + rdRPos, sizeof(usbRxQueue) - rdRPos);
+		cmdHandleInput(usbRxQueue, rdWPos);
+	}
+	usbRxQueueRPos = rdWPos;
+	return true;
+}
 void cmdReadFIFO(int address, int nValues) {
 	if(address != 0x30) return;
 	if(!usbDataMode)
@@ -448,12 +517,14 @@ void cmdReadFIFO(int address, int nValues) {
 		__sync_synchronize();
 
 		if(rdRPos == rdWPos) { // queue empty
-			adc_process(); // FIXME: fix interrupt preemption and remove this
 			continue;
 		}
 
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		VNAObservation& value = usbDP.value;
+		if(usbDP.freqIndex < 0 || usbDP.freqIndex > USB_POINTS_MAX)
+			continue;
+
 		value[0] -= measuredEcal[0][usbDP.freqIndex] * value[1];
 
 		int32_t fwdRe = value[1].real();
@@ -832,6 +903,7 @@ int main(void) {
 	
 	bool lastUSBDataMode = false;
 	while(true) {
+		cmdProcessInput();
 		if(usbDataMode) {
 			if(outputRawSamples)
 				usb_transmit_rawSamples();
