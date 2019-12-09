@@ -70,6 +70,9 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	}
 	if(periodCounterSwitch >= nWaitSwitch) {
 		currDP += complexi{valRe, valIm};
+		clipFlag |= sampleProcessor.clipFlag;
+	} else {
+		sampleProcessor.clipFlag = false;
 	}
 	periodCounterSwitch++;
 
@@ -124,6 +127,7 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 	VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
 	emitDataPoint(sweepCurrPoint, currFreq, value, ecal ? this->ecal : nullptr);
 
+	clipFlag = false;
 	dpCounterSynth++;
 	if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
 		dpCounterSynth = 0;

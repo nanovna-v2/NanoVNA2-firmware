@@ -35,6 +35,9 @@ public:
 	// every ecalIntervalPoints we will measure one frequency point for ecal
 	uint32_t ecalIntervalPoints = 8;
 
+	// automatically reset before each measurement; indicates whether the current
+	// data point is corrupted when emitDataPoint() is called.
+	bool clipFlag = false;
 
 	// called when a new data point is available
 	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v, const complexf* ecal)> emitDataPoint;

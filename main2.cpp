@@ -579,6 +579,7 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
+	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
 
@@ -683,9 +684,7 @@ void adc_process() {
 		int len;
 		for(int i=0; i<2; i++) {
 			adc_read(buf, len);
-			vnaMeasurement.sampleProcessor.clipFlag = false;
 			vnaMeasurement.processSamples((uint16_t*)buf, len);
-			digitalWrite(led, vnaMeasurement.sampleProcessor.clipFlag?1:0);
 		}
 	}
 }
