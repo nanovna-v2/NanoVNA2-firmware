@@ -848,7 +848,7 @@ int main(void) {
 
 			// if you encounter this error, see:
 			// https://www.amobbs.com/thread-5719892-1-1.html
-			printk1("FPU NOT DETECTED! CHECK GD32F303 BATCH\n");
+			printk1("FPU NOT DETECTED!\nCHECK GD32F303 BATCH OR REBUILD WITHOUT FPU\n");
 		} else {
 			printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
 		}
@@ -890,21 +890,33 @@ int main(void) {
 
 	nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, 0xf0);
 
-	flash_config_recall();
-
-	UIActions::printTouchCal();
 
 	lcd_setup();
 	UIHW::init(tim2Period);
 	ui_timer_setup();
 
+	// work around spurious ui events at startup
+	delay(50);
+	while(eventQueue.readable())
+		eventQueue.dequeue();
+
+	// show dmesg and wait for user input if there is an important error
 	if(shouldShowDmesg) {
+		printk1("Touch anywhere to continue...\n");
 		show_dmesg();
 	}
 
+	flash_config_recall();
+	UIActions::printTouchCal();
+
 	si5351_i2c.init();
-	if(!synthesizers::si5351_setup())
-		errorBlink(2);
+	if(!synthesizers::si5351_setup()) {
+		printk1("ERROR: si5351 init failed\n");
+		printk1("Touch anywhere to continue...\n");
+		current_props._frequency0 = 200000000;
+		show_dmesg();
+	}
+
 
 	setFrequency(56000000);
 
@@ -914,6 +926,7 @@ int main(void) {
 
 	adf4350_setup();
 
+	redraw_frame();
 
 	bool testSG = false;
 	
