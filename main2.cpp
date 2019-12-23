@@ -858,7 +858,8 @@ int main(void) {
 	}
 	int i;
 	boardInit();
-	constexpr uint32_t NVIC_PRIORITYGROUP_4 = 0x00000003U;
+
+	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
 
 	pinMode(led, OUTPUT);
