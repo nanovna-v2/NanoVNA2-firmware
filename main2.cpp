@@ -656,8 +656,11 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 // callback called by VNAMeasurement when an observation is available.
-static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
+static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservation v, const complexf* ecal) {
 	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
+	// reference channel is weaker than thru channel, so apply a correction to get
+	// an average of 0dB thru magnitude.
+	v[2] *= 0.3f;
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
 
@@ -798,6 +801,7 @@ void processDataPoint() {
 		auto refl = value[0]/value[1] - measuredEcal[0][freqIndex];
 		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;
 		if(current_props._cal_status & CALSTAT_APPLY) {
+			// apply thru leakage correction
 			auto x1 = current_props._cal_data[CAL_SHORT][freqIndex],
 				y1 = current_props._cal_data[CAL_ISOLN_SHORT][freqIndex],
 				x2 = current_props._cal_data[CAL_OPEN][freqIndex],
@@ -806,6 +810,19 @@ void processDataPoint() {
 			auto cal_thru_leak = y2-cal_thru_leak_r*x2;
 			thru = thru - (cal_thru_leak + refl*cal_thru_leak_r);
 
+			// apply thru response correction
+			if(current_props._cal_status & CALSTAT_THRU) {
+				auto refThru = current_props._cal_data[CAL_THRU][freqIndex];
+				//refThru = refThru - (cal_thru_leak + refl*cal_thru_leak_r);
+				// TODO: we can't do proper leakage correction on the reference thru measurement
+				// because we didn't store the S11 of the thru calibration. In V2 hardware
+				// this causes ~0.05dB of S21 error but it will be a problem if attempting
+				// to use this code with low-spec hardware with lots of leakage.
+				refThru = refThru - (cal_thru_leak + refl*cal_thru_leak_r);
+				thru = thru / refThru;
+			}
+
+			// apply reflection correction
 			refl = SOL_compute_reflection(
 						current_props._cal_data[CAL_SHORT][freqIndex],
 						current_props._cal_data[CAL_OPEN][freqIndex],

@@ -354,9 +354,11 @@ menu_calop_cb(UIEvent evt, int item)
   case 2: // LOAD
     cal_collect(CAL_LOAD);
     break;
-  case 4: // THRU
+  case 3: // THRU
     cal_collect(CAL_THRU);
     break;
+  default:
+    return;
   }
   //selection = item+1;
   ui_disabled = true;
@@ -1232,8 +1234,7 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
     if ((item == 0 && (cal_status & CALSTAT_OPEN))
         || (item == 1 && (cal_status & CALSTAT_SHORT))
         || (item == 2 && (cal_status & CALSTAT_LOAD))
-        || (item == 3 && (cal_status & CALSTAT_ISOLN))
-        || (item == 4 && (cal_status & CALSTAT_THRU))) {
+        || (item == 3 && (cal_status & CALSTAT_THRU))) {
       domain_mode = (domain_mode & ~DOMAIN_MODE) | DOMAIN_FREQ;
       *bg = 0x0000;
       *fg = 0xffff;
