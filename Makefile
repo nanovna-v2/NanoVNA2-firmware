@@ -7,8 +7,8 @@ OBJS			+= globals.o ui.o flash.o plot.o ili9341.o Font5x7.o numfont20x24.o
 OBJS            += $(MCULIB)/message_log.o $(MCULIB)/printf.o $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 CFLAGS          += -O2 -g
-CPPFLAGS		+= -O2 -g --std=c++17 -fno-exceptions -fno-rtti -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
-LDFLAGS         += -static -nostartfiles -Wl,--print-memory-usage
+CPPFLAGS		+= -O2 -g --std=c++17 -fno-exceptions -fno-rtti -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
+LDFLAGS         += -static -nostartfiles -Wl,--exclude-libs,libssp -Wl,--print-memory-usage
 LDLIBS          += -Wl,--start-group -lgcc -lnosys -Wl,--end-group -lm
 
 GITVERSION		= "$(shell git log -n 1 --pretty=format:"git-%ad%h" --date=format:"%Y%m%d-")"

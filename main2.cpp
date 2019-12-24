@@ -112,7 +112,7 @@ static inline void pinMode(const array<Pad, N>& p, int mode) {
 
 void errorBlink(int cnt) {
 	digitalWrite(led, HIGH);
-	//while (1) {
+	while (1) {
 		for(int i=0;i<cnt;i++) {
 			digitalWrite(led, HIGH);
 			delay(200);
@@ -120,7 +120,7 @@ void errorBlink(int cnt) {
 			delay(200);
 		}
 		delay(1000);
-	//}
+	}
 }
 
 // period is in units of us
@@ -983,11 +983,40 @@ extern "C" void abort() {
 	}
 }
 /*
-extern "C" void *memcpy(char *dest, const char *src, uint32_t n) {
-	for(int i=0;i<n;i++) dest[i] = src[i];
+extern "C" void *memcpy(void *dest, const void *src, size_t n) {
+	for(size_t i=0;i<n;i++)
+		((char*)dest)[i] = ((char*)src)[i];
 	return dest;
+}
+extern "C" void *memset(void *s, int c, size_t n) {
+	for(size_t i=0;i<n;i++)
+		((char*)s)[i] = c;
+}
+extern "C" size_t strlen(const char* s) {
+	int i = 0;
+	while(*s != 0) {
+		i++;
+		s++;
+	}
+	return i;
+}
+extern "C" int atoi(const char* s) {
+	// TODO: implement
+	return 0;
+}
+extern "C" void __aeabi_atexit(void * arg , void (* func ) (void *)) {
+	// Leave this function empty. Program never exits.
 }*/
 
+extern "C" uintptr_t __stack_chk_guard = 0xdeadbeef;
+extern "C" void __cxa_pure_virtual() {
+	errorBlink(4);
+	while(1);
+}
+extern "C" void __stack_chk_fail() {
+	errorBlink(5);
+	while(1);
+}
 
 
 // nanovna UI callbacks
