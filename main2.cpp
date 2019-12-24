@@ -297,7 +297,7 @@ void lcd_setup() {
 	ili9341_init();
 
 	// show test pattern
-	ili9341_test(5);
+	//ili9341_test(5);
 	// clear screen
 	ili9341_fill(0, 0, 320, 240, 0);
 
