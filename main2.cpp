@@ -870,6 +870,9 @@ int main(void) {
 	pinMode(RFSW_RXSYNTH, OUTPUT);
 	pinMode(RFSW_REFL, OUTPUT);
 	pinMode(RFSW_RECV, OUTPUT);
+	pinMode(USB0_DP, OUTPUT);
+
+	digitalWrite(USB0_DP, LOW);
 
 	digitalWrite(led, HIGH);
 	
@@ -880,13 +883,14 @@ int main(void) {
 	rfsw(RFSW_RECV, RFSW_RECV_REFL);
 	rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 
-	delay(200);
+	delay(500);
 
 	serial.setReceiveCallback([](uint8_t* s, int len) {
 		serialCharHandler(s, len);
 	});
 	// baud rate is ignored for usbserial
 	serial.begin(115200);
+	pinMode(USB0_DP, INPUT);
 
 	nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, 0xf0);
 

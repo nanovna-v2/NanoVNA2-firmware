@@ -31,6 +31,8 @@ namespace board {
 
 	static constexpr Pad led = PA9;
 	static constexpr Pad led2 = PA10;
+	static constexpr Pad USB0_DP = PA12;
+	static constexpr Pad USB0_DM = PA11;
 
 	static constexpr array<Pad, 2> RFSW_ECAL = {PC13, PC14};
 	static constexpr array<Pad, 2> RFSW_BBGAIN = {PB13, PB12};
