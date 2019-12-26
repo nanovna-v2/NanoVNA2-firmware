@@ -10,7 +10,9 @@
 // for events that can be acted upon rather than let modules directly
 // modify global state.
 
-extern uint8_t registers[64];
+constexpr int registerSize = 64;
+constexpr int registersSizeMask = registerSize - 1;
+extern uint8_t registers[registerSize];
 
 extern uint16_t redraw_request;
 extern volatile bool sweep_enabled;

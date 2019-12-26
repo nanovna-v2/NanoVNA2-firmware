@@ -20,6 +20,7 @@
 #include "../xpt2046.hpp"
 
 #define BOARD_NAME "NanoVNA V2_1"
+#define BOARD_REVISION (1)
 
 using namespace mculib;
 using namespace std;
