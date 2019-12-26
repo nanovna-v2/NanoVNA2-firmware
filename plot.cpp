@@ -780,6 +780,7 @@ mark_cells_from_index(void)
 
 void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX])
 {
+	mark_cells_from_index();
 	int i, t;
 	for (i = 0; i < sweep_points; i++) {
 		int x = i * (WIDTH-1) / (sweep_points-1);
