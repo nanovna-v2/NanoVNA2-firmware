@@ -1,7 +1,7 @@
 #include "globals.hpp"
 #include "ili9341.hpp"
 
-int8_t sweep_enabled;
+volatile bool sweep_enabled = true;
 int16_t vbat;
 
 uint8_t registers[64];

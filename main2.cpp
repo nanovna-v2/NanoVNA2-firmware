@@ -95,7 +95,6 @@ volatile uint32_t systemTimeCounter = 0;
 FIFO<small_function<void()>, 8> eventQueue;
 
 volatile bool usbDataMode = false;
-volatile bool refreshEnabled = true;
 
 volatile int collectMeasurementType = -1;
 int collectMeasurementOffset = -1;
@@ -961,10 +960,10 @@ int main(void) {
 
 		// if we have no pending events, use idle cycles to refresh the graph
 		if(!eventQueue.readable()) {
-			if(refreshEnabled) {
+			if(sweep_enabled) {
 				plot_into_index(measured);
-				draw_all(true);
 			}
+			draw_all(true);
 			continue;
 		}
 		auto callback = eventQueue.read();
@@ -1091,10 +1090,10 @@ namespace UIActions {
 	}
 
 	void toggle_sweep(void) {
-		refreshEnabled = !refreshEnabled;
+		sweep_enabled = !sweep_enabled;
 	}
 	void enable_refresh(bool enable) {
-		refreshEnabled = enable;
+		sweep_enabled = enable;
 	}
 
 

@@ -13,7 +13,7 @@
 extern uint8_t registers[64];
 
 extern uint16_t redraw_request;
-extern int8_t sweep_enabled;
+extern volatile bool sweep_enabled;
 
 
 extern int16_t vbat;

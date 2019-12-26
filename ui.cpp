@@ -1468,7 +1468,6 @@ ui_mode_menu(void)
   area_height = HEIGHT;
   ensure_selection();
   draw_menu();
-  enable_refresh(true);
 }
 
 void
@@ -1528,7 +1527,6 @@ ui_mode_normal(void)
   area_height = HEIGHT;
   leave_ui_mode();
   ui_mode = UI_NORMAL;
-  enable_refresh(true);
 }
 
 static void
@@ -1553,7 +1551,7 @@ ui_process_normal(UIEvent evt)
             am.index = current_props._sweep_points - 1;
         }
         am.frequency = frequencyAt(am.index);
-        request_to_redraw_marker(active_marker, FALSE);
+        request_to_redraw_marker(active_marker, TRUE);
       }
     }
   }
@@ -1748,6 +1746,7 @@ ui_process_numeric(UIEvent evt)
       } else {
         set_numeric_value();
         ui_mode_normal();
+        enable_refresh(true);
       }
     }
   }
@@ -1795,6 +1794,7 @@ ui_process_numeric(UIEvent evt)
  exit:
   // cancel operation
   ui_mode_normal();
+  enable_refresh(true);
 }
 
 void
@@ -1841,6 +1841,7 @@ return_to_normal:
   ui_mode_normal();
   //redraw_all();
   uiEnableProcessing();
+  enable_refresh(true);
 }
 
 
