@@ -4,7 +4,7 @@
 volatile bool sweep_enabled = true;
 int16_t vbat;
 
-uint8_t registers[64];
+uint8_t registers[registerSize];
 
 int16_t lastsaveid = 0;
 

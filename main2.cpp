@@ -444,9 +444,6 @@ void cmdHandleInput(uint8_t* s, int len) {
 			if(cmdOpcode == 0x23)
 				cmdEndAddress = cmdAddress + 8;
 			cmdPhase++;
-			if((cmdAddress + 4) > sizeof(registers)) {
-				cmdPhase = 0;
-			}
 			goto cont;
 		}
 		switch(cmdOpcode) {
@@ -467,14 +464,14 @@ void cmdHandleInput(uint8_t* s, int len) {
 				cmdPhase = 0;
 				break;
 			case 0x20:
-				registers[cmdAddress] = c;
+				registers[cmdAddress & registersSizeMask] = c;
 				cmdPhase = 0;
 				cmdRegisterWrite(cmdAddress);
 				break;
 			case 0x21:
 			case 0x22:
 			case 0x23:
-				registers[cmdAddress] = c;
+				registers[cmdAddress & registersSizeMask] = c;
 				cmdAddress++;
 				if(cmdAddress == cmdEndAddress) {
 					cmdPhase = 0;
@@ -857,6 +854,11 @@ int main(void) {
 	}
 	int i;
 	boardInit();
+
+	// set version registers (accessed through usb serial)
+	registers[0xf0 & registersSizeMask] = 1;	// device variant
+	registers[0xf1 & registersSizeMask] = 1;	// protocol version
+	registers[0xf2 & registersSizeMask] = (uint8_t) BOARD_REVISION;
 
 	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
