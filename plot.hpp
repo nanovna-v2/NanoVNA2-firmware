@@ -37,6 +37,7 @@ void request_to_draw_cells_behind_numeric_input(void);
 void request_to_redraw_marker(int marker, int update_info);
 void redraw_marker(int marker, int update_info);
 void trace_get_info(int t, char *buf, int len);
+float groupdelay_from_array(int i, complexf array[SWEEP_POINTS_MAX]);
 void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX]);
 void force_set_markmap(void);
 void draw_all(bool flush);
@@ -48,3 +49,6 @@ void markmap_all_markers(void);
 void marker_position(int m, int t, int *x, int *y);
 int search_nearest_index(int x, int y, int t);
 
+int marker_search(int mode);
+int marker_search_left(int from);
+int marker_search_right(int from);

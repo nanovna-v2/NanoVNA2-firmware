@@ -59,6 +59,9 @@ uistat_t uistat = {
  digit_mode: 0,
  current_trace: 0,
  value: 0,
- previous_value: 0
+ previous_value: 0,
+ lever_mode: LM_MARKER,
+ marker_delta: false,
+ marker_smith_format: MS_RLC
 };
 

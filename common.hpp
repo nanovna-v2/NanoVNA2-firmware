@@ -43,6 +43,7 @@ typedef uint64_t freqHz_t;
 #define SWEEP_POINTS_MAX 128
 #define USB_POINTS_MAX 1024
 #define TRACES_MAX 4
+#define MARKERS_MAX 4
 #define FFT_SIZE 256
 #define ECAL_PARTIAL
 
@@ -119,6 +120,17 @@ enum SweepParameter {
   ST_START, ST_STOP, ST_CENTER, ST_SPAN, ST_CW
 };
 
+// lever_mode
+enum {
+  LM_MARKER, LM_SEARCH, LM_CENTER, LM_SPAN
+};
+
+// marker smith value format
+enum {
+  MS_LIN, MS_LOG, MS_REIM, MS_RX, MS_RLC
+};
+
+
 typedef struct {
   uint8_t enabled;
   uint8_t type;
@@ -145,7 +157,7 @@ struct alignas(4) properties_t {
   float _electrical_delay; // picoseconds
   
   trace_t _trace[TRACES_MAX];
-  marker_t _markers[4];
+  marker_t _markers[MARKERS_MAX];
   int _active_marker;
   uint8_t _domain_mode; /* 0bxxxxxffm : where ff: TD_FUNC m: DOMAIN_MODE */
   uint8_t _velocity_factor; // %
@@ -173,6 +185,9 @@ struct uistat_t {
   int8_t current_trace; /* 0..3 */
   uint32_t value; // for editing at numeric input area
   uint32_t previous_value;
+  uint8_t lever_mode;
+  bool marker_delta;
+  uint8_t marker_smith_format;
 };
 
 #define CONFIG_MAGIC 0x55378008
