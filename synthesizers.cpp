@@ -122,7 +122,7 @@ namespace synthesizers {
 				si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
 				si5351.PLL[pll].PLL_Multiplier_Denominator = xtal_freq;
 				
-				si5351.PLLConfig2((PLLChannel) pll);
+				si5351.PLLConfig((PLLChannel) pll);
 			}
 			si5351.PLLReset2();
 			
@@ -155,7 +155,10 @@ namespace synthesizers {
 				num >>= 1;
 				denom >>= 1;
 			}
-
+			// f = divInputFreqHz / (div + num/denom)
+			// = divInputFreqHz / ((div*denom + num) / denom)
+			// = divInputFreqHz * denom / (div*denom + num)
+			uint32_t f = uint32_t(uint64_t(divInputFreqHz) * denom / (uint64_t(div)*denom + num));
 			
 			si5351.MS[port].MS_Divider_Integer = div;
 			si5351.MS[port].MS_Divider_Numerator = num;
