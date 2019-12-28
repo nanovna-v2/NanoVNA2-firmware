@@ -12,7 +12,7 @@ void VNAMeasurement::processSamples(uint16_t* buf, int len) {
 	sampleProcessor.process(buf, len);
 }
 
-void VNAMeasurement::setSweep(uint64_t startFreqHz, uint64_t stepFreqHz, int points, int dataPointsPerFreq) {
+void VNAMeasurement::setSweep(freqHz_t startFreqHz, freqHz_t stepFreqHz, int points, int dataPointsPerFreq) {
 	sweepStartHz = startFreqHz;
 	sweepStepHz = stepFreqHz;
 	sweepPoints = points;
