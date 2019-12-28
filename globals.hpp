@@ -29,8 +29,12 @@ extern int8_t previous_marker;
 
 extern config_t config;
 
+// measured frequency domain data
+extern complexf measuredFreqDomain[2][SWEEP_POINTS_MAX];
 
+// measured data, possibly transformed
 extern complexf measured[2][SWEEP_POINTS_MAX];
+
 extern complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX];
 
 
