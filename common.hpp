@@ -40,7 +40,7 @@ typedef uint64_t freqHz_t;
 #define PLATFORM_NAME "GD32F303"
 
 
-#define SWEEP_POINTS_MAX 128
+#define SWEEP_POINTS_MAX 201
 #define USB_POINTS_MAX 1024
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
