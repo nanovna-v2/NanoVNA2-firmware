@@ -51,7 +51,7 @@ enum {
 };
 
 enum {
-  KM_START, KM_STOP, KM_CENTER, KM_SPAN, KM_CW, KM_SCALE, KM_REFPOS, KM_EDELAY, KM_VELOCITY_FACTOR, KM_SCALEDELAY
+  KM_START, KM_STOP, KM_CENTER, KM_SPAN, KM_POINTS, KM_CW, KM_SCALE, KM_REFPOS, KM_EDELAY, KM_VELOCITY_FACTOR, KM_SCALEDELAY
 };
 
 uint8_t ui_mode = UI_NORMAL;
@@ -677,9 +677,11 @@ menu_stimulus_cb(UIEvent evt, int item)
   case 1: /* STOP */
   case 2: /* CENTER */
   case 3: /* SPAN */
-  case 4: /* CW */
+  case 4: /* SWEEP POINTS */
+  case 5: /* CW */
   {
-    uistat.lever_mode = item == 3 ? LM_SPAN : LM_CENTER;
+    if(item != 4)
+      uistat.lever_mode = item == 3 ? LM_SPAN : LM_CENTER;
     if (evt.isLeverLongPress()) {
       ui_mode_numeric(item);
     } else {
@@ -687,15 +689,19 @@ menu_stimulus_cb(UIEvent evt, int item)
     }
     break;
   }
-  case 5: /* PAUSE */
+  }
+}
+
+static void 
+menu_top_cb(UIEvent evt, int item)
+{
+  switch (item) {
+  case 6: /* PAUSE */
     toggle_sweep();
-    //menu_move_back();
-    //ui_mode_normal();
     draw_menu();
     break;
   }
 }
-
 
 static freqHz_t
 get_marker_frequency(int marker)
@@ -962,8 +968,8 @@ const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, "STOP", menu_stimulus_cb },
   { MT_CALLBACK, "CENTER", menu_stimulus_cb },
   { MT_CALLBACK, "SPAN", menu_stimulus_cb },
+  { MT_CALLBACK, "\2SWEEP\0POINTS", menu_stimulus_cb },
   { MT_CALLBACK, "CW FREQ", menu_stimulus_cb },
-  { MT_CALLBACK, "\2PAUSE\0SWEEP", menu_stimulus_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
@@ -1053,6 +1059,7 @@ const menuitem_t menu_top[] = {
   { MT_SUBMENU, "CAL", NULL, menu_cal },
   { MT_SUBMENU, "RECALL", NULL, menu_recall },
   { MT_SUBMENU, "CONFIG", NULL, menu_config },
+  { MT_CALLBACK, "\2PAUSE\0SWEEP", menu_top_cb },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
@@ -1221,6 +1228,7 @@ const keypads_t * const keypads_mode_tbl[] = {
   keypads_freq, // stop
   keypads_freq, // center
   keypads_freq, // span
+  keypads_scale, // sweep points
   keypads_freq, // cw freq
   keypads_scale, // scale
   keypads_scale, // refpos
@@ -1230,7 +1238,7 @@ const keypads_t * const keypads_mode_tbl[] = {
 };
 
 const char * const keypad_mode_label[] = {
-  "START", "STOP", "CENTER", "SPAN", "CW FREQ", "SCALE", "REFPOS", "EDELAY", "VELOCITY%", "DELAY"
+  "START", "STOP", "CENTER", "SPAN", "POINTS", "CW FREQ", "SCALE", "REFPOS", "EDELAY", "VELOCITY%", "DELAY"
 };
 
 void
@@ -1344,8 +1352,8 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
       *bg = 0x0000;
       *fg = 0xffff;
     }
-  } else if (menu == menu_stimulus) {
-    if (item == 5 /* PAUSE */ && !sweep_enabled) {
+  } else if (menu == menu_top) {
+    if (item == 6 /* PAUSE */ && !sweep_enabled) {
       *bg = 0x0000;
       *fg = 0xffff;
     }
@@ -1492,6 +1500,9 @@ fetch_numeric_target(void)
   case KM_SPAN:
     uistat.value = get_sweep_frequency(ST_SPAN);
     break;
+  case KM_POINTS:
+    uistat.value = sweep_points;
+    break;
   case KM_CW:
     uistat.value = get_sweep_frequency(ST_CW);
     break;
@@ -1536,6 +1547,9 @@ void set_numeric_value(void)
     break;
   case KM_SPAN:
     set_sweep_frequency(ST_SPAN, uistat.value);
+    break;
+  case KM_POINTS:
+    set_sweep_points(uistat.value);
     break;
   case KM_CW:
     set_sweep_frequency(ST_CW, uistat.value);
@@ -1815,6 +1829,9 @@ keypad_click(int key)
       break;
     case KM_SPAN:
       set_sweep_frequency(ST_SPAN, value);
+      break;
+    case KM_POINTS:
+      set_sweep_points(value);
       break;
     case KM_CW:
       set_sweep_frequency(ST_CW, value);

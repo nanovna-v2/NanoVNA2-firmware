@@ -1252,6 +1252,16 @@ namespace UIActions {
 		current_props._cal_status = 0;
 		draw_cal_status();
 	}
+	void set_sweep_points(int points) {
+		if(points < SWEEP_POINTS_MIN)
+			points = SWEEP_POINTS_MIN;
+		if(points > SWEEP_POINTS_MAX)
+			points = SWEEP_POINTS_MAX;
+		current_props._sweep_points = points;
+		updateSweepParams();
+		current_props._cal_status = 0;
+		draw_cal_status();
+	}
 	freqHz_t get_sweep_frequency(int type) {
 		switch (type) {
 		case ST_START: return frequency0;
