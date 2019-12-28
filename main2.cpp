@@ -958,7 +958,8 @@ int main(void) {
 			continue;
 		}
 		lastUSBDataMode = usbDataMode;
-		processDataPoint();
+		if(sweep_enabled)
+			processDataPoint();
 
 		// if we have no pending events, use idle cycles to refresh the graph
 		if(!eventQueue.readable()) {
