@@ -640,11 +640,11 @@ void cmdRegisterWrite(int address) {
 	if(!usbDataMode)
 		enterUSBDataMode();
 	if(address == 0x00) {
-		vnaMeasurement.sweepStartHz = *(uint64_t*)(registers + 0x00);
+		vnaMeasurement.sweepStartHz = (freqHz_t)*(uint64_t*)(registers + 0x00);
 		vnaMeasurement.resetSweep();
 	}
 	if(address == 0x10) {
-		vnaMeasurement.sweepStepHz = *(uint64_t*)(registers + 0x10);
+		vnaMeasurement.sweepStepHz = (freqHz_t)*(uint64_t*)(registers + 0x10);
 		vnaMeasurement.resetSweep();
 	}
 	if(address == 0x20) {
@@ -703,7 +703,7 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 // callback called by VNAMeasurement when an observation is available.
-static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservation v, const complexf* ecal) {
+static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal) {
 	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
 	// reference channel is weaker than thru channel, so apply a correction to get
 	// an average of 0dB thru magnitude.
@@ -786,8 +786,8 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservat
 
 
 void updateSweepParams() {
-	uint64_t start = current_props._frequency0;
-	uint64_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
+	freqHz_t start = current_props._frequency0;
+	freqHz_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
@@ -799,10 +799,10 @@ void measurement_setup() {
 	vnaMeasurement.phaseChanged = [](VNAMeasurementPhases ph) {
 		measurementPhaseChanged(ph);
 	};
-	vnaMeasurement.emitDataPoint = [](int freqIndex, uint64_t freqHz, const VNAObservation& v, const complexf* ecal) {
+	vnaMeasurement.emitDataPoint = [](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
 		measurementEmitDataPoint(freqIndex, freqHz, v, ecal);
 	};
-	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
+	vnaMeasurement.frequencyChanged = [](freqHz_t freqHz) {
 		setFrequency(freqHz);
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
@@ -1217,14 +1217,27 @@ namespace UIActions {
 		current_props._cal_status |= CALSTAT_APPLY;
 	}
 
+	static inline void clampFrequency(freqHz_t& f) {
+		if(f < FREQUENCY_MIN)
+			f = FREQUENCY_MIN;
+		if(f > FREQUENCY_MAX)
+			f = FREQUENCY_MAX;
+	}
 
 	void set_sweep_frequency(SweepParameter type, freqHz_t frequency) {
+		clampFrequency(frequency);
 		switch(type) {
 			case ST_START:
 				current_props._frequency0 = frequency;
+				if(current_props._frequency1 < current_props._frequency0) {
+					current_props._frequency1 = current_props._frequency0;
+				}
 				break;
 			case ST_STOP:
 				current_props._frequency1 = frequency;
+				if(current_props._frequency1 < current_props._frequency0) {
+					current_props._frequency0 = current_props._frequency1;
+				}
 				break;
 			case ST_CENTER:
 			{
@@ -1247,6 +1260,11 @@ namespace UIActions {
 				break;
 			}
 			default: return;
+		}
+		clampFrequency(current_props._frequency0);
+		clampFrequency(current_props._frequency1);
+		if(current_props._frequency1 < current_props._frequency0) {
+			current_props._frequency1 = current_props._frequency0;
 		}
 		updateSweepParams();
 		current_props._cal_status = 0;

@@ -41,7 +41,7 @@ public:
 
 	// called when a new data point is available.
 	// ecal is load, short, thru.
-	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v, const complexf* ecal)> emitDataPoint;
+	small_function<void(int freqIndex, freqHz_t freqHz, const VNAObservationSet& v, const complexf* ecal)> emitDataPoint;
 
 	// called to change rf switch direction;
 	// the function may assume the phase progression is always:
@@ -50,7 +50,7 @@ public:
 	small_function<void(VNAMeasurementPhases ph)> phaseChanged;
 
 	// called to change synthesizer frequency
-	small_function<void(uint64_t freqHz)> frequencyChanged;
+	small_function<void(freqHz_t freqHz)> frequencyChanged;
 
 	VNAMeasurement();
 

@@ -24,7 +24,7 @@ typedef VNAObservation VNAObservationSet;
 // S11, S21
 typedef array<complexf, 2> VNARawValue;
 
-typedef uint64_t freqHz_t;
+typedef int64_t freqHz_t;
 
 
 // constants and data types used by all modules.
@@ -40,6 +40,8 @@ typedef uint64_t freqHz_t;
 #define PLATFORM_NAME "GD32F303"
 
 
+#define FREQUENCY_MIN 50000
+#define FREQUENCY_MAX 4400000000
 #define SWEEP_POINTS_MIN 2
 #define SWEEP_POINTS_MAX 201
 #define USB_POINTS_MAX 1024
