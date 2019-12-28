@@ -1734,6 +1734,11 @@ void
 draw_frequencies(void)
 {
 	char buf[24];
+
+	// draw sweep points
+	chsnprintf(buf, sizeof(buf), "%d P", (int)sweep_points);
+	ili9341_drawstring_5x7(buf, WIDTH / 2, 233, 0xffff, 0x0000);
+
 	if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 		if (frequency1 > 0) {
 			auto start = frequency0;
