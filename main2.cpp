@@ -866,7 +866,10 @@ void transform_domain() {
 	if ((domain_mode & DOMAIN_MODE) != DOMAIN_TIME) return; // nothing to do for freq domain
 	// use spi_buffer as temporary buffer
 	// and calculate ifft for time domain
-	float* tmp = (float*)ili9341_spi_buffer;
+	float* tmp = (float*)ili9341_spi_buffers;
+
+	// lowpass uses 2x sweep_points of input buffer space
+	static_assert((sizeof(measuredFreqDomain[0]) * 2) <= sizeof(ili9341_spi_buffers));
 
 	int points = current_props._sweep_points;
 	uint8_t window_size = current_props._sweep_points, offset = 0;
