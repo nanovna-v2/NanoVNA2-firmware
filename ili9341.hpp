@@ -18,6 +18,10 @@ typedef struct {
 
 extern const font_t NF20x22;
 
+// internal buffer space; may be repurposed
+constexpr int ili9341_bufferSize = 1024;
+extern uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
+
 // the buffer that ili9341_bulk() transfers from
 extern uint16_t* ili9341_spi_buffer;
 extern Pad ili9341_conf_cs;

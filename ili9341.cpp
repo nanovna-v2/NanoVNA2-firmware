@@ -29,8 +29,12 @@
 #define DC_DATA			digitalWrite(ili9341_conf_dc, HIGH)
 
 
-uint16_t ili9341_spi_bufferA[1024];
-uint16_t ili9341_spi_bufferB[1024];
+
+
+uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
+
+uint16_t* ili9341_spi_bufferA = ili9341_spi_buffers;
+uint16_t* ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_bufferSize];
 
 uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 
@@ -197,7 +201,7 @@ void ili9341_fill(int x, int y, int w, int h, int color)
 	send_command(0x2C, 0, NULL);
 
 	constexpr int chunkSize = 512;
-	static_assert(chunkSize <= sizeof(ili9341_spi_bufferA)/sizeof(*ili9341_spi_bufferA));
+	static_assert(chunkSize <= ili9341_bufferSize);
 
 	for(int i=0; i<chunkSize; i++)
 		ili9341_spi_buffer[i] = color;
