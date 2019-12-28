@@ -1758,6 +1758,8 @@ static void
 ui_process_menu(UIEvent evt)
 {
   if (evt.isLeverClick()) {
+    if(selection < 0)
+      goto menuclose;
     menu_invoke(evt, selection);
     return;
   }
@@ -1770,6 +1772,8 @@ ui_process_menu(UIEvent evt)
   if (evt.isJogLeft()) {
     if (selection == 0)
       goto menuclose;
+    if(selection < 0)
+      return;
     selection--;
     draw_menu();
   }
