@@ -1,9 +1,10 @@
 #pragma once
 
 #include <stdint.h>
-extern const uint16_t x5x7_bits [];
+extern const uint8_t x5x7_bits [];
 
 
+#define S_DELTA "\004"
 #define S_PI    "\034"
 #define S_MICRO "\035"
 #define S_OHM   "\036"

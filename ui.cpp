@@ -51,7 +51,7 @@ enum {
 };
 
 enum {
-  KM_START, KM_STOP, KM_CENTER, KM_SPAN, KM_CW, KM_SCALE, KM_REFPOS, KM_EDELAY, KM_VELOCITY_FACTOR
+  KM_START, KM_STOP, KM_CENTER, KM_SPAN, KM_CW, KM_SCALE, KM_REFPOS, KM_EDELAY, KM_VELOCITY_FACTOR, KM_SCALEDELAY
 };
 
 uint8_t ui_mode = UI_NORMAL;
@@ -612,6 +612,7 @@ menu_transform_cb(UIEvent evt, int item)
       } else {
           domain_mode = (domain_mode & ~DOMAIN_MODE) | DOMAIN_TIME;
       }
+      uistat.lever_mode = LM_MARKER;
       draw_frequencies();
       ui_mode_normal();
       break;
@@ -655,11 +656,15 @@ choose_active_marker(void)
 static void
 menu_scale_cb(UIEvent evt, int item)
 {
+  int km = KM_SCALE + item;
+  if (km == KM_SCALE && trace[uistat.current_trace].type == TRC_DELAY) {
+    km = KM_SCALEDELAY;
+  }
   if (evt.isLeverLongPress()) {
-    ui_mode_numeric(KM_SCALE + item);
+    ui_mode_numeric(km);
     //ui_process_numeric(evt);
   } else {
-    ui_mode_keypad(KM_SCALE + item);
+    ui_mode_keypad(km);
     //ui_process_keypad(evt);
   }
 }
@@ -674,6 +679,7 @@ menu_stimulus_cb(UIEvent evt, int item)
   case 3: /* SPAN */
   case 4: /* CW */
   {
+    uistat.lever_mode = item == 3 ? LM_SPAN : LM_CENTER;
     if (evt.isLeverLongPress()) {
       ui_mode_numeric(item);
     } else {
@@ -691,7 +697,7 @@ menu_stimulus_cb(UIEvent evt, int item)
 }
 
 
-static int32_t
+static freqHz_t
 get_marker_frequency(int marker)
 {
   if (marker < 0 || marker >= 4)
@@ -704,38 +710,49 @@ get_marker_frequency(int marker)
 static void
 menu_marker_op_cb(UIEvent evt, int item)
 {
-  int32_t freq = get_marker_frequency(active_marker);
+  freqHz_t freq = get_marker_frequency(active_marker);
   if (freq < 0)
     return; // no active marker
 
   switch (item) {
-  case 1: /* MARKER->START */
+  case 0: /* MARKER->START */
     set_sweep_frequency(ST_START, freq);
     break;
-  case 2: /* MARKER->STOP */
+  case 1: /* MARKER->STOP */
     set_sweep_frequency(ST_STOP, freq);
     break;
-  case 3: /* MARKER->CENTER */
+  case 2: /* MARKER->CENTER */
     set_sweep_frequency(ST_CENTER, freq);
     break;
-  case 4: /* MARKERS->SPAN */
+  case 3: /* MARKERS->SPAN */
     {
-      if (previous_marker == active_marker)
-        return;
-      int32_t freq2 = get_marker_frequency(previous_marker);
-      if (freq2 < 0)
-        return;
-      if (freq > freq2) {
-        freq2 = freq;
-        freq = get_marker_frequency(previous_marker);
+      if (previous_marker == -1 || active_marker == previous_marker) {
+        // if only 1 marker is active, keep center freq and make span the marker comes to the edge  
+        freqHz_t center = get_sweep_frequency(ST_CENTER);
+        freqHz_t span = center - freq;
+       if (span < 0) span = -span;
+        set_sweep_frequency(ST_SPAN, span * 2);
+      } else {
+        // if 2 or more marker active, set start and stop freq to each marker
+        freqHz_t freq2 = get_marker_frequency(previous_marker);
+        if (freq2 < 0)
+          return;
+        if (freq > freq2) {
+          freq2 = freq;
+          freq = get_marker_frequency(previous_marker);
+        }
+        set_sweep_frequency(ST_START, freq);
+        set_sweep_frequency(ST_STOP, freq2);
       }
-      set_sweep_frequency(ST_START, freq);
-      set_sweep_frequency(ST_STOP, freq2);
-#if 0
-      int32_t span = (freq - freq2) * 2;
-      if (span < 0) span = -span;
-      set_sweep_frequency(ST_SPAN, span);
-#endif
+    }
+    break;
+  case 4: /* MARKERS->EDELAY */
+    { 
+      if (uistat.current_trace == -1)
+        break;
+      complexf* array = measured[trace[uistat.current_trace].channel];
+      float v = groupdelay_from_array(markers[active_marker].index, array);
+      set_electrical_delay(electrical_delay + (v / 1e-12));
     }
     break;
   }
@@ -743,6 +760,47 @@ menu_marker_op_cb(UIEvent evt, int item)
   draw_cal_status();
   //redraw_all();
 }
+
+static void
+menu_marker_search_cb(UIEvent evt, int item)
+{
+  int i;
+  if (active_marker == -1)
+    return;
+
+  switch (item) {
+  case 0: /* maximum */
+  case 1: /* minimum */
+    i = marker_search(item);
+    if (i != -1)
+      markers[active_marker].index = i;
+    draw_menu();
+    break;
+  case 2: /* search Left */
+    i = marker_search_left(markers[active_marker].index);
+    if (i != -1)
+      markers[active_marker].index = i;
+    draw_menu();
+    break;
+  case 3: /* search right */
+    i = marker_search_right(markers[active_marker].index);
+    if (i != -1)
+      markers[active_marker].index = i;
+    draw_menu();
+    break;
+  }
+  redraw_marker(active_marker, TRUE);
+  uistat.lever_mode = LM_SEARCH;
+}
+
+static void
+menu_marker_smith_cb(UIEvent evt, int item)
+{
+  uistat.marker_smith_format = item;
+  redraw_marker(active_marker, TRUE);
+  draw_menu();
+}
+
 
 void 
 active_marker_select(UIEvent evt, int item)
@@ -782,10 +840,13 @@ menu_marker_sel_cb(UIEvent evt, int item)
       markers[2].enabled = FALSE;
       markers[3].enabled = FALSE;
       previous_marker = -1;
-      active_marker = -1;      
+      active_marker = -1;     
+  } else if (item == 5) { /* marker delta */
+    uistat.marker_delta = !uistat.marker_delta;
   }
   request_to_redraw_marker(active_marker, TRUE);
   draw_menu();
+  uistat.lever_mode = LM_MARKER;
 }
 
 const menuitem_t menu_calop[] = {
@@ -912,17 +973,48 @@ const menuitem_t menu_marker_sel[] = {
   { MT_CALLBACK, "MARKER 3", menu_marker_sel_cb },
   { MT_CALLBACK, "MARKER 4", menu_marker_sel_cb },
   { MT_CALLBACK, "ALL OFF", menu_marker_sel_cb },
+  { MT_CALLBACK, "DELTA", menu_marker_sel_cb },
+  { MT_CANCEL, S_LARROW" BACK", NULL },
+  { MT_NONE, NULL, NULL } // sentinel
+};
+
+const menuitem_t menu_marker_ops[] = {
+  { MT_CALLBACK, S_RARROW"START", menu_marker_op_cb },
+  { MT_CALLBACK, S_RARROW"STOP", menu_marker_op_cb },
+  { MT_CALLBACK, S_RARROW"CENTER", menu_marker_op_cb },
+  { MT_CALLBACK, S_RARROW"SPAN", menu_marker_op_cb },
+  { MT_CALLBACK, S_RARROW"EDELAY", menu_marker_op_cb },
+  { MT_CANCEL, S_LARROW" BACK", NULL },
+  { MT_NONE, NULL, NULL } // sentinel
+};
+
+const menuitem_t menu_marker_search[] = {
+  //{ MT_CALLBACK, "OFF", menu_marker_search_cb },
+  { MT_CALLBACK, "MAXIMUM", menu_marker_search_cb },
+  { MT_CALLBACK, "MINIMUM", menu_marker_search_cb },
+  { MT_CALLBACK, "\2SEARCH\0" S_LARROW" LEFT", menu_marker_search_cb },
+  { MT_CALLBACK, "\2SEARCH\0" S_RARROW" RIGHT", menu_marker_search_cb },
+  //{ MT_CALLBACK, "TRACKING", menu_marker_search_cb },
+  { MT_CANCEL, S_LARROW" BACK", NULL },
+  { MT_NONE, NULL, NULL } // sentinel
+};
+
+const menuitem_t menu_marker_smith[] = {
+  { MT_CALLBACK, "LIN", menu_marker_smith_cb },
+  { MT_CALLBACK, "LOG", menu_marker_smith_cb },
+  { MT_CALLBACK, "Re+Im", menu_marker_smith_cb },
+  { MT_CALLBACK, "R+Xj", menu_marker_smith_cb },
+  { MT_CALLBACK, "R+L/C", menu_marker_smith_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
 const menuitem_t menu_marker[] = {
   { MT_SUBMENU, "\2SELECT\0MARKER", NULL, menu_marker_sel },
-  { MT_CALLBACK, S_RARROW"START", menu_marker_op_cb },
-  { MT_CALLBACK, S_RARROW"STOP", menu_marker_op_cb },
-  { MT_CALLBACK, S_RARROW"CENTER", menu_marker_op_cb },
-  { MT_CALLBACK, S_RARROW"SPAN", menu_marker_op_cb },
-  { MT_CANCEL, S_LARROW" BACK", NULL },
+  { MT_SUBMENU, "SEARCH", NULL, menu_marker_search },
+  { MT_SUBMENU, "OPERATIONS", NULL, menu_marker_ops },
+  { MT_SUBMENU, "\2SMITH\0VALUE", NULL, menu_marker_smith },
+  { MT_CANCEL, S_LARROW" BACK", NULL, NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
@@ -960,7 +1052,6 @@ const menuitem_t menu_top[] = {
   { MT_SUBMENU, "CAL", NULL, menu_cal },
   { MT_SUBMENU, "RECALL", NULL, menu_recall },
   { MT_SUBMENU, "CONFIG", NULL, menu_config },
-  { MT_CLOSE, "CLOSE", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
@@ -1055,11 +1146,10 @@ void menu_invoke(UIEvent evt, int item)
 #define KP_BS 16
 #define KP_INF 17
 #define KP_DB 18
-#define KP_SPK 19
-#define KP_ANT 20
-#define KP_KEYPAD 21
-#define KP_N 22
-#define KP_P 23
+#define KP_PLUSMINUS 19
+#define KP_KEYPAD 20
+#define KP_N 21
+#define KP_P 22
 
 typedef struct {
   uint16_t x, y;
@@ -1118,8 +1208,9 @@ const keypads_t keypads_time[] = {
   { KP_X(0), KP_Y(0), 7 },
   { KP_X(1), KP_Y(0), 8 },
   { KP_X(2), KP_Y(0), 9 },
-  { KP_X(3), KP_Y(2), KP_N },
-  { KP_X(3), KP_Y(3), KP_P },
+  { KP_X(3), KP_Y(1), KP_N },
+  { KP_X(3), KP_Y(2), KP_P },
+  { KP_X(3), KP_Y(3), KP_MINUS },
   { KP_X(2), KP_Y(3), KP_BS },
   { 0, 0, -1 }
 };
@@ -1131,13 +1222,14 @@ const keypads_t * const keypads_mode_tbl[] = {
   keypads_freq, // span
   keypads_freq, // cw freq
   keypads_scale, // scale
-  keypads_scale, // respos
+  keypads_scale, // refpos
   keypads_time, // electrical delay
-  keypads_scale // velocity factor
+  keypads_scale, // velocity factor
+  keypads_time // scale of delay
 };
 
 const char * const keypad_mode_label[] = {
-  "START", "STOP", "CENTER", "SPAN", "CW FREQ", "SCALE", "REFPOS", "EDELAY", "VELOCITY%"
+  "START", "STOP", "CENTER", "SPAN", "CW FREQ", "SCALE", "REFPOS", "EDELAY", "VELOCITY%", "DELAY"
 };
 
 void
@@ -1149,7 +1241,7 @@ draw_keypad(void)
     if (i == selection)
       bg = config.menu_active_color;
     ili9341_fill(keypads[i].x, keypads[i].y, 44, 44, bg);
-    ili9341_drawfont(keypads[i].c, &NF20x24, keypads[i].x+12, keypads[i].y+10, 0x0000, bg);
+    ili9341_drawfont(keypads[i].c, &NF20x22, keypads[i].x+12, keypads[i].y+10, 0x0000, bg);
     i++;
   }
 }
@@ -1159,7 +1251,7 @@ draw_numeric_area_frame(void)
 {
   ili9341_fill(0, 208, 320, 32, 0xffff);
   ili9341_drawstring_5x7(keypad_mode_label[keypad_mode], 10, 220, 0x0000, 0xffff);
-  ili9341_drawfont(KP_KEYPAD, &NF20x24, 300, 216, 0x0000, 0xffff);
+  ili9341_drawfont(KP_KEYPAD, &NF20x22, 300, 216, 0x0000, 0xffff);
 }
 
 void
@@ -1190,9 +1282,9 @@ draw_numeric_input(const char *buf)
     }
 
     if (c >= 0)
-      ili9341_drawfont(c, &NF20x24, x, 208+4, fg, bg);
+      ili9341_drawfont(c, &NF20x22, x, 208+4, fg, bg);
     else if (focused)
-      ili9341_drawfont(0, &NF20x24, x, 208+4, fg, bg);
+      ili9341_drawfont(0, &NF20x22, x, 208+4, fg, bg);
     else
       ili9341_fill(x, 208+4, 20, 24, bg);
       
@@ -1225,11 +1317,23 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
   if (menu == menu_trace && item < 4) {
     if (trace[item].enabled)
       *bg = config.trace_color[item];
-  } else if (menu == menu_marker_sel && item < 4) {
-    if (markers[item].enabled) {
+  } else if (menu == menu_marker_sel) {
+    if (item < 4) {
+      if (markers[item].enabled) {
+        *bg = 0x0000;
+        *fg = 0xffff;
+      }
+    } else if (item == 5) {
+      if (uistat.marker_delta) {
+        *bg = 0x0000;
+        *fg = 0xffff;
+      }
+    }
+  } else if (menu == menu_marker_smith) {
+    if (uistat.marker_smith_format == item) {
       *bg = 0x0000;
       *fg = 0xffff;
-    }   
+    }
   } else if (menu == menu_calop) {
     if ((item == 0 && (cal_status & CALSTAT_OPEN))
         || (item == 1 && (cal_status & CALSTAT_SHORT))
@@ -1402,6 +1506,9 @@ fetch_numeric_target(void)
   case KM_VELOCITY_FACTOR:
     uistat.value = velocity_factor;
     break;
+  case KM_SCALEDELAY:
+    uistat.value = get_trace_scale(uistat.current_trace) * 1e12;
+    break;
   }
   
   {
@@ -1530,30 +1637,108 @@ ui_mode_normal(void)
 }
 
 static void
+lever_move_marker(UIEvent evt)
+{
+  if (active_marker >= 0 && markers[active_marker].enabled) {
+    auto& am = markers[active_marker];
+    int step = evt.isTick() ? 2 : 1;
+    if (evt.isJogLeft()) {
+      am.index -= step;
+      if(am.index < 0)
+        am.index = 0;
+    }
+    if (evt.isJogRight()) {
+      am.index += step;
+      if(am.index >= current_props._sweep_points)
+        am.index = current_props._sweep_points - 1;
+    }
+    am.frequency = frequencyAt(am.index);
+    request_to_redraw_marker(active_marker, TRUE);
+  }
+}
+
+static void
+lever_search_marker(UIEvent evt)
+{
+  if (active_marker >= 0) {
+    if (evt.isJogLeft()) {
+      int i = marker_search_left(markers[active_marker].index);
+      if (i != -1)
+        markers[active_marker].index = i;
+    } else if (evt.isJogRight()) {
+      int i = marker_search_right(markers[active_marker].index);
+      if (i != -1)
+        markers[active_marker].index = i;
+    }
+    redraw_marker(active_marker, TRUE);
+  }
+}
+
+// ex. 10942 -> 10000
+//      6791 ->  5000
+//       341 ->   200
+static freqHz_t
+step_round(freqHz_t v)
+{
+  // decade step
+  freqHz_t x = 1;
+  for (x = 1; x*10 < v; x *= 10)
+    ;
+  
+  // 1-2-5 step
+  if (x * 2 > v)
+    return x;
+  else if (x * 5 > v)
+    return x * 2;
+  else 
+    return x * 5;
+}
+
+static void
+lever_zoom_span(UIEvent evt)
+{
+  freqHz_t span = get_sweep_frequency(ST_SPAN);
+  if (evt.isJogLeft()) {
+    span = step_round(span - 1);
+    set_sweep_frequency(ST_SPAN, span);
+  } else if (evt.isJogRight()) {
+    span = step_round(span + 1);
+    span = step_round(span * 3);
+    set_sweep_frequency(ST_SPAN, span);
+  }
+}
+
+static void
+lever_move_center(UIEvent evt)
+{
+  freqHz_t center = get_sweep_frequency(ST_CENTER);
+  freqHz_t span = get_sweep_frequency(ST_SPAN);
+  span = step_round(span / 3);
+  if (evt.isJogRight()) {
+    set_sweep_frequency(ST_CENTER, center + span);
+  } else if (evt.isJogLeft()) {
+    set_sweep_frequency(ST_CENTER, center - span);
+  }
+}
+
+
+static void
 ui_process_normal(UIEvent evt)
 {
   if (evt.isLeverClick()) {
     ui_mode_menu();
   }
   if(evt.isJog()) {
-    if (active_marker >= 0 && markers[active_marker].enabled) {
-      auto& am = markers[active_marker];
-      if (evt.isJogLeft() || evt.isJogRight()) {
-        int step = evt.isTick() ? 2 : 1;
-        if (evt.isJogLeft()) {
-          am.index -= step;
-          if(am.index < 0)
-            am.index = 0;
-        }
-        if (evt.isJogRight()) {
-          am.index += step;
-          if(am.index >= current_props._sweep_points)
-            am.index = current_props._sweep_points - 1;
-        }
-        am.frequency = frequencyAt(am.index);
-        request_to_redraw_marker(active_marker, TRUE);
-      }
+#ifdef ENABLE_LEVER_MODES
+    switch (uistat.lever_mode) {
+      case LM_MARKER: lever_move_marker(evt);   break;
+      case LM_SEARCH: lever_search_marker(evt); break;
+      case LM_CENTER: lever_move_center(evt);   break;
+      case LM_SPAN:   lever_zoom_span(evt);     break;      
     }
+#else
+    lever_move_marker(evt);
+#endif
   }
   if(evt.isJogEnd()) {
     if (active_marker >= 0)
@@ -1576,19 +1761,24 @@ ui_process_menu(UIEvent evt)
     menu_invoke(evt, selection);
     return;
   }
-  if (evt.isJogRight()
-      && menu_stack[menu_current_level][selection+1].type != MT_NONE) {
+  if (evt.isJogRight()) {
+    if(menu_stack[menu_current_level][selection+1].type == MT_NONE)
+      goto menuclose;
     selection++;
     draw_menu();
   }
-  if (evt.isJogLeft()
-      && selection > 0) {
+  if (evt.isJogLeft()) {
+    if (selection == 0)
+      goto menuclose;
     selection--;
     draw_menu();
   }
   if(evt.isTouchPress()) {
     menu_apply_touch(evt);
   }
+  return;
+menuclose:
+  ui_mode_normal();
 }
 
 static int
@@ -1634,6 +1824,9 @@ keypad_click(int key)
     case KM_VELOCITY_FACTOR:
       velocity_factor = value;
       break;
+    case KM_SCALEDELAY:
+      set_trace_scale(uistat.current_trace, value * 1e-12); // pico second
+      break;
     }
 
     return KP_DONE;
@@ -1647,6 +1840,9 @@ keypad_click(int key)
     // append period if there are no period
     if (kp_index == j)
       kp_buf[kp_index++] = '.';
+  } else if (c == KP_MINUS) {
+    if (kp_index == 0)
+      kp_buf[kp_index++] = '-';
   } else if (c == KP_BS) {
     if (kp_index == 0) {
       return KP_CANCEL;
