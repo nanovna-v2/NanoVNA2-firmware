@@ -175,6 +175,9 @@ extern "C" void tim2_isr() {
 }
 
 int si5351_doUpdate(uint32_t freqHz) {
+	// si5351 code seems to give high frequency errors when frequency
+	// isn't a multiple of 10Hz. TODO: investigate
+	freqHz = (freqHz/10) * 10;
 	return synthesizers::si5351_set(freqHz+lo_freq, freqHz);
 }
 
