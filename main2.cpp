@@ -318,6 +318,53 @@ void enterUSBDataMode() {
 }
 
 
+complexf ecalApplyReflection(complexf refl, int freqIndex) {
+	#ifdef ECAL_PARTIAL
+		return refl - measuredEcal[0][freqIndex];
+	#else
+		return SOL_compute_reflection(
+					measuredEcal[1][freqIndex],
+					1.f,
+					measuredEcal[0][freqIndex],
+					refl);
+	#endif
+}
+
+
+complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
+	// These corrections do not affect calibrated measurements
+	// and is only there to fix uglyness when uncalibrated and
+	// without full ecal.
+
+	// magnitude correction:
+	// - Near DC the balun is ineffective and measured refl is
+	//   0 for short circuit, 0.5 for load, and 1.0 for open circuit,
+	//   requiring a correction of (refl*2 - 1.0).
+	// - Above 5MHz no correction is needed.
+	// - Between DC and 5MHz we apply something in between, with
+	//   interpolation factor defined by a polynomial that is
+	//   experimentally determined.
+
+	if(freq < 5000000) {
+		float x = float(freq) * 1e-6 * (3./5.);
+		x = 1 - x*(0.7 - x*(0.141 - x*0.006));
+		refl = refl * (1.f + x) - x;
+	}
+
+	// phase correction; experimentally determined polynomial
+	// x: frequency in MHz
+	// arg = -0.25 * x * (-1.39 + x*(0.35 - 0.022*x));
+
+	if(freq < 7500000) {
+		float x = float(freq) * 1e-6;
+		float im = -0.8f * x*(0.45f + x*(-0.12f + x*0.008f));
+		float re = 1.f;
+		refl *= complexf(re, im);
+	}
+	return refl;
+}
+
+
 /*
 -- command types:
 -- bytes (hex):
@@ -527,7 +574,7 @@ void cmdReadFIFO(int address, int nValues) {
 		if(usbDP.freqIndex < 0 || usbDP.freqIndex > USB_POINTS_MAX)
 			continue;
 
-		value[0] -= measuredEcal[0][usbDP.freqIndex] * value[1];
+		value[0] = ecalApplyReflection(value[0] / value[1], usbDP.freqIndex) * value[1];
 
 		int32_t fwdRe = value[1].real();
 		int32_t fwdIm = value[1].imag();
@@ -661,8 +708,11 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservat
 	// reference channel is weaker than thru channel, so apply a correction to get
 	// an average of 0dB thru magnitude.
 	v[2] *= 0.3f;
+	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
+
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
+		auto ecal0 = applyFixedCorrections(ecal[0] * scale, freqHz);
 
 		if(collectMeasurementType >= 0) {
 			// we are collecting a measurement for calibration
@@ -671,7 +721,8 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservat
 			measuredEcal[1][freqIndex] = ecal[1] * scale;
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
 #endif
-			current_props._cal_data[collectMeasurementType][freqIndex] = v[0]/v[1] - measuredEcal[0][freqIndex];
+
+			current_props._cal_data[collectMeasurementType][freqIndex] = ecalApplyReflection(v[0]/v[1], freqIndex);
 
 			auto tmp = v[2]/v[1];
 			if(collectMeasurementType == CAL_OPEN)
@@ -697,13 +748,13 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservat
 		} else {
 			if(ecalState == ECAL_STATE_DONE) {
 				scale *= 0.2f;
-				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal[0] * scale;
+				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal0 * 0.2f;
 				#ifndef ECAL_PARTIAL
 					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
 					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
 				#endif
 			} else {
-				measuredEcal[0][freqIndex] = ecal[0] * scale;
+				measuredEcal[0][freqIndex] = ecal0;
 				#ifndef ECAL_PARTIAL
 					measuredEcal[1][freqIndex] = ecal[1] * scale;
 					measuredEcal[2][freqIndex] = ecal[2] * scale;
@@ -892,8 +943,10 @@ bool processDataPoint() {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		VNAObservation& value = usbDP.value;
 		int freqIndex = usbDP.freqIndex;
-		auto refl = value[0]/value[1] - measuredEcal[0][freqIndex];
+		auto refl = value[0]/value[1];
 		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;
+		
+		refl = ecalApplyReflection(refl, freqIndex);
 		if(current_props._cal_status & CALSTAT_APPLY) {
 			// apply thru leakage correction
 			auto x1 = current_props._cal_data[CAL_SHORT][freqIndex],

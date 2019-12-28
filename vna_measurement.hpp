@@ -39,7 +39,8 @@ public:
 	// data point is corrupted when emitDataPoint() is called.
 	bool clipFlag = false;
 
-	// called when a new data point is available
+	// called when a new data point is available.
+	// ecal is load, short, thru.
 	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v, const complexf* ecal)> emitDataPoint;
 
 	// called to change rf switch direction;
