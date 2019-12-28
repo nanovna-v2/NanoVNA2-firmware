@@ -1024,7 +1024,7 @@ search_index_range(int x, int y, uint32_t* index, int *i0, int *i1)
 		j--;
 	*i0 = j;
 	j = i;
-	while (j < 100 && x == CELL_X0(index[j+1]) && y == CELL_Y0(index[j+1]))
+	while (j < (sweep_points - 1) && x == CELL_X0(index[j+1]) && y == CELL_Y0(index[j+1]))
 		j++;
 	*i1 = j;
 	return TRUE;
@@ -1061,7 +1061,7 @@ search_index_range_x(int x, uint32_t* index, int *i0, int *i1)
 		j--;
 	*i0 = j;
 	j = i;
-	while (j < 100 && x == CELL_X0(index[j+1]))
+	while (j < (sweep_points - 1) && x == CELL_X0(index[j+1]))
 		j++;
 	*i1 = j;
 	return TRUE;
@@ -1157,7 +1157,7 @@ marker_search(int mode)
 		return -1;
 
 	int value = CELL_Y(trace_index[uistat.current_trace][0]);
-	for (i = 0; i < 101; i++) {
+	for (i = 0; i < sweep_points; i++) {
 		uint32_t index = trace_index[uistat.current_trace][i];
 		if ((*compare)(value, CELL_Y(index))) {
 			value = CELL_Y(index);
@@ -1206,14 +1206,14 @@ marker_search_right(int from)
 		return -1;
 
 	int value = CELL_Y(trace_index[uistat.current_trace][from]);
-	for (i = from + 1; i < 101; i++) {
+	for (i = from + 1; i < sweep_points; i++) {
 		uint32_t index = trace_index[uistat.current_trace][i];
 		if ((*compare)(value, CELL_Y(index)))
 			break;
 		value = CELL_Y(index);
 	}
 
-	for (; i < 101; i++) {
+	for (; i < sweep_points; i++) {
 		uint32_t index = trace_index[uistat.current_trace][i];
 		if ((*compare)(CELL_Y(index), value)) {
 			break;
