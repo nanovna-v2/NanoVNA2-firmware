@@ -49,6 +49,7 @@ properties_t current_props = {
 properties_t* active_props = &current_props;
 
 
+complexf measuredFreqDomain[2][SWEEP_POINTS_MAX] alignas(8);
 complexf measured[2][SWEEP_POINTS_MAX] alignas(8);
 complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX] alignas(8);
 

@@ -43,6 +43,7 @@
 #include "fifo.hpp"
 #include "flash.hpp"
 #include "calibration.hpp"
+#include "fft.hpp"
 
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/scb.h>
@@ -785,7 +786,101 @@ void usb_transmit_rawSamples() {
 	rfsw(RFSW_REFL, RFSW_REFL_ON);
 }
 
-void processDataPoint() {
+float bessel0(float x) {
+	const float eps = 0.0001;
+
+	float ret = 0;
+	float term = 1;
+	float m = 0;
+
+	while (term  > eps * ret) {
+		ret += term;
+		++m;
+		term *= (x*x) / (4*m*m);
+	}
+
+	return ret;
+}
+
+float kaiser_window(float k, float n, float beta) {
+	if (beta == 0.0) return 1.0;
+	float r = (2 * k) / (n - 1) - 1;
+	return bessel0(beta * sqrt(1 - r * r)) / bessel0(beta);
+}
+
+void transform_domain() {
+	if ((domain_mode & DOMAIN_MODE) != DOMAIN_TIME) return; // nothing to do for freq domain
+	// use spi_buffer as temporary buffer
+	// and calculate ifft for time domain
+	float* tmp = (float*)ili9341_spi_buffer;
+
+	int points = current_props._sweep_points;
+	uint8_t window_size = current_props._sweep_points, offset = 0;
+	bool is_lowpass = false;
+	switch (domain_mode & TD_FUNC) {
+		case TD_FUNC_BANDPASS:
+			offset = 0;
+			window_size = points;
+			break;
+		case TD_FUNC_LOWPASS_IMPULSE:
+		case TD_FUNC_LOWPASS_STEP:
+			is_lowpass = true;
+			offset = points;
+			window_size = points * 2;
+			break;
+	}
+
+	float beta = 0.0;
+	switch (domain_mode & TD_WINDOW) {
+		case TD_WINDOW_MINIMUM:
+			beta = 0.0; // this is rectangular
+			break;
+		case TD_WINDOW_NORMAL:
+			beta = 6.0;
+			break;
+		case TD_WINDOW_MAXIMUM:
+			beta = 13;
+			break;
+	}
+
+
+	for (int ch = 0; ch < 2; ch++) {
+		memcpy(tmp, measuredFreqDomain[ch], sizeof(measuredFreqDomain[0]));
+		for (int i = 0; i < points; i++) {
+			float w = kaiser_window(i+offset, window_size, beta);
+			tmp[i*2+0] *= w;
+			tmp[i*2+1] *= w;
+		}
+		for (int i = points; i < FFT_SIZE; i++) {
+			tmp[i*2+0] = 0.0;
+			tmp[i*2+1] = 0.0;
+		}
+		if (is_lowpass) {
+			for (int i = 1; i < points; i++) {
+				tmp[(FFT_SIZE-i)*2+0] =  tmp[i*2+0];
+				tmp[(FFT_SIZE-i)*2+1] = -tmp[i*2+1];
+			}
+		}
+
+		fft256_inverse((float(*)[2])tmp);
+		memcpy(measured[ch], tmp, sizeof(measured[0]));
+		for (int i = 0; i < points; i++) {
+			measured[ch][i] /= (float)FFT_SIZE;
+			if (is_lowpass) {
+				measured[ch][i] = {measured[ch][i].real(), 0.f};
+			}
+		}
+		if ( (domain_mode & TD_FUNC) == TD_FUNC_LOWPASS_STEP ) {
+			for (int i = 1; i < points; i++) {
+				measured[ch][i] += measured[ch][i-1];
+			}
+		}
+	}
+}
+
+// consume all items in the values fifo and update the "measured" array.
+bool processDataPoint() {
+	int ret = -1;
 	int rdRPos = usbTxQueueRPos;
 	int rdWPos = usbTxQueueWPos;
 	__sync_synchronize();
@@ -825,13 +920,26 @@ void processDataPoint() {
 						current_props._cal_data[CAL_LOAD][freqIndex],
 						refl);
 		}
-		measured[0][usbDP.freqIndex] = refl;
-		measured[1][usbDP.freqIndex] = thru;
-		
+		measuredFreqDomain[0][usbDP.freqIndex] = refl;
+		measuredFreqDomain[1][usbDP.freqIndex] = thru;
+		if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
+			measured[0][usbDP.freqIndex] = refl;
+			measured[1][usbDP.freqIndex] = thru;
+		}
+
 		rdRPos = (rdRPos + 1) & usbTxQueueMask;
+		usbTxQueueRPos = rdRPos;
+
+		if(freqIndex == vnaMeasurement.sweepPoints - 1) {
+			transform_domain();
+			return true;
+		}
 	}
-	usbTxQueueRPos = rdRPos;
+	return false;
 }
+
+
+
 
 int main(void) {
 	uint32_t fpuEnable = 0b1111 << 20;
@@ -958,13 +1066,22 @@ int main(void) {
 			continue;
 		}
 		lastUSBDataMode = usbDataMode;
-		if(sweep_enabled)
-			processDataPoint();
+		if(sweep_enabled) {
+			if(processDataPoint()) {
+				// a full sweep has completed
+				if ((domain_mode & DOMAIN_MODE) == DOMAIN_TIME) {
+					plot_into_index(measured);
+					draw_all(true);
+					continue;
+				}
+			}
+		}
 
 		// if we have no pending events, use idle cycles to refresh the graph
 		if(!eventQueue.readable()) {
 			if(sweep_enabled) {
-				plot_into_index(measured);
+				if((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ)
+					plot_into_index(measured);
 			}
 			draw_all(true);
 			continue;
