@@ -45,6 +45,7 @@
 #include "calibration.hpp"
 #include "fft.hpp"
 #include "command_parser.hpp"
+#include "stream_fifo.hpp"
 
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/scb.h>
@@ -69,11 +70,8 @@ volatile uint16_t adcBuffer[adcBufSize];
 
 VNAMeasurement vnaMeasurement;
 CommandParser cmdParser;
-
-uint8_t usbRxQueue[128];
-constexpr int usbRxQueueMask = sizeof(usbRxQueue) - 1;
-volatile int usbRxQueueWPos = 0;
-volatile int usbRxQueueRPos = 0;
+StreamFIFO cmdInputFIFO;
+uint8_t cmdInputBuffer[128];
 
 
 struct usbDataPoint {
@@ -440,39 +438,9 @@ For a description of the command interface see command_parser.hpp
 void cmdReadFIFO(int address, int nValues);
 void cmdRegisterWrite(int address);
 
-void serialCharHandler(uint8_t* s, int len) {
-	uint32_t wrRPos = usbRxQueueRPos;
-	uint32_t wrWPos = usbRxQueueWPos;
-	__sync_synchronize();
-	uint32_t spaceLeft = (wrRPos - wrWPos - 1) & usbRxQueueMask;
-	if(len > spaceLeft) len = spaceLeft;
-	uint32_t target = (wrWPos + len) & usbRxQueueMask;
-
-	for(uint32_t i = wrWPos; i != target; i = ((i+1) & usbRxQueueMask)) {
-		usbRxQueue[i] = *s;
-		s++;
-	}
-	__sync_synchronize();
-	usbRxQueueWPos = target;
-}
 //1425tX^^^^^^^^^^^^^^XXXXXXXXXXXXXXXXXXXXXXMMMMMM%Vc222$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$44443 \uuuuuuuuuuuuiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiyhz<ggggggggggggggggggggggggggggggggggg
 
 
-bool cmdProcessInput() {
-	uint32_t rdRPos = usbRxQueueRPos;
-	uint32_t rdWPos = usbRxQueueWPos;
-	__sync_synchronize();
-	if(rdRPos == rdWPos)
-		return false;
-	if(rdWPos > rdRPos) {
-		cmdParser.handleInput(usbRxQueue + rdRPos, rdWPos - rdRPos);
-	} else {
-		cmdParser.handleInput(usbRxQueue + rdRPos, sizeof(usbRxQueue) - rdRPos);
-		cmdParser.handleInput(usbRxQueue, rdWPos);
-	}
-	usbRxQueueRPos = rdWPos;
-	return true;
-}
 void cmdReadFIFO(int address, int nValues) {
 	if(address != 0x30) return;
 	if(!usbDataMode)
@@ -600,6 +568,12 @@ void cmdInit() {
 	};
 	cmdParser.registers = registers;
 	cmdParser.registersSizeMask = registersSizeMask;
+
+	cmdInputFIFO.buffer = cmdInputBuffer;
+	cmdInputFIFO.bufferSize = sizeof(cmdInputBuffer);
+	cmdInputFIFO.output = [](const uint8_t* s, int len) {
+		cmdParser.handleInput(s, len);
+	};
 }
 
 // callback called by VNAMeasurement to change rf switch positions.
@@ -986,7 +960,7 @@ int main(void) {
 
 	cmdInit();
 	serial.setReceiveCallback([](uint8_t* s, int len) {
-		serialCharHandler(s, len);
+		cmdInputFIFO.input(s, len);
 	});
 	// baud rate is ignored for usbserial
 	serial.begin(115200);
@@ -1045,7 +1019,8 @@ int main(void) {
 	
 	bool lastUSBDataMode = false;
 	while(true) {
-		cmdProcessInput();
+		// process any outstanding commands from usb
+		cmdInputFIFO.drain();
 		if(usbDataMode) {
 			if(outputRawSamples)
 				usb_transmit_rawSamples();
