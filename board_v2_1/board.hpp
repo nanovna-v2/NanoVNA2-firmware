@@ -63,7 +63,7 @@ namespace board {
 	constexpr int adc_rxChannel = 0;
 
 	// the end of flash memory. User data is stored before this point.
-	constexpr uint32_t USERFLASH_END = 0x08000000 + 248*1024;
+	constexpr uint32_t USERFLASH_END = 0x08000000 + 256*1024;
 
 
 	// ##### board peripherals #####
