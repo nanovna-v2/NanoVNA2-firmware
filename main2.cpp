@@ -622,7 +622,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 
 		if(collectMeasurementType >= 0) {
 			// we are collecting a measurement for calibration
-			measuredEcal[0][freqIndex] = ecal[0] * scale;
+			measuredEcal[0][freqIndex] = ecal0;
 #ifndef ECAL_PARTIAL
 			measuredEcal[1][freqIndex] = ecal[1] * scale;
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
