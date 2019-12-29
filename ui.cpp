@@ -629,7 +629,6 @@ menu_transform_cb(UIEvent evt, int item)
       ui_mode_normal();
       break;
     case 5:
-      UIEvent evt = uiWaitEvent();
       if (evt.isLeverLongPress()) {
         ui_mode_numeric(KM_VELOCITY_FACTOR);
         ui_process_numeric(evt);
