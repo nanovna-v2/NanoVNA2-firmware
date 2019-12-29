@@ -44,6 +44,7 @@
 #include "flash.hpp"
 #include "calibration.hpp"
 #include "fft.hpp"
+#include "command_parser.hpp"
 
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/scb.h>
@@ -67,6 +68,7 @@ static const int adcBufSize=1024;	// must be power of 2
 volatile uint16_t adcBuffer[adcBufSize];
 
 VNAMeasurement vnaMeasurement;
+CommandParser cmdParser;
 
 uint8_t usbRxQueue[128];
 constexpr int usbRxQueueMask = sizeof(usbRxQueue) - 1;
@@ -366,20 +368,7 @@ complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
 
 
 /*
--- command types:
--- bytes (hex):
---  0  1  2  3  4  5
--- 00                   : nop
--- 0d                   : return ascii '2' (0x32)
--- 10 AA                : read register (address in AA)
--- 11 AA                : read 2-byte register (address in AA)
--- 12 AA                : read 4-byte register (address in AA)
--- 14 AA NN             : read up to N values from FIFO (bytes per value is implementation defined)
--- 20 AA XX             : write register (address in AA, value in XX)
--- 21 AA XX XX          : write 2-byte register (address in AA, values in XX)
--- 22 AA XX XX XX XX    : write 4-byte register (address in AA, values in XX)
--- 23 AA XX XX XX XX    : write 8-byte register (address in AA, values in XX)
-
+For a description of the command interface see command_parser.hpp
 -- register map:
 -- 00: sweepStartHz[7..0]
 -- 01: sweepStartHz[15..8]
@@ -447,11 +436,6 @@ complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
 -- 1a - 1f: reserved
 */
 
-int cmdPhase = 0;
-uint8_t cmdOpcode = 0;
-uint8_t cmdAddress = 0xff;
-uint8_t cmdEndAddress = 0xff;
-uint8_t cmdStartAddress = 0;
 
 void cmdReadFIFO(int address, int nValues);
 void cmdRegisterWrite(int address);
@@ -471,72 +455,6 @@ void serialCharHandler(uint8_t* s, int len) {
 	__sync_synchronize();
 	usbRxQueueWPos = target;
 }
-void cmdHandleInput(uint8_t* s, int len) {
-	uint8_t* end = s + len;
-	while(s < end) {
-		uint8_t c = *s;
-		if(cmdPhase == 0) {
-			cmdOpcode = c;
-			if(cmdOpcode == 0)
-				goto cont;
-			if(cmdOpcode == 0x0d) {
-				serial.print("2", 1);
-				goto cont;
-			}
-			cmdPhase++;
-			goto cont;
-		}
-		if(cmdPhase == 1) {
-			cmdStartAddress = cmdAddress = c;
-			if(cmdOpcode == 0x21)
-				cmdEndAddress = cmdAddress + 2;
-			if(cmdOpcode == 0x22)
-				cmdEndAddress = cmdAddress + 4;
-			if(cmdOpcode == 0x23)
-				cmdEndAddress = cmdAddress + 8;
-			cmdPhase++;
-			goto cont;
-		}
-		switch(cmdOpcode) {
-			case 0x10:
-				serial.print((char*) registers + cmdAddress, 1);
-				cmdPhase = 0;
-				break;
-			case 0x11:
-				serial.print((char*) registers + cmdAddress, 2);
-				cmdPhase = 0;
-				break;
-			case 0x12:
-				serial.print((char*) registers + cmdAddress, 4);
-				cmdPhase = 0;
-				break;
-			case 0x13:
-				cmdReadFIFO(cmdAddress, c);
-				cmdPhase = 0;
-				break;
-			case 0x20:
-				registers[cmdAddress & registersSizeMask] = c;
-				cmdPhase = 0;
-				cmdRegisterWrite(cmdAddress);
-				break;
-			case 0x21:
-			case 0x22:
-			case 0x23:
-				registers[cmdAddress & registersSizeMask] = c;
-				cmdAddress++;
-				if(cmdAddress == cmdEndAddress) {
-					cmdPhase = 0;
-					cmdRegisterWrite(cmdStartAddress);
-				}
-				break;
-			default:
-				cmdPhase = 0;
-				break;
-		}
-	cont:
-		s++;
-	}
-}
 //1425tX^^^^^^^^^^^^^^XXXXXXXXXXXXXXXXXXXXXXMMMMMM%Vc222$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$44443 \uuuuuuuuuuuuiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiyhz<ggggggggggggggggggggggggggggggggggg
 
 
@@ -547,10 +465,10 @@ bool cmdProcessInput() {
 	if(rdRPos == rdWPos)
 		return false;
 	if(rdWPos > rdRPos) {
-		cmdHandleInput(usbRxQueue + rdRPos, rdWPos - rdRPos);
+		cmdParser.handleInput(usbRxQueue + rdRPos, rdWPos - rdRPos);
 	} else {
-		cmdHandleInput(usbRxQueue + rdRPos, sizeof(usbRxQueue) - rdRPos);
-		cmdHandleInput(usbRxQueue, rdWPos);
+		cmdParser.handleInput(usbRxQueue + rdRPos, sizeof(usbRxQueue) - rdRPos);
+		cmdParser.handleInput(usbRxQueue, rdWPos);
 	}
 	usbRxQueueRPos = rdWPos;
 	return true;
@@ -670,6 +588,19 @@ void cmdRegisterWrite(int address) {
 }
 
 
+void cmdInit() {
+	cmdParser.handleReadFIFO = [](int address, int nValues) {
+		return cmdReadFIFO(address, nValues);
+	};
+	cmdParser.handleWrite = [](int address) {
+		return cmdRegisterWrite(address);
+	};
+	cmdParser.send = [](const uint8_t* s, int len) {
+		return serial.print((char*) s, len);
+	};
+	cmdParser.registers = registers;
+	cmdParser.registersSizeMask = registersSizeMask;
+}
 
 // callback called by VNAMeasurement to change rf switch positions.
 void measurementPhaseChanged(VNAMeasurementPhases ph) {
@@ -1053,6 +984,7 @@ int main(void) {
 
 	delay(500);
 
+	cmdInit();
 	serial.setReceiveCallback([](uint8_t* s, int len) {
 		serialCharHandler(s, len);
 	});
