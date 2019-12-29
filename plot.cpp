@@ -1729,6 +1729,12 @@ frequency_string_short(char *b, size_t len, freqHz_t freq, char prefix)
 	}
 }
 
+void padString(char* s, int len, char c = ' ') {
+	int oldLen = strlen(s);
+	for(int i = oldLen; i < (len - 1); i++)
+		s[i] = c;
+	s[len - 1] = 0;
+}
 
 void
 draw_frequencies(void)
@@ -1736,18 +1742,22 @@ draw_frequencies(void)
 	char buf[24];
 
 	// draw sweep points
-	chsnprintf(buf, sizeof(buf), "%d P", (int)sweep_points);
+	chsnprintf(buf, sizeof(buf), "%3d P", (int)sweep_points);
 	ili9341_drawstring_5x7(buf, WIDTH / 2, 233, 0xffff, 0x0000);
 
 	if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 		if (frequency1 > 0) {
 			auto start = frequency0;
 			auto stop = frequency1;
+
 			strcpy(buf, "START ");
 			frequency_string(buf+6, 24-6, start);
+			padString(buf, sizeof(buf));
 			ili9341_drawstring_5x7(buf, OFFSETX, 233, 0xffff, 0x0000);
+
 			strcpy(buf, "STOP ");
 			frequency_string(buf+5, 24-5, stop);
+			padString(buf, sizeof(buf));
 			ili9341_drawstring_5x7(buf, 205, 233, 0xffff, 0x0000);
 		} else if (frequency1 < 0) {
 			auto fcenter = frequency0;
@@ -1779,11 +1789,13 @@ draw_frequencies(void)
 			ili9341_drawstring_5x7(buf, 205, 233, 0xffff, 0x0000);
 		}
 	} else {
-		strcpy(buf, "START 0s        ");
+		strcpy(buf, "START 0s");
+		padString(buf, sizeof(buf));
 		ili9341_drawstring_5x7(buf, OFFSETX, 233, 0xffff, 0x0000);
 
 		strcpy(buf, "STOP ");
 		chsnprintf(buf+5, 24-5, "%d ns", (uint16_t)(time_of_index(current_props._sweep_points) * 1e9));
+		padString(buf, sizeof(buf));
 		ili9341_drawstring_5x7(buf, 205, 233, 0xffff, 0x0000);
 	}
 }
