@@ -88,6 +88,9 @@ int flash_caldata_save(int id) {
 	static_assert((sizeof(current_props) % 4) == 0,
 		"the size of the properties structure must be an integer multiple of 4");
 
+	static_assert(SAVEAREA_BYTES >= sizeof(current_props),
+		"SAVEAREA_BYTES is too small");
+
 	uint8_t *src = (uint8_t*)&current_props;
 	uint32_t dst = SAVEAREA(id);
 
@@ -150,6 +153,9 @@ int flash_config_save(void) {
 	uint8_t *src = (uint8_t*)&config;
 	uint32_t dst = CONFIGAREA_BEGIN;
 	uint32_t bytes = sizeof(config);
+
+	static_assert(CONFIGAREA_BYTES >= sizeof(config),
+		"CONFIGAREA_BYTES is too small");
 
 	config.magic = CONFIG_MAGIC;
 	config.checksum = 0;
