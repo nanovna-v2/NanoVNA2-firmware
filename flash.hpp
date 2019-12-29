@@ -13,13 +13,13 @@ constexpr int SAVEAREA_MAX = 5;
 constexpr uint32_t SAVEAREA_BYTES = 6144;
 
 // total bytes of save areas
-constexpr uint32_t SAVEAREAS_BYTES = SAVEAREA_BYTES * SAVEAREA_MAX;
+constexpr uint32_t SAVETOTAL_BYTES = SAVEAREA_BYTES * SAVEAREA_MAX;
 
 // allocated bytes for config data in flash. must be a multiple of the flash page size (2048)
 constexpr uint32_t CONFIGAREA_BYTES = 2048;
 
 // flash user area is at the very end of the flash, defined by USERFLASH_END in board.hpp
-constexpr uint32_t USERFLASH_BEGIN = board::USERFLASH_END - SAVEAREAS_BYTES - CONFIGAREA_BYTES;
+constexpr uint32_t USERFLASH_BEGIN = board::USERFLASH_END - SAVETOTAL_BYTES - CONFIGAREA_BYTES;
 
 // locations of config and save areas
 constexpr uint32_t CONFIGAREA_BEGIN = USERFLASH_BEGIN;
@@ -27,7 +27,7 @@ constexpr uint32_t SAVEAREA_BEGIN = CONFIGAREA_BEGIN + CONFIGAREA_BYTES;
 
 static inline uint32_t SAVEAREA(int id) {
 	//assert(id >= 0 && id < SAVEAREA_MAX);
-	return SAVEAREA_BEGIN + id*SAVEAREAS_BYTES;
+	return SAVEAREA_BEGIN + id*SAVEAREA_BYTES;
 }
 
 
