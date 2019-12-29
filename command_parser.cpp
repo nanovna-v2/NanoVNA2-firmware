@@ -2,6 +2,16 @@
 
 void CommandParser::handleInput(const uint8_t* s, int len) {
 	const uint8_t* end = s + len;
+	if(writeFIFOBytesLeft > 0) {
+		int consume = writeFIFOBytesLeft;
+		if(consume > len)
+			consume = len;
+		handleWriteFIFO(cmdAddress, 0, consume, s);
+		s += consume;
+		writeFIFOBytesLeft -= consume;
+		if(writeFIFOBytesLeft > 0)
+			return;
+	}
 	while(s < end) {
 		uint8_t c = *s;
 		if(cmdPhase == 0) {
@@ -23,23 +33,31 @@ void CommandParser::handleInput(const uint8_t* s, int len) {
 				cmdEndAddress = cmdAddress + 4;
 			if(cmdOpcode == 0x23)
 				cmdEndAddress = cmdAddress + 8;
-			cmdPhase++;
-			goto cont;
+
+			// 1-parameter commands
+			if(cmdOpcode >= 0x10 && cmdOpcode <= 0x12) {
+				switch(cmdOpcode) {
+					case 0x10:
+						send(registers + cmdAddress, 1);
+						break;
+					case 0x11:
+						send(registers + cmdAddress, 2);
+						break;
+					case 0x12:
+						send(registers + cmdAddress, 4);
+						break;
+				}
+				cmdPhase = 0;
+				goto cont;
+			} else {
+				cmdPhase++;
+				goto cont;
+			}
 		}
+		// 2 or more parameter commands
 		switch(cmdOpcode) {
-			case 0x10:
-				send(registers + cmdAddress, 1);
-				cmdPhase = 0;
-				break;
-			case 0x11:
-				send(registers + cmdAddress, 2);
-				cmdPhase = 0;
-				break;
-			case 0x12:
-				send(registers + cmdAddress, 4);
-				cmdPhase = 0;
-				break;
-			case 0x13:
+			case 0x18:
+			case 0x13: // FOR TEMPORARY BACKWARDS COMPATIBILITY ONLY. WILL BE REMOVED.
 				handleReadFIFO(cmdAddress, c);
 				cmdPhase = 0;
 				break;
@@ -58,6 +76,24 @@ void CommandParser::handleInput(const uint8_t* s, int len) {
 					handleWrite(cmdStartAddress);
 				}
 				break;
+			case 0x28:
+			{
+				int totalBytes = (int) (uint8_t) c;
+				s++; // move past the size byte
+				cmdPhase = 0; // resume command processing once data is consumed
+
+				int bufBytes = end - s;
+				if(bufBytes >= totalBytes) {
+					// all data is in the current buffer
+					handleWriteFIFO(cmdAddress, totalBytes, totalBytes, s);
+					s += totalBytes;
+					continue;
+				}
+				// partial data is in the buffer
+				handleWriteFIFO(cmdAddress, totalBytes, bufBytes, s);
+				writeFIFOBytesLeft = totalBytes - bufBytes;
+				return;
+			}
 			default:
 				cmdPhase = 0;
 				break;

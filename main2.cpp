@@ -560,6 +560,7 @@ void cmdInit() {
 	cmdParser.handleReadFIFO = [](int address, int nValues) {
 		return cmdReadFIFO(address, nValues);
 	};
+	cmdParser.handleWriteFIFO = [](int address, int totalBytes, int nBytes, const uint8_t* data) {};
 	cmdParser.handleWrite = [](int address) {
 		return cmdRegisterWrite(address);
 	};
