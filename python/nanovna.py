@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import serial
+import serial, tty
 import numpy as np
 import pylab as pl
 import struct
@@ -15,6 +15,14 @@ def getport() -> str:
         if device.vid == VID and device.pid == PID:
             return device.device
     raise OSError("device not found")
+
+
+def _unpackSigned32(b):
+    return int.from_bytes(b[0:4], 'little', signed=True)
+
+def _unpackUnsigned16(b):
+    return int.from_bytes(b[0:2], 'little', signed=False)
+
 
 REF_LEVEL = (1<<9)
 
@@ -214,6 +222,7 @@ class NanoVNA:
         return Image.frombuffer('RGBA', (320, 240), arr, 'raw', 'RGBA', 0, 1)
 
     def logmag(self, x):
+        print(x)
         pl.grid(True)
         pl.xlim(self.frequencies[0], self.frequencies[-1])
         pl.plot(self.frequencies, 20*np.log10(np.abs(x)))
@@ -288,6 +297,174 @@ class NanoVNA:
         n = self.skrf_network(x)
         n.plot_s_smith()
         return n
+
+
+
+class NanoVNAV2(NanoVNA):
+    def __init__(self, dev = None):
+        self.dev = dev or getport()
+        self.serial = None
+        self._frequencies = None
+        self.points = 101
+        self.sweepStartHz = 200e6
+        self.sweepStopHz = 1e6
+        self.sweepData = [[0.,0.]] * self.points
+
+    def set_frequencies(self, start = 1e6, stop = 900e6, points = None):
+        if points:
+            self.points = points
+            self.sweepData = [[0.,0.]] * self.points
+        self._frequencies = np.linspace(start, stop, self.points)
+
+    def open(self):
+        if self.serial is None:
+            self.serial = serial.Serial(self.dev)
+        tty.setraw(self.serial.fd)
+        self.serial.timeout = 3
+
+    def send_command(self, cmd):
+        raise NotImplementedError("unimplemented: send_command")
+
+    def _updateSweep(self):
+        self.open()
+        sweepStepHz = 0.
+        if self.points > 1:
+            sweepStepHz = (self.sweepStopHz - self.sweepStartHz) / (self.points - 1)
+
+        cmd = b"\x23\x00" + int.to_bytes(int(self.sweepStartHz), 8, 'little')
+        cmd += b"\x23\x10" + int.to_bytes(int(sweepStepHz), 8, 'little')
+        cmd += b"\x21\x20" + int.to_bytes(int(self.points), 2, 'little')
+        self.serial.write(cmd)
+
+    def set_sweep(self, start, stop, points = 101):
+        if start is not None:
+            self.sweepStartHz = start
+        if stop is not None:
+            self.sweepStopHz = stop
+        if points is not None:
+            self.points = points
+        self._updateSweep()
+
+    def set_frequency(self, freq):
+        if freq is not None:
+            self.sweepStartHz = freq
+            self.sweepStopHz = freq
+            self._updateSweep()
+
+    def set_port(self, port):
+        pass
+
+    def set_gain(self, gain):
+        pass
+
+    def set_offset(self, offset):
+        pass
+
+    def set_strength(self, strength):
+        pass
+
+    def set_filter(self, filter):
+        self.filter = filter
+
+    def fetch_data(self):
+        raise NotImplementedError()
+
+    def fetch_buffer(self, freq = None, buffer = 0):
+        raise NotImplementedError()
+
+    def fetch_rawwave(self, freq = None):
+        raise NotImplementedError()
+
+    def fetch_array(self, sel):
+        if sel == 0:
+            self._scan()
+
+        x = [item[sel] for item in self.sweepData]
+        return np.array(x)
+
+    def fetch_gamma(self, freq = None):
+        if freq:
+            self.set_frequency(freq)
+            self._scan()
+        return self.sweepData[0][0]
+
+    def reflect_coeff_from_rawwave(self, freq = None):
+        ref, samp = self.fetch_rawwave(freq)
+        refh = signal.hilbert(ref)
+        #x = np.correlate(refh, samp) / np.correlate(refh, refh)
+        #return x[0]
+        #return np.sum(refh*samp / np.abs(refh) / REF_LEVEL)
+        return np.average(refh*samp / np.abs(refh) / REF_LEVEL)
+
+    reflect_coeff = reflect_coeff_from_rawwave
+    gamma = reflect_coeff_from_rawwave
+    #gamma = fetch_gamma
+    coefficient = reflect_coeff
+
+    def resume(self):
+        self.send_command("resume\r")
+    
+    def pause(self):
+        self.send_command("pause\r")
+    
+    def scan_gamma0(self, port = None):
+        self.set_port(port)
+        return np.vectorize(self.gamma)(self.frequencies)
+
+    def scan_gamma(self, port = None):
+        self.set_port(port)
+        return np.vectorize(self.fetch_gamma)(self.frequencies)
+
+    def data(self, array = 0):
+        # seems to do the same thing as fetch_array?
+        return self.fetch_array(array)
+
+    def fetch_frequencies(self):
+        self._frequencies = np.linspace(self.sweepStartHz, self.sweepStopHz, self.points)
+
+    def send_scan(self, start = 1e6, stop = 900e6, points = None):
+        self.set_sweep(start, stop, points)
+        self._scan()
+
+    def _scan(self):
+        # reset protocol to known state
+        self.serial.write([0,0,0,0,0,0,0,0])
+
+        # cmd: write register 0x30 to clear FIFO
+        self.serial.write([0x20, 0x30, 0x00])
+
+        # cmd: read FIFO, addr 0x30
+        self.serial.write([0x18, 0x30, self.points])
+
+        # each value is 32 bytes
+        nBytes = self.points * 32
+
+        # serial .read() will wait for exactly nBytes bytes
+        arr = self.serial.read(nBytes)
+        if nBytes != len(arr):
+            logger.error("expected %d bytes, got %d" % (nBytes, len(arr)))
+            return []
+
+        for i in range(self.points):
+            b = arr[i*32:]
+            fwd = complex(_unpackSigned32(b[0:]), _unpackSigned32(b[4:]))
+            refl = complex(_unpackSigned32(b[8:]), _unpackSigned32(b[12:]))
+            thru = complex(_unpackSigned32(b[16:]), _unpackSigned32(b[20:]))
+            freqIndex = _unpackUnsigned16(b[24:])
+            #print('freqIndex', freqIndex)
+            self.sweepData[freqIndex] = (refl / fwd, thru / fwd)
+
+    def scan(self):
+        if self._frequencies is None:
+            self.fetch_frequencies()
+
+        return (self.data(0), self.data(1))
+    
+    def capture(self):
+        raise NotImplementedError()
+
+
+
 
 def plot_sample0(samp):
     N = min(len(samp), 256)
@@ -373,7 +550,7 @@ if __name__ == '__main__':
                       help="write touch stone file", metavar="SAVE")
     (opt, args) = parser.parse_args()
 
-    nv = NanoVNA(opt.device or getport())
+    nv = NanoVNAV2(opt.device or getport())
 
     if opt.command:
         for c in opt.command:
