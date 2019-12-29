@@ -53,7 +53,8 @@ uint32_t flash_program_data(uint32_t dst, uint8_t *src, uint32_t bytes) {
 	for(uint32_t iter=0; iter<bytes; iter += 4)
 	{
 		// programming word data
-		flash_program_word(dst+iter, *(uint32_t*)(src + iter));
+		uint32_t word = *(uint32_t*)(src + iter);
+		flash_program_word(dst+iter, word);
 		flash_status = flash_get_status_flags();
 		if(flash_status != FLASH_SR_EOP) {
 			printk("flash_program_data: write error: flash status %d\n", flash_status);
@@ -61,10 +62,12 @@ uint32_t flash_program_data(uint32_t dst, uint8_t *src, uint32_t bytes) {
 		}
 
 		// verify if correct data is programmed
-		if(*((uint32_t*)(dst + iter)) != *((uint32_t*)(src + iter)))
+		uint32_t readback = *(volatile uint32_t*)(dst + iter);
+		
+		if(readback != word) {
+			printk("flash_program_data: verify failed: wrote %x, read %x\n", word, readback);
 			return -3;
-		if(iter == 0)
-			printk("write addr %x value %x\n", dst + iter, *((uint32_t*)(dst + iter)));
+		}
 	}
 
 	return 0;
