@@ -1682,7 +1682,7 @@ lever_move_marker(UIEvent evt)
   if (active_marker >= 0 && markers[active_marker].enabled) {
     request_to_redraw_marker(active_marker, TRUE);
     auto& am = markers[active_marker];
-    int step = evt.isTick() ? 2 : 1;
+    int step = evt.isTick() ? 3 : 1;
     if (evt.isJogLeft()) {
       am.index -= step;
       if(am.index < 0)
