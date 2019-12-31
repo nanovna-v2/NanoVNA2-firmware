@@ -42,6 +42,8 @@ namespace UIActions {
 
 	void printTouchCal();
 
+	void enterDFU();
+
 	// process all outstanding events in the main event queue.
 	void application_doEvents();
 

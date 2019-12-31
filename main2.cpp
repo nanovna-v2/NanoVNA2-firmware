@@ -1318,6 +1318,12 @@ namespace UIActions {
 				(int)config.touch_cal[2], (int)config.touch_cal[3]);
 	}
 
+	void enterDFU() {
+		bootloaderDFUIndicator = BOOTLOADER_DFU_MAGIC;
+		// soft reset
+		SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+		while(true);
+	}
 
 	void application_doEvents() {
 		while(eventQueue.readable()) {

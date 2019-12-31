@@ -315,7 +315,7 @@ show_usb_data_mode(void)
 }
 
 void
-enter_dfu(void)
+ui_enter_dfu(void)
 {
   uiDisableProcessing();
 
@@ -326,7 +326,7 @@ enter_dfu(void)
   ili9341_drawstring_5x7("DFU: Device Firmware Update Mode", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("To exit DFU mode, please reset device yourself.", x, y += 10, 0xffff, 0x0000);
 
-  // TODO: enter dfu mode
+  enterDFU();
 }
 
 
@@ -465,7 +465,7 @@ menu_dfu_cb(UIEvent evt, int item)
 {
   switch (item) {
   case 0:
-      enter_dfu();
+      ui_enter_dfu();
   }
 }
 
