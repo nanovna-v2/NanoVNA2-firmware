@@ -227,7 +227,7 @@ show_version(void)
   ili9341_drawstring_5x7("Hardware designed by OwOComm", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Licensed under GPL. ", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("https://github.com/ttrftech/NanoVNA", x + 10, y += 10, 0xffff, 0x0000);
-  ili9341_drawstring_5x7("https://github.com/nanovna/NanoVNA-V2", x + 10, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("https://github.com/nanovna/S-A-A", x + 10, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Version: " GITVERSION, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Build Time: " __DATE__ " - " __TIME__, x, y += 10, 0xffff, 0x0000);
   y += 5;
@@ -236,6 +236,7 @@ show_version(void)
   ili9341_drawstring_5x7("Architecture: " PORT_ARCHITECTURE_NAME " Core Variant: " PORT_CORE_VARIANT_NAME, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Port Info: " PORT_INFO, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Platform: " PLATFORM_NAME, x, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("Board: " BOARD_NAME, x, y += 10, 0xffff, 0x0000);
 
   while (true) {
     UIEvent evt = uiWaitEvent();
