@@ -169,6 +169,7 @@ registers map:
 -- e2: flashWriteStart[23..16]
 -- e3: flashWriteStart[31..24]
 -- e4: flash FIFO
+-- ef: write 0x5e to reboot device
 */
 
 void setMspAndJump(uint32_t usrAddr) {
@@ -252,7 +253,10 @@ void cmdInit() {
 			handleFlashWrite(data, nBytes);
 	};
 	cmdParser.handleWrite = [](int address) {
-		
+		if(address == 0xef && registers[address] == 0x5e) {
+			// reset device
+			SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+		}
 	};
 	cmdParser.send = [](const uint8_t* s, int len) {
 		return serial.print((char*) s, len);
