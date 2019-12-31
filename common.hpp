@@ -108,6 +108,8 @@ constexpr int adf4350_R = 1; // adf4350 reference divide
 constexpr int adf4350_freqStep = 6; // adf4350 resolution, kHz
 constexpr int adf4350_modulus = xtal_freq/adf4350_R/adf4350_freqStep;
 
+constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
+static volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
 
 constexpr int MEASUREMENT_NPERIODS_NORMAL = 14;
 constexpr int MEASUREMENT_NPERIODS_CALIBRATING = 30;

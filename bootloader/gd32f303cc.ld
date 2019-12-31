@@ -2,7 +2,10 @@ EXTERN(vector_table)
 ENTRY(reset_handler)
 MEMORY
 {
- ram (rwx) : ORIGIN = 0x20000000, LENGTH = 48K
+ /* leave the last 4KB of ram unused; this is used by an
+	application to tell the bootloader to enter DFU mode
+	following a soft reset. */
+ ram (rwx) : ORIGIN = 0x20000000, LENGTH = 44K
  rom (rx) : ORIGIN = 0x08000000, LENGTH = 16K
 }
 SECTIONS

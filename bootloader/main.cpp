@@ -44,7 +44,9 @@ constexpr uint32_t USER_CODE_FLASH = 0x8004000; // 16KB after start of flash
 constexpr uint32_t USER_CODE_FLASH_END = 0x8000000 + 256*1024;
 constexpr uint32_t FLASH_PAGESIZE = 2048;
 constexpr uint32_t FLASH_PAGESIZE_MASK = FLASH_PAGESIZE - 1;
-
+constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
+volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
+volatile uint32_t& bootloaderFirstBootIndicator = *(uint32_t*)(USER_CODE_FLASH + 1024);
 
 USBSerial serial;
 CommandParser cmdParser;
@@ -191,6 +193,15 @@ void setMspAndJump(uint32_t usrAddr) {
 }
 
 bool shouldEnterDFU() {
+	// if the application left a magic value at the end of ram
+	// before a soft reset, enter dfu mode.
+	if(bootloaderDFUIndicator == BOOTLOADER_DFU_MAGIC)
+		return true;
+
+	// magic value in flash to indicate factory dfu
+	if(bootloaderFirstBootIndicator == BOOTLOADER_DFU_MAGIC)
+		return true;
+
 	pinMode(dfuKey, INPUT_PULLUP);
 	delayMicroseconds(10);
 	if(digitalRead(dfuKey) == 0)
@@ -254,6 +265,9 @@ void cmdInit() {
 	};
 	cmdParser.handleWrite = [](int address) {
 		if(address == 0xef && registers[address] == 0x5e) {
+			// clear enter dfu indicator
+			bootloaderDFUIndicator = 0;
+
 			// reset device
 			SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 			// the cpu may not be reset immediately and can go on to execute more code
