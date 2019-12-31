@@ -18,6 +18,7 @@ config_t config = {
   .touch_cal =         { 1950, 1900, -90, -120 },  //{ 620, 600, 160, 190 },
   .default_loadcal =   0,
   .harmonic_freq_threshold = 300000000,
+  .ui_options =        0,
   .checksum =          0
 };
 

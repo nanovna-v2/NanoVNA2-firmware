@@ -133,6 +133,10 @@ enum {
   MS_LIN, MS_LOG, MS_REIM, MS_RX, MS_RLC
 };
 
+enum {
+	UI_OPTIONS_FLIP = 1
+};
+
 
 typedef struct {
   uint8_t enabled;
@@ -179,6 +183,7 @@ typedef struct {
   int16_t touch_cal[4];
   int8_t default_loadcal;
   uint32_t harmonic_freq_threshold; // unused
+  int8_t ui_options;
   int32_t checksum;
 } config_t;
 
