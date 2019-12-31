@@ -53,6 +53,115 @@ uint8_t cmdInputBuffer[8192];
 uint8_t registers[256];
 uint32_t& reg_flashWriteStart = *(uint32_t*) &registers[0xe0];
 
+
+// hardware specific functions
+
+// same as rcc_set_usbpre, but with extended divider range:
+// 0: divide by 1.5
+// 1: divide by 1
+// 2: divide by 2.5
+// 3: divide by 2
+void rcc_set_usbpre_gd32(uint32_t usbpre) {
+	uint32_t RCC_CFGR_USBPRE_MASK = uint32_t(0b11) << 22;
+	uint32_t old = (RCC_CFGR & ~RCC_CFGR_USBPRE_MASK);
+	RCC_CFGR = old | ((usbpre & 0b11) << 22);
+}
+
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_PCLK2_DIV2 = 0b0000;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_PCLK2_DIV4 = 0b0001;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_PCLK2_DIV6 = 0b0010;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_PCLK2_DIV8 = 0b0011;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_PCLK2_DIV12 = 0b0101;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_PCLK2_DIV16 = 0b0111;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV5 = 0b1000;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV6 = 0b1001;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV10 = 0b1010;
+constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV20 = 0b1011;
+
+void rcc_set_adcpre_gd32(uint32_t adcpre) {
+	uint32_t RCC_CFGR_ADCPRE_MASK = (0b11 << 14) | (1 << 28);
+	uint32_t RCC_CFGR2_ADCPRE_MASK = 1 << 29;
+	uint32_t old = (RCC_CFGR & ~RCC_CFGR_ADCPRE_MASK);
+	uint32_t old2 = (RCC_CFGR2 & ~RCC_CFGR2_ADCPRE_MASK);
+	RCC_CFGR = old | ((adcpre & 0b11) << 14) | ((adcpre & 0b100) << (28 - 2));
+	RCC_CFGR2 = old2 | ((adcpre & 0b1000) << (29 - 3));
+}
+void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
+{
+	 /* Enable internal high-speed oscillator. */
+	 rcc_osc_on(RCC_HSI);
+	 rcc_wait_for_osc_ready(RCC_HSI);
+
+	 /* Select HSI as SYSCLK source. */
+	 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
+
+	 /* Enable external high-speed oscillator 24MHz. */
+	 rcc_osc_on(RCC_HSE);
+	 rcc_wait_for_osc_ready(RCC_HSE);
+	 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSECLK);
+
+	 /*
+	  * Set prescalers for AHB, ADC, ABP1, ABP2.
+	  * Do this before touching the PLL (TODO: why?).
+	  */
+	 rcc_set_hpre(RCC_CFGR_HPRE_SYSCLK_NODIV);					// Set. 96MHz Max. 96MHz
+	 rcc_set_adcpre_gd32(GD32_RCC_CFGR_ADCPRE_PCLK2_DIV16);		// Set. 6MHz Max. 40MHz
+	 rcc_set_ppre1(RCC_CFGR_PPRE1_HCLK_DIV2);					// Set. 48MHz Max. 60MHz
+	 rcc_set_ppre2(RCC_CFGR_PPRE2_HCLK_NODIV);					// Set. 96MHz Max. 120MHz
+	 rcc_set_usbpre_gd32(3);									// 96MHz / 2 = 48MHz
+
+	 /*
+	  * Sysclk runs with 96MHz -> 0 waitstates.
+	  */
+	 flash_set_ws(FLASH_ACR_LATENCY_0WS);
+
+	 /*
+	  * Set the PLL multiplication factor to 4.
+	  * 24MHz (external) * 4 (multiplier) = 96MHz
+	  */
+	 rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL4);
+
+	 /* Select HSE as PLL source. */
+	 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
+
+	 /*
+	  * External frequency undivided before entering PLL
+	  * (only valid/needed for HSE).
+	  */
+	 rcc_set_pllxtpre(RCC_CFGR_PLLXTPRE_HSE_CLK);
+
+	 /* Enable PLL oscillator and wait for it to stabilize. */
+	 rcc_osc_on(RCC_PLL);
+	 rcc_wait_for_osc_ready(RCC_PLL);
+
+	 /* Select PLL as SYSCLK source. */
+	 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_PLLCLK);
+
+	 /* Set the peripheral clock frequencies used */
+	 rcc_ahb_frequency = 96000000;
+	 rcc_apb1_frequency = 48000000;
+	 rcc_apb2_frequency = 96000000;
+}
+
+// initialize just enough peripherals for gpios to work,
+// but do not do anything that can affect user program startup
+void minimalHWInit() {
+	// enable basic peripherals
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_GPIOB);
+	rcc_periph_clock_enable(RCC_GPIOC);
+	rcc_periph_clock_enable(RCC_AFIO);
+}
+// initialize all peripherals used by dfu (usb etc).
+// only called if we actually enter dfu mode.
+void dfuHWInit() {
+	rcc_clock_setup_in_hse_24mhz_out_96mhz();
+	cpu_mhz = 96;
+}
+
+
+
+
 /*
 registers map:
 -- e0: flashWriteStart[7..0]
@@ -162,8 +271,7 @@ void cmdInit() {
 }
 
 void dfuMain() {
-	rcc_clock_setup_in_hsi_out_48mhz();
-	cpu_mhz = 48;
+	dfuHWInit();
 
 	// set up command interface
 	cmdInit();
@@ -182,10 +290,7 @@ void dfuMain() {
 }
 
 int main() {
-	// enable basic peripherals
-	rcc_periph_clock_enable(RCC_GPIOA);
-	rcc_periph_clock_enable(RCC_GPIOB);
-	rcc_periph_clock_enable(RCC_GPIOC);
+	minimalHWInit();
 
 	if(shouldEnterDFU()) {
 		dfuMain();
