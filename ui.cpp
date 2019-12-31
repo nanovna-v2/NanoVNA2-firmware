@@ -204,6 +204,10 @@ bool touch_position(int *x, int *y)
     return false;
   *x = (int(touchX) - config.touch_cal[0]) * 16 / config.touch_cal[2];
   *y = (int(touchY) - config.touch_cal[1]) * 16 / config.touch_cal[3];
+  if(config.ui_options & UI_OPTIONS_FLIP) {
+    *x = 320 - *x;
+    *y = 240 - *y;
+  }
   return true;
 }
 
@@ -641,6 +645,27 @@ menu_transform_cb(UIEvent evt, int item)
   }
 }
 
+
+static void
+menu_display_cb(UIEvent evt, int item)
+{
+  switch (item) {
+    case 5:   // FLIP DISPLAY
+      if(config.ui_options & UI_OPTIONS_FLIP)
+        config.ui_options &= ~UI_OPTIONS_FLIP;
+      else config.ui_options |= UI_OPTIONS_FLIP;
+
+      if(config.ui_options & UI_OPTIONS_FLIP)
+        ili9341_set_flip(true, true);
+      else ili9341_set_flip(false, false);
+      redraw_request |= 0xff;
+      force_set_markmap();
+      ili9341_fill(0, 0, 320, 240, 0);
+      draw_all(true);
+      draw_menu();
+  }
+}
+
 static void 
 choose_active_marker(void)
 {
@@ -959,6 +984,7 @@ const menuitem_t menu_display[] = {
   { MT_SUBMENU, "SCALE", NULL, menu_scale },
   { MT_SUBMENU, "CHANNEL", NULL, menu_channel },
   { MT_SUBMENU, "TRANSFORM", NULL, menu_transform },
+  { MT_CALLBACK, "\2FLIP\0DISPLAY", menu_display_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
@@ -2174,6 +2200,14 @@ ui_init()
   };
   uiEnableProcessing();
   UIHW::emitEvent = [](UIEvent evt) {
+    // if the display is flipped, flip jog left/right too
+    if(config.ui_options & UI_OPTIONS_FLIP) {
+      if(evt.button == UIEventButtons::LeverLeft)
+        evt.button = UIEventButtons::LeverRight;
+      else if(evt.button == UIEventButtons::LeverRight)
+        evt.button = UIEventButtons::LeverLeft;
+    }
+
     // process the event on main thread; we are currently in interrupt context.
     enqueueEvent([evt]() {
       ui_process(evt);

@@ -117,7 +117,7 @@ const uint8_t ili9341_init_seq[] = {
 		0xC7, 1, 0xBE,
 		// MEMORY_ACCESS_CONTROL
 		//0x36, 1, 0x48, // portlait
-		0x36, 1, 0x28, // landscape
+		0x36, 1, 0b00101000, // landscape
 		// COLMOD_PIXEL_FORMAT_SET : 16 bit pixel
 		0x3A, 1, 0x55,
 		// Frame Rate
@@ -273,6 +273,15 @@ void
 ili9341_read_memory_continue(int len, uint16_t* out)
 {
 	ili9341_read_memory_raw(0x3E, len, out);
+}
+
+
+void
+ili9341_set_flip(bool flipX, bool flipY) {
+	uint8_t memAcc = 0b00101000;
+	if(flipX) memAcc |= 0b01000000;
+	if(flipY) memAcc |= 0b10000000;
+	send_command(0x36, 1, &memAcc);
 }
 
 void

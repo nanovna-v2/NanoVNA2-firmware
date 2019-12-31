@@ -988,6 +988,9 @@ int main(void) {
 	flash_config_recall();
 	UIActions::printTouchCal();
 
+	if(config.ui_options & UI_OPTIONS_FLIP)
+		ili9341_set_flip(true, true);
+
 	si5351_i2c.init();
 	if(!synthesizers::si5351_setup()) {
 		printk1("ERROR: si5351 init failed\n");
