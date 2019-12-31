@@ -699,6 +699,7 @@ void updateSweepParams() {
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 	ecalState = ECAL_STATE_MEASURING;
+	update_grid();
 }
 
 void measurement_setup() {

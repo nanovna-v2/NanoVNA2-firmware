@@ -79,9 +79,9 @@ uint32_t trace_index[TRACES_MAX][SWEEP_POINTS_MAX];
 
 void update_grid(void)
 {
-	int32_t gdigit = 100000000;
-	int32_t fstart, fspan;
-	int32_t grid;
+	freqHz_t gdigit = 100000000;
+	freqHz_t fstart, fspan;
+	freqHz_t grid;
 	if (frequency1 > 0) {
 		fstart = frequency0;
 		fspan = frequency1 - frequency0;

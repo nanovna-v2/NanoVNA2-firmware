@@ -413,7 +413,6 @@ menu_recall_cb(UIEvent evt, int item)
   if (caldata_recall(item) == 0) {
     menu_move_back();
     ui_mode_normal();
-    update_grid();
     draw_cal_status();
   } else {
     show_dmesg();
