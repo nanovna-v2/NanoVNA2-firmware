@@ -20,7 +20,7 @@ GITVERSION		= "$(shell git log -n 1 --pretty=format:"git-%ad%h" --date=format:"%
 include $(OPENCM3_DIR)/mk/genlink-config.mk
 include $(OPENCM3_DIR)/mk/gcc-config.mk
 
-LDSCRIPT = ./gd32f303cc.ld
+LDSCRIPT = ./gd32f303cc_with_bootloader.ld
 
 .PHONY: clean all
 
