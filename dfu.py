@@ -57,3 +57,7 @@ while True:
 while outstanding > 0:
 	waitSend(ser)
 	outstanding -= 1
+
+# reboot device
+ser.write([0x20, 0xef, 0x5e])
+
