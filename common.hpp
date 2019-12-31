@@ -32,12 +32,12 @@ typedef int64_t freqHz_t;
 
 
 #define VERSION "git"
-#define CH_KERNEL_VERSION "N/A"
+#define CH_KERNEL_VERSION "None"
 #define PORT_COMPILER_NAME "gcc"
 #define PORT_ARCHITECTURE_NAME "arm"
-#define PORT_INFO "N/A"
+#define PORT_INFO "GD32F303"
 #define PORT_CORE_VARIANT_NAME "N/A"
-#define PLATFORM_NAME "GD32F303"
+#define PLATFORM_NAME "BARE METAL"
 
 
 #define FREQUENCY_MIN 50000
