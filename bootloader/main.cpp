@@ -256,6 +256,12 @@ void cmdInit() {
 		if(address == 0xef && registers[address] == 0x5e) {
 			// reset device
 			SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+			// the cpu may not be reset immediately and can go on to execute more code
+			// before the reset actually happens. Wait a bit to ensure no more commands
+			// are processed.
+			delay(300);
+			// if we get here the reset request wasn't honored (some platforms ignore it).
+			// Continue processing commands.
 		}
 	};
 	cmdParser.send = [](const uint8_t* s, int len) {
