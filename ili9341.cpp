@@ -278,6 +278,7 @@ ili9341_read_memory_continue(int len, uint16_t* out)
 
 void
 ili9341_set_flip(bool flipX, bool flipY) {
+	ili9341_spi_wait_bulk();
 	uint8_t memAcc = 0b00101000;
 	if(flipX) memAcc |= 0b01000000;
 	if(flipY) memAcc |= 0b10000000;

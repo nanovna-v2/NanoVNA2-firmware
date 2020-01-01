@@ -662,6 +662,7 @@ menu_display_cb(UIEvent evt, int item)
       ili9341_fill(0, 0, 320, 240, 0);
       draw_all(true);
       draw_menu();
+      plot_cancel();
   }
 }
 
