@@ -36,15 +36,16 @@ void CommandParser::handleInput(const uint8_t* s, int len) {
 
 			// 1-parameter commands
 			if(cmdOpcode >= 0x10 && cmdOpcode <= 0x12) {
+				uint8_t* rPtr = registers + (cmdAddress & registersSizeMask);
 				switch(cmdOpcode) {
 					case 0x10:
-						send(registers + cmdAddress, 1);
+						send(rPtr, 1);
 						break;
 					case 0x11:
-						send(registers + cmdAddress, 2);
+						send(rPtr, 2);
 						break;
 					case 0x12:
-						send(registers + cmdAddress, 4);
+						send(rPtr, 4);
 						break;
 				}
 				cmdPhase = 0;
