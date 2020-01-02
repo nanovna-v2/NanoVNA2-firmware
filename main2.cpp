@@ -393,6 +393,7 @@ For a description of the command interface see command_parser.hpp
 -- f0: device variant (01)
 -- f1: protocol version (01)
 -- f2: hardware revision
+-- f3: firmware major version
 
 -- register descriptions:
 -- sweepStartHz - Sweep start frequency in Hz.
@@ -930,9 +931,11 @@ int main(void) {
 	boardInit();
 
 	// set version registers (accessed through usb serial)
-	registers[0xf0 & registersSizeMask] = 1;	// device variant
+	registers[0xf0 & registersSizeMask] = 2;	// device variant
 	registers[0xf1 & registersSizeMask] = 1;	// protocol version
 	registers[0xf2 & registersSizeMask] = (uint8_t) BOARD_REVISION;
+	registers[0xf3 & registersSizeMask] = (uint8_t) FIRMWARE_MAJOR_VERSION;
+	registers[0xf4 & registersSizeMask] = 0;	// firmware minor version, TBD
 
 	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);

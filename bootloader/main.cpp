@@ -172,6 +172,11 @@ registers map:
 -- e3: flashWriteStart[31..24]
 -- e4: flash FIFO
 -- ef: write 0x5e to reboot device
+-- f0: device variant
+-- f1: protocol version (01)
+-- f2: hardware revision (always 0 in dfu mode)
+-- f3: firmware major version (ff => dfu mode)
+-- f4: firmware minor version (bootloader version)
 */
 
 void setMspAndJump(uint32_t usrAddr) {
@@ -296,6 +301,13 @@ void cmdInit() {
 
 void dfuMain() {
 	dfuHWInit();
+
+	// set version registers (accessed through usb serial)
+	registers[0xf0] = 2;	// device variant (NanoVNA V2)
+	registers[0xf1] = 1;	// protocol version
+	registers[0xf2] = 0;	// board revision (always 0 in dfu mode)
+	registers[0xf3] = 0xff;	// firmware major version (0xff in dfu mode)
+	registers[0xf4] = 0;	// firmware minor version
 
 	// set up command interface
 	cmdInit();
