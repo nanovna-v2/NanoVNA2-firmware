@@ -989,6 +989,8 @@ int main(void) {
 		show_dmesg();
 	}
 
+	printk("xtal freq %d.%03d MHz\n", (xtalFreqHz/1000000), ((xtalFreqHz/1000) % 1000));
+
 	flash_config_recall();
 	UIActions::printTouchCal();
 

@@ -2,6 +2,7 @@
 
 #include <libopencm3/stm32/adc.h>
 #include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/rtc.h>
 #include <libopencm3/stm32/flash.h>
 #include <mculib/fastwiring.hpp>
 #include <mculib/softi2c.hpp>
@@ -25,6 +26,8 @@ using namespace std;
 namespace board {
 
 	// set by board_init()
+	uint32_t hseEstimateHz = 0;
+	uint32_t xtalFreqHz = 0;
 	uint32_t adc_ratecfg = 0;
 	uint32_t adc_srate = 0; // Hz
 	uint32_t adc_period_cycles, adc_clk;
@@ -83,8 +86,12 @@ namespace board {
 		RCC_CFGR2 = old2 | ((adcpre & 0b1000) << (29 - 3));
 	}
 
-	void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
-	{
+	// mult:
+	// 2 => 48MHz in
+	// 3 => 32MHz in
+	// 4 => 24MHz in
+	// 5 => 19.2MHz in
+	void rcc_clock_setup_in_hse_out_96mhz(int mult) {
 		 /* Enable internal high-speed oscillator. */
 		 rcc_osc_on(RCC_HSI);
 		 rcc_wait_for_osc_ready(RCC_HSI);
@@ -92,7 +99,7 @@ namespace board {
 		 /* Select HSI as SYSCLK source. */
 		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
 
-		 /* Enable external high-speed oscillator 24MHz. */
+		 /* Enable external high-speed oscillator. */
 		 rcc_osc_on(RCC_HSE);
 		 rcc_wait_for_osc_ready(RCC_HSE);
 		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSECLK);
@@ -113,10 +120,17 @@ namespace board {
 		 flash_set_ws(FLASH_ACR_LATENCY_0WS);
 
 		 /*
-		  * Set the PLL multiplication factor to 4.
-		  * 24MHz (external) * 4 (multiplier) = 96MHz
+		  * Set the PLL multiplication factor.
 		  */
-		 rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL4);
+		 uint32_t multValues[] = {
+			0,
+			0,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL2,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL3,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL4,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL5};
+
+		 rcc_set_pll_multiplication_factor(multValues[mult]);
 
 		 /* Select HSE as PLL source. */
 		 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
@@ -141,10 +155,21 @@ namespace board {
 	}
 
 	void boardInit() {
-		rcc_clock_setup_in_hse_24mhz_out_96mhz();
+		hseEstimateHz = detectHSEFreq();
+		int mult = 2;
+		if(hseEstimateHz < 21466200) {
+			mult = 5; xtalFreqHz = 19200000;
+		} else if(hseEstimateHz < 27712800) {
+			mult = 4; xtalFreqHz = 24000000;
+		} else if(hseEstimateHz < 39191800) {
+			mult = 3; xtalFreqHz = 32000000;
+		} else {
+			mult = 2; xtalFreqHz = 48000000;
+		}
+		rcc_clock_setup_in_hse_out_96mhz(mult);
 		//rcc_clock_setup_in_hsi_out_48mhz();
 		cpu_mhz = 96;
-		
+
 		// enable basic peripherals
 		rcc_periph_clock_enable(RCC_GPIOA);
 		rcc_periph_clock_enable(RCC_GPIOB);
@@ -182,6 +207,22 @@ namespace board {
 		adc_clk = 6000000;
 	}
 
+
+	uint32_t detectHSEFreq() {
+		cpu_mhz = 8;
+		rcc_osc_on(RCC_HSE);
+		rcc_osc_on(RCC_HSI);
+		rtc_auto_awake(RCC_HSE, 1 << 19);
+		rtc_exit_config_mode();
+		delay(2);
+		uint32_t tmp = rtc_get_prescale_div_val();
+		delay(20);
+		uint32_t tmp2 = rtc_get_prescale_div_val();
+		// cycles of a fHSE/128 clock elapsed
+		uint32_t cycles = (tmp - tmp2) & ((1 << 20) - 1);
+		uint32_t freqHz = cycles * 128 * 50;
+		return freqHz;
+	}
 
 	void ledPulse() {
 		digitalWrite(led2, HIGH);

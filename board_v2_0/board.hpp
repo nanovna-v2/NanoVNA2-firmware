@@ -57,6 +57,8 @@ namespace board {
 	static constexpr bool LEVER_POLARITY = false; // pin level when lever/button is pressed
 
 	// ##### board parameters #####
+	constexpr uint32_t hseEstimateHz = 0;
+	constexpr uint32_t xtalFreqHz = 24000000;
 	extern uint32_t adc_ratecfg;
 	extern uint32_t adc_srate; // Hz
 	extern uint32_t adc_period_cycles, adc_clk;

@@ -23,6 +23,8 @@
 #include <mculib/usbserial.hpp>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/flash.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/rtc.h>
 #include "../stream_fifo.hpp"
 #include "../command_parser.hpp"
 
@@ -88,8 +90,10 @@ void rcc_set_adcpre_gd32(uint32_t adcpre) {
 	RCC_CFGR = old | ((adcpre & 0b11) << 14) | ((adcpre & 0b100) << (28 - 2));
 	RCC_CFGR2 = old2 | ((adcpre & 0b1000) << (29 - 3));
 }
-void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
-{
+// mult:
+// 4 => 24MHz in
+// 5 => 19.2MHz in
+void rcc_clock_setup_in_hse_out_96mhz(int mult) {
 	 /* Enable internal high-speed oscillator. */
 	 rcc_osc_on(RCC_HSI);
 	 rcc_wait_for_osc_ready(RCC_HSI);
@@ -97,7 +101,7 @@ void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
 	 /* Select HSI as SYSCLK source. */
 	 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
 
-	 /* Enable external high-speed oscillator 24MHz. */
+	 /* Enable external high-speed oscillator. */
 	 rcc_osc_on(RCC_HSE);
 	 rcc_wait_for_osc_ready(RCC_HSE);
 	 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSECLK);
@@ -118,10 +122,17 @@ void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
 	 flash_set_ws(FLASH_ACR_LATENCY_0WS);
 
 	 /*
-	  * Set the PLL multiplication factor to 4.
-	  * 24MHz (external) * 4 (multiplier) = 96MHz
+	  * Set the PLL multiplication factor.
 	  */
-	 rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL4);
+	 uint32_t multValues[] = {
+		0,
+		0,
+		RCC_CFGR_PLLMUL_PLL_CLK_MUL2,
+		RCC_CFGR_PLLMUL_PLL_CLK_MUL3,
+		RCC_CFGR_PLLMUL_PLL_CLK_MUL4,
+		RCC_CFGR_PLLMUL_PLL_CLK_MUL5};
+
+	 rcc_set_pll_multiplication_factor(multValues[mult]);
 
 	 /* Select HSE as PLL source. */
 	 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
@@ -145,6 +156,22 @@ void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
 	 rcc_apb2_frequency = 96000000;
 }
 
+uint32_t detectHSEFreq() {
+	cpu_mhz = 8;
+	rcc_osc_on(RCC_HSE);
+	rcc_osc_on(RCC_HSI);
+	rtc_auto_awake(RCC_HSE, 1 << 19);
+	rtc_exit_config_mode();
+	delay(2);
+	uint32_t tmp = rtc_get_prescale_div_val();
+	delay(20);
+	uint32_t tmp2 = rtc_get_prescale_div_val();
+	// cycles of a fHSE/128 clock elapsed
+	uint32_t cycles = (tmp - tmp2) & ((1 << 20) - 1);
+	uint32_t freqHz = cycles * 128 * 50;
+	return freqHz;
+}
+
 // initialize just enough peripherals for gpios to work,
 // but do not do anything that can affect user program startup
 void minimalHWInit() {
@@ -154,11 +181,26 @@ void minimalHWInit() {
 	rcc_periph_clock_enable(RCC_GPIOC);
 	rcc_periph_clock_enable(RCC_AFIO);
 }
+
 // initialize all peripherals used by dfu (usb etc).
 // only called if we actually enter dfu mode.
 void dfuHWInit() {
-	rcc_clock_setup_in_hse_24mhz_out_96mhz();
+	uint32_t hseEstimateHz = detectHSEFreq();
+	int mult = 2, xtalFreqHz = 0;
+	if(hseEstimateHz < 21466200) {
+		mult = 5; xtalFreqHz = 19200000;
+	} else if(hseEstimateHz < 27712800) {
+		mult = 4; xtalFreqHz = 24000000;
+	} else if(hseEstimateHz < 39191800) {
+		mult = 3; xtalFreqHz = 32000000;
+	} else {
+		mult = 2; xtalFreqHz = 48000000;
+	}
+	rcc_clock_setup_in_hse_out_96mhz(mult);
 	cpu_mhz = 96;
+
+	//rcc_clock_setup_in_hsi_out_48mhz();
+	//cpu_mhz = 48;
 }
 
 

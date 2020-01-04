@@ -33,12 +33,12 @@ namespace synthesizers {
 		si5351.PLL[rPLL].PLL_Clock_Source = PLL_Clock_Source_XTAL;	//select xrystal as clock input for the PLL
 		si5351.PLL[rPLL].PLL_Multiplier_Integer = 32*128;				//multiply the clock frequency by 32, this gets us 800 MHz clock
 		si5351.PLL[rPLL].PLL_Multiplier_Numerator = 1*8;
-		si5351.PLL[rPLL].PLL_Multiplier_Denominator = xtal_freq;
+		si5351.PLL[rPLL].PLL_Multiplier_Denominator = xtalFreqHz / 1000;
 		
 		si5351.PLL[tPLL].PLL_Clock_Source = PLL_Clock_Source_XTAL;
 		si5351.PLL[tPLL].PLL_Multiplier_Integer = 32*128;
 		si5351.PLL[tPLL].PLL_Multiplier_Numerator = 1*8 + lo_freq/1000*8;
-		si5351.PLL[tPLL].PLL_Multiplier_Denominator = xtal_freq;
+		si5351.PLL[tPLL].PLL_Multiplier_Denominator = xtalFreqHz / 1000;
 
 		si5351.MS[rPort].MS_Clock_Source = MS_Clock_Source_PLLA;
 		si5351.MS[rPort].MS_Divider_Integer = 8; // divide pll frequency by 8
@@ -79,12 +79,14 @@ namespace synthesizers {
 
 		// choose the same pll frequency and rdiv settings for both ports.
 		// PLL should be configured between 600 and 900 MHz
-		int pllFreqHz = 888000000;
+		uint32_t pllFreqHz = 888000000;
+		uint32_t mult = pllFreqHz/xtalFreqHz;
+		uint32_t N = mult * 128;
+
+		pllFreqHz = xtalFreqHz * mult;
+
 		int divInputFreqHz = pllFreqHz;
-		
-		uint32_t mult = pllFreqHz/1000*128;
-		uint32_t N = mult/xtal_freq;
-		
+
 		if(rxFreqHz < 500000) {
 			rDiv = CLK_R_Div128;
 			divInputFreqHz /= 128;
@@ -93,6 +95,7 @@ namespace synthesizers {
 			divInputFreqHz /= 4;
 		} else if(rxFreqHz >= 100000000) {
 			// div by 6 mode
+			int xtalFreqKHz = xtalFreqHz / 1000;
 			for(int i=0; i<2; i++) {
 				uint32_t freqHz = (i == 0) ? rxFreqHz : txFreqHz;
 				int pll = (i == 0) ? si5351_rxPLL : si5351_txPLL;
@@ -115,12 +118,12 @@ namespace synthesizers {
 				
 				// calculate pll settings
 				uint32_t mult = (freqHz/1000)*6*128;
-				uint32_t N = mult/xtal_freq;
-				uint32_t frac = mult - N*xtal_freq;
+				uint32_t N = mult/xtalFreqKHz;
+				uint32_t frac = mult - N*xtalFreqKHz;
 
 				si5351.PLL[pll].PLL_Multiplier_Integer = N;
 				si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
-				si5351.PLL[pll].PLL_Multiplier_Denominator = xtal_freq;
+				si5351.PLL[pll].PLL_Multiplier_Denominator = xtalFreqKHz;
 				
 				si5351.PLLConfig((PLLChannel) pll);
 			}
