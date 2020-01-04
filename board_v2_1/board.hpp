@@ -57,6 +57,14 @@ namespace board {
 	static constexpr bool LEVER_POLARITY = false; // pin level when lever/button is pressed
 
 	// ##### board parameters #####
+	
+	// estimated HSE frequency in Hz, set by boardInit()
+	extern uint32_t hseEstimateHz;
+
+	// detected HSE frequency in Hz, rounded to a supported value, set by boardInit()
+	extern uint32_t xtalFreqHz;
+
+	// ADC parameters, set by boardInit()
 	extern uint32_t adc_ratecfg;
 	extern uint32_t adc_srate; // Hz
 	extern uint32_t adc_period_cycles, adc_clk;
@@ -147,6 +155,10 @@ namespace board {
 
 	// call this function at the beginning of main()
 	void boardInit();
+
+	// returns an estimate of the HSE frequency in Hz.
+	// called by boardInit() to set hseEstimateHz.
+	uint32_t detectHSEFreq();
 
 	// blink the status led
 	void ledPulse();

@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "board.hpp"
 
 namespace synthesizers {
 
@@ -34,6 +35,7 @@ namespace synthesizers {
 			O = 64;
 
 		uint32_t N = freq_khz*O/adf4350_freqStep;
+		uint32_t adf4350_modulus = board::xtalFreqHz/adf4350_R/adf4350_freqStep/1000;
 
 		adf4350.R = adf4350_R;
 		adf4350.O = O;
