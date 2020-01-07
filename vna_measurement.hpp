@@ -55,6 +55,7 @@ public:
 	VNAMeasurement();
 
 	void init();
+	void setCorrelationTable(const int16_t* table, int length);
 	void processSamples(uint16_t* buf, int len);
 
 	// if points is 1, sets frequency to startFreqHz and disables sweep

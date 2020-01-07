@@ -46,6 +46,7 @@
 #include "fft.hpp"
 #include "command_parser.hpp"
 #include "stream_fifo.hpp"
+#include "sin_rom.hpp"
 
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/scb.h>
@@ -62,6 +63,9 @@ void* __dso_handle = (void*) &__dso_handle;
 bool outputRawSamples = false;
 int cpu_mhz = 24;
 
+
+int lo_freq = 12000; // IF frequency, Hz
+int adf4350_freqStep = 12000; // adf4350 resolution, Hz
 
 USBSerial serial;
 
@@ -203,10 +207,10 @@ void adf4350_setup() {
 	adf4350_tx.sendConfig();
 	adf4350_tx.sendN();
 }
-void adf4350_update(uint32_t freq_khz) {
-	freq_khz = uint32_t(freq_khz/adf4350_freqStep) * adf4350_freqStep;
-	synthesizers::adf4350_set(adf4350_tx, freq_khz);
-	synthesizers::adf4350_set(adf4350_rx, freq_khz + lo_freq/1000);
+void adf4350_update(freqHz_t freqHz) {
+	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
+	synthesizers::adf4350_set(adf4350_tx, freqHz, adf4350_freqStep);
+	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
 }
 
 
@@ -221,7 +225,7 @@ void setFrequency(freqHz_t freqHz) {
 
 	// use adf4350 for f > 140MHz
 	if(freqHz > 140000000) {
-		adf4350_update(freqHz/1000);
+		adf4350_update(freqHz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
 		vnaMeasurement.nWaitSynth = 10;
@@ -715,6 +719,19 @@ void measurement_setup() {
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 	vnaMeasurement.init();
+
+	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
+	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
+		// 12.5kHz IF
+		lo_freq = 12500;
+		adf4350_freqStep = 12500;
+		vnaMeasurement.setCorrelationTable(sinROM24x2, 48);
+	} else {
+		// 12.0kHz IF
+		lo_freq = 12000;
+		adf4350_freqStep = 12000;
+		vnaMeasurement.setCorrelationTable(sinROM25x2, 50);
+	}
 	updateSweepParams();
 }
 
