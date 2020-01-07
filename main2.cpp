@@ -392,6 +392,7 @@ For a description of the command interface see command_parser.hpp
 -- 21: sweepPoints[15..8]
 -- 22: valuesPerFrequency[7..0]
 -- 23: valuesPerFrequency[15..8]
+-- 26: dataMode: 0 => normal, 1 => raw data
 -- 30: valuesFIFO - returns data points; elements are 32-byte. See below for data format.
 --                  command 0x14 reads FIFO data; writing any value clears FIFO.
 -- f0: device variant (01)
@@ -549,6 +550,10 @@ void cmdRegisterWrite(int address) {
 		int values = *(uint16_t*)(registers + 0x22);
 		vnaMeasurement.sweepDataPointsPerFreq = values;
 		vnaMeasurement.resetSweep();
+	}
+	if(address == 0x26) {
+		if(registers[0x26] != 0)
+			outputRawSamples = true;
 	}
 	if(address == 0x00 || address == 0x10 || address == 0x20) {
 		ecalState = ECAL_STATE_MEASURING;
