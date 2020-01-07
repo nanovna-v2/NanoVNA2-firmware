@@ -53,7 +53,7 @@ volatile uint32_t& bootloaderFirstBootIndicator = *(uint32_t*)(USER_CODE_FLASH +
 USBSerial serial;
 CommandParser cmdParser;
 StreamFIFO cmdInputFIFO;
-uint8_t cmdInputBuffer[8192];
+uint8_t cmdInputBuffer[16384];
 uint8_t registers[256];
 uint32_t& reg_flashWriteStart = *(uint32_t*) &registers[0xe0];
 
