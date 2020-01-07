@@ -154,6 +154,69 @@ namespace board {
 		 rcc_apb2_frequency = 96000000;
 	}
 
+	void rcc_clock_setup_in_hse_out_120mhz(int mult) {
+		 /* Enable internal high-speed oscillator. */
+		 rcc_osc_on(RCC_HSI);
+		 rcc_wait_for_osc_ready(RCC_HSI);
+
+		 /* Select HSI as SYSCLK source. */
+		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
+
+		 /* Enable external high-speed oscillator. */
+		 rcc_osc_on(RCC_HSE);
+		 rcc_wait_for_osc_ready(RCC_HSE);
+		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSECLK);
+
+		 /*
+		  * Set prescalers for AHB, ADC, ABP1, ABP2.
+		  * Do this before touching the PLL (TODO: why?).
+		  */
+		 rcc_set_hpre(RCC_CFGR_HPRE_SYSCLK_NODIV);					// Set. 120MHz Max. 120MHz
+		 rcc_set_adcpre_gd32(GD32_RCC_CFGR_ADCPRE_HCLK_DIV20);		// Set. 6MHz Max. 40MHz
+		 rcc_set_ppre1(RCC_CFGR_PPRE1_HCLK_DIV2);					// Set. 60MHz Max. 60MHz
+		 rcc_set_ppre2(RCC_CFGR_PPRE2_HCLK_NODIV);					// Set. 120MHz Max. 120MHz
+		 rcc_set_usbpre_gd32(2);									// 120MHz / 2.5 = 48MHz
+
+		 /*
+		  * Sysclk runs with 120MHz -> 0 waitstates.
+		  */
+		 flash_set_ws(FLASH_ACR_LATENCY_0WS);
+
+		 /*
+		  * Set the PLL multiplication factor.
+		  */
+		 uint32_t multValues[] = {
+			0,
+			0,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL2,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL3,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL4,
+			RCC_CFGR_PLLMUL_PLL_CLK_MUL5};
+
+		 rcc_set_pll_multiplication_factor(multValues[mult]);
+
+		 /* Select HSE as PLL source. */
+		 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
+
+		 /*
+		  * External frequency undivided before entering PLL
+		  * (only valid/needed for HSE).
+		  */
+		 rcc_set_pllxtpre(RCC_CFGR_PLLXTPRE_HSE_CLK);
+
+		 /* Enable PLL oscillator and wait for it to stabilize. */
+		 rcc_osc_on(RCC_PLL);
+		 rcc_wait_for_osc_ready(RCC_PLL);
+
+		 /* Select PLL as SYSCLK source. */
+		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_PLLCLK);
+
+		 /* Set the peripheral clock frequencies used */
+		 rcc_ahb_frequency = 120000000;
+		 rcc_apb1_frequency = 60000000;
+		 rcc_apb2_frequency = 120000000;
+	}
+
 	void boardInit() {
 		hseEstimateHz = detectHSEFreq();
 		int mult = 2;
@@ -161,14 +224,21 @@ namespace board {
 			mult = 5; xtalFreqHz = 19200000;
 		} else if(hseEstimateHz < 27712800) {
 			mult = 4; xtalFreqHz = 24000000;
-		} else if(hseEstimateHz < 39191800) {
+		} else if(hseEstimateHz < 35777000) {
 			mult = 3; xtalFreqHz = 32000000;
+		} else if(hseEstimateHz < 43817000) {
+			mult = 3; xtalFreqHz = 40000000;
 		} else {
 			mult = 2; xtalFreqHz = 48000000;
 		}
-		rcc_clock_setup_in_hse_out_96mhz(mult);
+		if(xtalFreqHz == 40000000) {
+			rcc_clock_setup_in_hse_out_120mhz(mult);
+			cpu_mhz = 120;
+		} else {
+			rcc_clock_setup_in_hse_out_96mhz(mult);
+			cpu_mhz = 96;
+		}
 		//rcc_clock_setup_in_hsi_out_48mhz();
-		cpu_mhz = 96;
 
 		// enable basic peripherals
 		rcc_periph_clock_enable(RCC_GPIOA);
