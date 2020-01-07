@@ -30,6 +30,9 @@ namespace board {
 	static constexpr Pad led = PB5;
 	static constexpr Pad led2 = PB6;
 
+	static constexpr Pad USB0_DP = PA12;
+	static constexpr Pad USB0_DM = PA11;
+
 	static constexpr array<Pad, 2> RFSW_ECAL = {PC13, PC14};
 
 	// ##### board parameters #####
@@ -37,6 +40,7 @@ namespace board {
 	extern uint32_t adc_srate; // Hz
 	extern uint32_t adc_period_cycles, adc_clk;
 
+	constexpr uint32_t xtalFreqHz = 24000000;
 
 
 	// ##### board peripherals #####
@@ -51,7 +55,7 @@ namespace board {
 	// synthesizers
 	struct spiDelay_t {
 		void operator()() {
-			_delay_8t(5);
+			_delay_8t(1);
 		}
 	};
 

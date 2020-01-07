@@ -16,10 +16,10 @@ public:
 	typedef complex<int32_t> complexi;
 
 	// how many periods to wait after changing synthesizer frequency
-	uint32_t nWaitSynth = 30;
+	uint32_t nWaitSynth = 100;
 
 	// how many periods to average over
-	uint32_t nPeriods = 8;
+	uint32_t nPeriods = 20;
 
 	// called when a new data point is available
 	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v)> emitDataPoint;
@@ -44,7 +44,7 @@ public:
 		sweepDataPointsPerFreq = dataPointsPerFreq;
 
 		currFreq = startFreqHz;
-		periodCounterSynth = nWaitSynth*10;
+		periodCounterSynth = nWaitSynth;
 		dpCounterSynth = 0;
 		frequencyChanged(startFreqHz);
 	}
@@ -92,8 +92,6 @@ public:
 		frequencyChanged(currFreq);
 
 		periodCounterSynth = nWaitSynth;
-		if(sweepCurrPoint == 0)
-			periodCounterSynth *= 10;
 	}
 	void sampleProcessor_emitValue(int32_t* valRe, int32_t* valIm) {
 		if(periodCounterSynth > 0) {

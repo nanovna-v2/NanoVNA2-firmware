@@ -33,6 +33,7 @@
 #include "../vna_measurement_noswitch.hpp"
 #include "../synthesizers.hpp"
 #include "../fifo.hpp"
+#include "../sin_rom.hpp"
 
 #include <libopencm3/stm32/timer.h>
 
@@ -46,7 +47,8 @@ void* __dso_handle = (void*) &__dso_handle;
 
 bool outputRawSamples = false;
 int cpu_mhz = 24;
-
+uint32_t adf4350_freqStep = 10000;
+uint32_t lo_freq = 100000;
 
 USBSerial serial;
 
@@ -145,26 +147,25 @@ extern "C" void tim1_up_isr() {
 
 void adf4350_setup() {
 	adf4350_rx.N = 120;
-	adf4350_rx.rfPower = 0b01;
+	adf4350_rx.rfPower = 0b10;
 	adf4350_rx.sendConfig();
 	adf4350_rx.sendN();
 
 	adf4350_tx.N = 120;
-	adf4350_tx.rfPower = 0b00;
+	adf4350_tx.rfPower = 0b01;
 	adf4350_tx.sendConfig();
 	adf4350_tx.sendN();
 }
-void adf4350_update(uint32_t freq_khz) {
-	freq_khz = uint32_t(freq_khz/adf4350_freqStep) * adf4350_freqStep;
-	synthesizers::adf4350_set(adf4350_tx, freq_khz);
-	synthesizers::adf4350_set(adf4350_rx, freq_khz + lo_freq/1000);
+void adf4350_update(freqHz_t freq) {
+	freq = uint32_t(freq/adf4350_freqStep) * adf4350_freqStep;
+	synthesizers::adf4350_set(adf4350_tx, freq, adf4350_freqStep);
+	synthesizers::adf4350_set(adf4350_rx, freq + lo_freq, adf4350_freqStep);
 }
 
 
 // set the measurement frequency including setting the tx and rx synthesizers
-void setFrequency(uint32_t freq_khz) {
-	adf4350_update(freq_khz);
-	vnaMeasurement.nWaitSynth = 12;
+void setFrequency(freqHz_t freq) {
+	adf4350_update(freq);
 }
 
 void adc_setup() {
@@ -249,7 +250,8 @@ void serialCharHandler(uint8_t* s, int len) {
 
 
 // callback called by VNAMeasurement when an observation is available.
-static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, const VNAObservation& v) {
+static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservation v) {
+	v[0] *= 0.3;
 	// enqueue new data point
 	int wrRPos = usbTxQueueRPos;
 	int wrWPos = usbTxQueueWPos;
@@ -271,9 +273,10 @@ void measurement_setup() {
 		measurementEmitDataPoint(freqIndex, freqHz, v);
 	};
 	vnaMeasurement.frequencyChanged = [](uint64_t freqHz) {
-		setFrequency(freqHz/1000);
+		setFrequency(freqHz);
 	};
 	vnaMeasurement.init();
+	vnaMeasurement.setCorrelationTable(sinROM6x2, 12);
 }
 
 void adc_process() {
@@ -382,7 +385,10 @@ int main(void) {
 	digitalWrite(led, HIGH);
 	rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 
-	delay(200);
+	pinMode(USB0_DP, OUTPUT);
+	digitalWrite(USB0_DP, LOW);
+
+	delay(300);
 
 	serial.setReceiveCallback([](uint8_t* s, int len) {
 		serialCharHandler(s, len);
@@ -390,6 +396,7 @@ int main(void) {
 	// baud rate is ignored for usbserial
 	serial.begin(115200);
 
+	pinMode(USB0_DP, INPUT);
 	//setFrequency(56000);
 
 	measurement_setup();
