@@ -7,7 +7,9 @@ VNAMeasurement::VNAMeasurement(): sampleProcessor(_emitValue_t {this}) {
 void VNAMeasurement::init() {
 	sampleProcessor.init();
 }
-
+void VNAMeasurement::setCorrelationTable(const int16_t* table, int length) {
+	sampleProcessor.setCorrelationTable(table, length);
+}
 void VNAMeasurement::processSamples(uint16_t* buf, int len) {
 	sampleProcessor.process(buf, len);
 }

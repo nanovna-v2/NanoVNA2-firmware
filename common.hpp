@@ -103,9 +103,6 @@ typedef int64_t freqHz_t;
 #define REDRAW_MARKER     (1<<3)
 
 
-constexpr int lo_freq = 12000; // IF frequency, Hz
-constexpr int adf4350_R = 1; // adf4350 reference divide
-constexpr int adf4350_freqStep = 6; // adf4350 resolution, kHz
 
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
 static volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);

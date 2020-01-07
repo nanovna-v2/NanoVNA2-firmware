@@ -30,6 +30,9 @@ public:
 	VNAMeasurementNoSwitch(): sampleProcessor(_emitValue_t {this}) {}
 
 	void init() { sampleProcessor.init(); }
+	void setCorrelationTable(const int16_t* table, int length) {
+		sampleProcessor.setCorrelationTable(table, length);
+	}
 	void processSamples(uint16_t* buf, int len) { sampleProcessor.process(buf, len); }
 
 	// if points is 1, sets frequency to startFreqHz and disables sweep

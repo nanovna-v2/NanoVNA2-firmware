@@ -14,34 +14,39 @@ namespace synthesizers {
 	int si5351_set(uint32_t rxFreqHz, uint32_t txFreqHz);
 
 
-	// freq_khz must be a multiple of adf4350_freqStep
+	// freqHz must be a multiple of freqStepHz
 	template<class T>
-	static void adf4350_set(T& adf4350, uint32_t freq_khz) {
+	static void adf4350_set(T& adf4350, freqHz_t freqHz, uint32_t freqStepHz) {
 		int O = 1;
+		int R = 1; // adf4350 reference divide
 		
-		if(freq_khz	> 2200000)
+		if(freqHz	> 2200000000)
 			O = 1;
-		else if(freq_khz	> 1100000)
+		else if(freqHz	> 1100000000)
 			O = 2;
-		else if(freq_khz	> 550000)
+		else if(freqHz	> 550000000)
 			O = 4;
-		else if(freq_khz	> 275000)
+		else if(freqHz	> 275000000)
 			O = 8;
-		else if(freq_khz	> 137500)
+		else if(freqHz	> 137500000)
 			O = 16;
-		else if(freq_khz	> 68750)
+		else if(freqHz	> 68750000)
 			O = 32;
-		else //if(freq_khz	> 34375)
+		else //if(freqHz	> 34375000)
 			O = 64;
 
-		uint32_t N = freq_khz*O/adf4350_freqStep;
-		uint32_t adf4350_modulus = board::xtalFreqHz/adf4350_R/adf4350_freqStep/1000;
+		uint64_t N = freqHz*O/freqStepHz;
+		uint32_t modulus = board::xtalFreqHz/R/freqStepHz;
 
-		adf4350.R = adf4350_R;
+		if(board::xtalFreqHz > 32000000) {
+			modulus /= 2;
+			adf4350.refDiv2 = true;
+		}
+		adf4350.R = R;
 		adf4350.O = O;
-		adf4350.N = N / adf4350_modulus;
-		adf4350.numerator = N - (adf4350.N * adf4350_modulus);
-		adf4350.denominator = adf4350_modulus;
+		adf4350.N = N / modulus;
+		adf4350.numerator = N - (adf4350.N * modulus);
+		adf4350.denominator = modulus;
 		adf4350.sendConfig();
 		adf4350.sendN();
 	}

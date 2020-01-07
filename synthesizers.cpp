@@ -37,7 +37,7 @@ namespace synthesizers {
 		
 		si5351.PLL[tPLL].PLL_Clock_Source = PLL_Clock_Source_XTAL;
 		si5351.PLL[tPLL].PLL_Multiplier_Integer = 32*128;
-		si5351.PLL[tPLL].PLL_Multiplier_Numerator = 1*8 + lo_freq/1000*8;
+		si5351.PLL[tPLL].PLL_Multiplier_Numerator = 2*8;
 		si5351.PLL[tPLL].PLL_Multiplier_Denominator = xtalFreqHz / 1000;
 
 		si5351.MS[rPort].MS_Clock_Source = MS_Clock_Source_PLLA;
@@ -117,7 +117,7 @@ namespace synthesizers {
 				}
 				
 				// calculate pll settings
-				uint32_t mult = (freqHz/1000)*6*128;
+				uint32_t mult = uint32_t(uint64_t(freqHz)*6*128/1000);
 				uint32_t N = mult/xtalFreqKHz;
 				uint32_t frac = mult - N*xtalFreqKHz;
 
