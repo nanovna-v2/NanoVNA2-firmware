@@ -101,6 +101,9 @@ FIFO<small_function<void()>, 8> eventQueue;
 
 volatile bool usbDataMode = false;
 
+// if nonzero, any ecal data in the next ecalIgnoreValues data points will be ignored.
+// this variable is decremented every time a data point arrives, if nonzero.
+volatile int ecalIgnoreValues = 0;
 volatile int collectMeasurementType = -1;
 int collectMeasurementOffset = -1;
 int collectMeasurementState = 0;
@@ -625,6 +628,12 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	// an average of 0dB thru magnitude.
 	v[2] *= 0.3f;
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
+
+	int ecalIgnoreValues2 = ecalIgnoreValues;
+	if(ecalIgnoreValues2 != 0) {
+		ecal = nullptr;
+		__sync_bool_compare_and_swap(&ecalIgnoreValues, ecalIgnoreValues2, ecalIgnoreValues2-1);
+	}
 
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
@@ -1322,7 +1331,9 @@ namespace UIActions {
 	}
 	
 	int caldata_save(int id) {
+		ecalIgnoreValues = 1000000;
 		int ret = flash_caldata_save(id);
+		ecalIgnoreValues = 20;
 		return ret;
 	}
 	int caldata_recall(int id) {
@@ -1333,7 +1344,10 @@ namespace UIActions {
 	}
 
 	int config_save() {
-		return flash_config_save();
+		ecalIgnoreValues = 1000000;
+		int ret = flash_config_save();
+		ecalIgnoreValues = 20;
+		return ret;
 	}
 	int config_recall() {
 		return flash_config_recall();
