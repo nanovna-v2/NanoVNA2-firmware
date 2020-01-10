@@ -398,11 +398,10 @@ menu_cal2_cb(UIEvent evt, int item)
     // toggle applying correction
     if (cal_status)
       cal_status ^= CALSTAT_APPLY;
-    draw_menu();
     break;
   }
+  draw_menu();
   draw_cal_status();
-  //menu_move_back();
 }
 
 static void
