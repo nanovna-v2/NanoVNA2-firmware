@@ -371,6 +371,15 @@ complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
 	return refl;
 }
 
+complexf applyFixedCorrectionsThru(complexf thru, freqHz_t freq) {
+	float scale = 0.5;
+	if(freq > 1900000000) {
+		float x = float(freq - 1900000000) / (4400000000 - 1900000000);
+		scale *= (1 - 0.8*x*(2 - x));
+	}
+	return thru * scale;
+}
+
 
 /*
 For a description of the command interface see command_parser.hpp
@@ -624,9 +633,8 @@ void measurementPhaseChanged(VNAMeasurementPhases ph) {
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal) {
 	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
-	// reference channel is weaker than thru channel, so apply a correction to get
-	// an average of 0dB thru magnitude.
-	v[2] *= 0.3f;
+
+	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
 
 	int ecalIgnoreValues2 = ecalIgnoreValues;
