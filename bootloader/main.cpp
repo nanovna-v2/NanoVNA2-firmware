@@ -332,14 +332,21 @@ constexpr int wordSize = 4;
 uint8_t wordBuffer[wordSize];
 int wordBufferLength = 0;
 
-inline void handleFlashWriteWord(uint32_t word) {
+
+static inline void __attribute__((always_inline)) handleFlashWriteWord(uint32_t word) {
 	// only erase/program if we are in the user flash region
 	if(reg_flashWriteStart >= USER_CODE_FLASH && reg_flashWriteStart < USER_CODE_FLASH_END) {
 		// if we are in a new page, erase the page
 		if((reg_flashWriteStart & FLASH_PAGESIZE_MASK) == 0) {
 			flash_erase_page(reg_flashWriteStart);
 		}
-		flash_program_word(reg_flashWriteStart, word);
+		//flash_program_word(reg_flashWriteStart, word);
+		while ((FLASH_SR & FLASH_SR_BSY) == FLASH_SR_BSY);
+		FLASH_CR |= FLASH_CR_PG;
+		MMIO16(reg_flashWriteStart) = (uint16_t)word;
+		MMIO16(reg_flashWriteStart + 2) = (uint16_t)(word>>16);
+		while ((FLASH_SR & FLASH_SR_BSY) == FLASH_SR_BSY);
+		FLASH_CR &= ~FLASH_CR_PG;
 	}
 	reg_flashWriteStart += wordSize;
 }
