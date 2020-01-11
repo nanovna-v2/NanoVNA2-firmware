@@ -72,8 +72,10 @@ send_command(uint8_t cmd, int len, const uint8_t *data)
 {
 	CS_LOW;
 	DC_CMD;
+    delayMicroseconds(1);
 	ssp_senddata(cmd);
 	DC_DATA;
+    delayMicroseconds(1);
 	while (len-- > 0) {
 	  ssp_senddata(*data++);
 	}
@@ -85,9 +87,11 @@ send_command16(uint8_t cmd, int data)
 {
 	CS_LOW;
 	DC_CMD;
+    delayMicroseconds(1);
 	ssp_senddata(cmd);
 	DC_DATA;
-	ssp_senddata16(data);
+    delayMicroseconds(1);
+	ssp_senddata16(byteReverse16(data));
 	CS_HIGH;
 }
 
@@ -221,6 +225,8 @@ void ili9341_bulk(int x, int y, int w, int h)
 	int len = w * h;
 
 	ili9341_spi_wait_bulk();
+
+    delayMicroseconds(10);
 
 	send_command(0x2A, 4, xx);
 	send_command(0x2B, 4, yy);

@@ -368,10 +368,10 @@ namespace board {
 		if(lcd_spi_isDMAInProgress)
 			lcd_spi_waitDMA();
 		uint32_t ret = 0;
+		ret |= spi_xfer(SPI1, (uint16_t) sdi);
 		if(bits == 16) {
 			ret = uint32_t(spi_xfer(SPI1, (uint16_t) (sdi >> 8))) << 8;
 		}
-		ret |= spi_xfer(SPI1, (uint16_t) sdi);
 		return ret;
 	}
 

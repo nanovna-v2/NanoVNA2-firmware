@@ -6,7 +6,7 @@
 
 using namespace mculib;
 
-#define RGB565(b,r,g)     ( (((b)<<8)&0xfc00) | (((r)<<2)&0x03e0) | (((g)>>3)&0x001f) )
+#define RGB565(r,g,b)     byteReverse16( (((r)<<8)&0b1111100000000000) | (((g)<<3)&0b0000011111100000) | (((b)>>3)&0b0000000000011111) )
 
 typedef struct {
 	uint16_t width;
@@ -37,6 +37,11 @@ extern small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
 
 // wait for bulk transfers to complete
 extern small_function<void()> ili9341_spi_wait_bulk;
+
+
+static inline constexpr uint16_t byteReverse16(uint16_t x) {
+    return (x << 8) | (x >> 8);
+}
 
 void ili9341_init(void);
 void ili9341_test(int mode);
