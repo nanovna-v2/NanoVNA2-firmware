@@ -26,3 +26,4 @@ void draw_menu();
 void ui_cal_collected();
 
 void show_dmesg();
+void show_message(const char* title, const char* message, int fg = 0xffff, int bg = 0x0000);
