@@ -359,10 +359,16 @@ ili9341_drawchar_size(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg, uint8_
 void
 ili9341_drawstring_size(const char *str, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
 {
+  int origX = x;
   while (*str) {
-	ili9341_drawchar_size(*str, x, y, fg, bg, size);
-	x += 5 * size;
-	str++;
+	if((*str) == '\n') {
+        x = origX;
+        y += 7 * size;
+    } else {
+        ili9341_drawchar_size(*str, x, y, fg, bg, size);
+        x += 5 * size;
+    }
+    str++;
   }
 }
 

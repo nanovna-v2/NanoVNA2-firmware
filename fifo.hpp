@@ -41,6 +41,10 @@ public:
 		_rpos = (_rpos+1) & sizeMask;
 	}
 
+	void clear() {
+		while(readable()) dequeue();
+	}
+
 	// returns (uint32_t)-1 if there is no space in the FIFO, or
 	// an index into the elements array otherwise.
 	uint32_t beginEnqueue() {

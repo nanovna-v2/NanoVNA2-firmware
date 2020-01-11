@@ -314,6 +314,20 @@ show_usb_data_mode(void)
   ili9341_drawstring_size("USB MODE", x, y, 0xffff, 0x0000, 4);
 }
 
+
+void
+show_message(const char* title, const char* message, int fg, int bg)
+{
+  int x = 5, y = 5;
+
+  ili9341_fill(0, 0, 320, 240, bg);
+
+  ili9341_drawstring_size(title, x, y, fg, bg, 4);
+  y += 50;
+
+  ili9341_drawstring_size(message, x, y, fg, bg, 1);
+}
+
 void
 ui_enter_dfu(void)
 {

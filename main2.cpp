@@ -48,6 +48,10 @@
 #include "stream_fifo.hpp"
 #include "sin_rom.hpp"
 
+#ifdef HAS_SELF_TEST
+#include "self_test.hpp"
+#endif
+
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/cm3/vector.h>
@@ -1053,6 +1057,12 @@ int main(void) {
 
 	adf4350_setup();
 
+#ifdef HAS_SELF_TEST
+	if(SelfTest::shouldEnterSelfTest()) {
+		SelfTest::performSelfTest(vnaMeasurement);
+	}
+#endif
+
 	redraw_frame();
 
 	bool testSG = false;
@@ -1369,6 +1379,9 @@ namespace UIActions {
 	}
 
 	void enterDFU() {
+		// finish screen updates
+		lcd_spi_waitDMA();
+		// write magic value into ram (note: corrupts top of the stack)
 		bootloaderDFUIndicator = BOOTLOADER_DFU_MAGIC;
 		// soft reset
 		SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
