@@ -36,8 +36,11 @@ public:
 	uint32_t ecalIntervalPoints = 8;
 
 	// automatically reset before each measurement; indicates whether the current
-	// data point is corrupted when emitDataPoint() is called.
+	// S11 data point is corrupted when emitDataPoint() is called.
 	bool clipFlag = false;
+
+	// same as clipFlag, but for S21
+	bool clipFlag2 = false;
 
 	// called when a new data point is available.
 	// ecal is load, short, thru.
