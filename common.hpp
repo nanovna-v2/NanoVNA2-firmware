@@ -152,7 +152,7 @@ typedef struct {
 } marker_t;
 
 struct alignas(4) properties_t {
-  int32_t magic;
+  uint32_t magic;
   freqHz_t _frequency0; // start
   freqHz_t _frequency1; // stop
   int16_t _sweep_points;
@@ -172,7 +172,7 @@ struct alignas(4) properties_t {
 
 
 typedef struct {
-  int32_t magic;
+  uint32_t magic;
   uint16_t dac_value; // unused
   uint16_t grid_color;
   uint16_t menu_normal_color;
@@ -196,7 +196,7 @@ struct uistat_t {
   uint8_t marker_smith_format;
 };
 
-#define CONFIG_MAGIC 0x55378008
+#define CONFIG_MAGIC 0x80081234
 
 
 
