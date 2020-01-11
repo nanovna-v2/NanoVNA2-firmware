@@ -2,14 +2,15 @@ EXTERN(vector_table)
 ENTRY(reset_handler)
 MEMORY
 {
- ram (rwx) : ORIGIN = 0x20000000, LENGTH = 48K
+	/* leave 8 bytes at the end of ram for argument passing */
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 49144
 
-/*
+	/*
 	256KB flash total
 	16KB reserved at start for bootloader.
 	52KB reserved at end for user data (10K * 5 + 2K).
-*/
- rom (rx) : ORIGIN = 0x08004000, LENGTH = 188K
+	*/
+	rom (rx) : ORIGIN = 0x08004000, LENGTH = 188K
 }
 SECTIONS
 {
