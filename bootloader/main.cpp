@@ -56,6 +56,7 @@ StreamFIFO cmdInputFIFO;
 uint8_t cmdInputBuffer[16384];
 uint8_t registers[256];
 uint32_t& reg_flashWriteStart = *(uint32_t*) &registers[0xe0];
+uint32_t& reg_userArgument = *(uint32_t*) &registers[0xe8];
 
 
 // hardware specific functions
@@ -285,6 +286,7 @@ registers map:
 -- e2: flashWriteStart[23..16]
 -- e3: flashWriteStart[31..24]
 -- e4: flash FIFO
+-- e8: user argument (written to memory end - 4 bytes)
 -- ef: write 0x5e to reboot device
 -- f0: device variant
 -- f1: protocol version (01)
@@ -392,7 +394,7 @@ void cmdInit() {
 	cmdParser.handleWrite = [](int address) {
 		if(address == 0xef && registers[address] == 0x5e) {
 			// clear enter dfu indicator
-			bootloaderDFUIndicator = 0;
+			bootloaderDFUIndicator = reg_userArgument;
 
 			// reset device
 			SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
