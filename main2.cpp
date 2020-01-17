@@ -955,6 +955,7 @@ int main(void) {
 	uint32_t fpuEnable = 0b1111 << 20;
 	bool shouldShowDmesg = false;
 
+#ifndef GD32F3_NOFPU
 	if((SCB_CPACR & fpuEnable) != fpuEnable) {
 		SCB_CPACR |= fpuEnable;
 		if((SCB_CPACR & fpuEnable) != fpuEnable) {
@@ -966,10 +967,10 @@ int main(void) {
 		} else {
 			printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
 		}
-#ifndef GD32F3_NOFPU
 		shouldShowDmesg = true;
-#endif
 	}
+#endif
+
 	int i;
 	boardInit();
 
