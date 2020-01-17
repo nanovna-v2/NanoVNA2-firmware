@@ -47,8 +47,9 @@ constexpr uint32_t USER_CODE_FLASH_END = 0x8000000 + 256*1024;
 constexpr uint32_t FLASH_PAGESIZE = 2048;
 constexpr uint32_t FLASH_PAGESIZE_MASK = FLASH_PAGESIZE - 1;
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
+constexpr uint64_t BOOTLOADER_FLASH_DFU_MAGIC = 0xbeeffaceb00bbabe;
 volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
-volatile uint32_t& bootloaderFirstBootIndicator = *(uint32_t*)(USER_CODE_FLASH + 1024);
+volatile uint64_t& bootloaderFirstBootIndicator = *(uint64_t*)(USER_CODE_FLASH + 1024);
 
 USBSerial serial;
 CommandParser cmdParser;
@@ -320,7 +321,7 @@ bool shouldEnterDFU() {
 		return true;
 
 	// magic value in flash to indicate factory dfu
-	if(bootloaderFirstBootIndicator == BOOTLOADER_DFU_MAGIC)
+	if(bootloaderFirstBootIndicator == BOOTLOADER_FLASH_DFU_MAGIC)
 		return true;
 
 	pinMode(dfuKey, INPUT_PULLUP);

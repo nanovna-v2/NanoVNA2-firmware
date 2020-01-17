@@ -29,7 +29,7 @@ flash: binary.hex
 
 factory_flash: binary.bin
 	# set magic value to enter dfu mode
-	echo -n -e '\xbe\xba\xad\xde' | dd of=binary.bin bs=1024 seek=17
+	echo -n -e '\xbe\xba\x0b\xb0\xce\xfa\xef\xbe' | dd of=binary.bin bs=1024 seek=17
 	./st-flash --reset write binary.bin 0x08000000
 
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
