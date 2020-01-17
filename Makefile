@@ -3,7 +3,7 @@ MCULIB         ?= /persist/mculib
 OPENCM3_DIR    ?= /persist/libopencm3
 
 # device config
-BOARDNAME		= board_v2_1
+BOARDNAME		= board_v2_2
 DEVICE          = gd32f303cc_nofpu
 
 
