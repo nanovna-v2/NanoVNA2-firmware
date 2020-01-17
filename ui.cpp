@@ -231,7 +231,7 @@ show_version(void)
   ili9341_drawstring_5x7("Hardware designed by OwOComm", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Licensed under GPL. ", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("https://github.com/ttrftech/NanoVNA", x + 10, y += 10, 0xffff, 0x0000);
-  ili9341_drawstring_5x7("https://github.com/nanovna/S-A-A", x + 10, y += 10, 0xffff, 0x0000);
+  ili9341_drawstring_5x7("https://github.com/nanovna/NanoVNA-V2-firmware", x + 10, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Version: " GITVERSION, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Build Time: " __DATE__ " - " __TIME__, x, y += 10, 0xffff, 0x0000);
   y += 5;
