@@ -841,7 +841,7 @@ menu_marker_search_cb(UIEvent evt, int item)
 static void
 menu_marker_smith_cb(UIEvent evt, int item)
 {
-  uistat.marker_smith_format = item;
+  marker_smith_format = item;
   redraw_marker(active_marker, TRUE);
   draw_menu();
 }
@@ -1378,7 +1378,7 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
       }
     }
   } else if (menu == menu_marker_smith) {
-    if (uistat.marker_smith_format == item) {
+    if (marker_smith_format == item) {
       *bg = 0x0000;
       *fg = 0xffff;
     }

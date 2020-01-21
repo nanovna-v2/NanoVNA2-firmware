@@ -166,6 +166,7 @@ struct alignas(4) properties_t {
   int _active_marker;
   uint8_t _domain_mode; /* 0bxxxxxffm : where ff: TD_FUNC m: DOMAIN_MODE */
   uint8_t _velocity_factor; // %
+  uint8_t _marker_smith_format;
 
   int32_t checksum;
 };
@@ -193,7 +194,6 @@ struct uistat_t {
   uint32_t previous_value;
   uint8_t lever_mode;
   bool marker_delta;
-  uint8_t marker_smith_format;
 };
 
 #define CONFIG_MAGIC 0x80081234
