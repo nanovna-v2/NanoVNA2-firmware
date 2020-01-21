@@ -636,7 +636,8 @@ format_smith_value(char *buf, int len, complexf coeff, freqHz_t frequency)
 
 	case MS_RX:
 		n = string_value_with_prefix(buf, len, zr, S_OHM[0]);
-		buf[n++] = ' ';
+		if (zi >= 0)
+			buf[n++] = ' ';
 		string_value_with_prefix(buf+n, len-n, zi, 'j');
 		break;
 
