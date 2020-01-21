@@ -163,9 +163,9 @@ struct alignas(4) properties_t {
   
   trace_t _trace[TRACES_MAX];
   marker_t _markers[MARKERS_MAX];
+  float _velocity_factor; // %
   int _active_marker;
   uint8_t _domain_mode; /* 0bxxxxxffm : where ff: TD_FUNC m: DOMAIN_MODE */
-  uint8_t _velocity_factor; // %
   uint8_t _marker_smith_format;
 
   int32_t checksum;
@@ -196,7 +196,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x80081234
+#define CONFIG_MAGIC 0x80081235
 
 
 
