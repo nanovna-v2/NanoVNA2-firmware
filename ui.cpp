@@ -834,9 +834,23 @@ menu_marker_search_cb(UIEvent evt, int item)
       markers[active_marker].index = i;
     draw_menu();
     break;
+  case 4: /* tracking */
+    uistat.marker_tracking = !uistat.marker_tracking;
+    draw_menu();
+    break;
   }
   redraw_marker(active_marker, TRUE);
   uistat.lever_mode = LM_SEARCH;
+}
+
+void ui_marker_track() {
+  if (uistat.marker_tracking) {
+    int i = marker_search(uistat.marker_search_mode);
+    if (i != -1 && active_marker != -1) {
+      markers[active_marker].index = i;
+      redraw_request |= REDRAW_MARKER;
+    }
+  }
 }
 
 static void
@@ -1041,7 +1055,7 @@ const menuitem_t menu_marker_search[] = {
   { MT_CALLBACK, "MINIMUM", menu_marker_search_cb },
   { MT_CALLBACK, "\2SEARCH\0" S_LARROW" LEFT", menu_marker_search_cb },
   { MT_CALLBACK, "\2SEARCH\0" S_RARROW" RIGHT", menu_marker_search_cb },
-  //{ MT_CALLBACK, "TRACKING", menu_marker_search_cb },
+  { MT_CALLBACK, "TRACKING", menu_marker_search_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
@@ -1377,6 +1391,11 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
         *bg = 0x0000;
         *fg = 0xffff;
       }
+    }
+  } else if (menu == menu_marker_search) {
+    if (item == 4 && uistat.marker_tracking) {
+      *bg = 0x0000;
+      *fg = 0xffff;
     }
   } else if (menu == menu_marker_smith) {
     if (marker_smith_format == item) {

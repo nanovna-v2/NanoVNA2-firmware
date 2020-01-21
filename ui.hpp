@@ -25,5 +25,8 @@ void draw_menu();
 
 void ui_cal_collected();
 
+// update marker position if marker tracking is enabled
+void ui_marker_track();
+
 void show_dmesg();
 void show_message(const char* title, const char* message, int fg = 0xffff, int bg = 0x0000);
