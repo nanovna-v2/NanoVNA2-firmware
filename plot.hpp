@@ -49,6 +49,6 @@ void markmap_all_markers(void);
 void marker_position(int m, int t, int *x, int *y);
 int search_nearest_index(int x, int y, int t);
 
-int marker_search(int mode);
-int marker_search_left(int from);
-int marker_search_right(int from);
+int marker_search(MarkerSearchModes mode);
+int marker_search_left(MarkerSearchModes mode, int from);
+int marker_search_right(MarkerSearchModes mode, int from);

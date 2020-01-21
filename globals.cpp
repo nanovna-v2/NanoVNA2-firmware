@@ -64,6 +64,9 @@ uistat_t uistat = {
  value: 0,
  previous_value: 0,
  lever_mode: LM_MARKER,
- marker_delta: false,
+ previous_marker: 0,
+ marker_search_mode: MarkerSearchModes::Max,
+ marker_tracking: false,
+ marker_delta: false
 };
 

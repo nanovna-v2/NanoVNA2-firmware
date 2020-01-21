@@ -816,19 +816,20 @@ menu_marker_search_cb(UIEvent evt, int item)
   switch (item) {
   case 0: /* maximum */
   case 1: /* minimum */
-    i = marker_search(item);
+    uistat.marker_search_mode = (item == 0) ? MarkerSearchModes::Max : MarkerSearchModes::Min;
+    i = marker_search(uistat.marker_search_mode);
     if (i != -1)
       markers[active_marker].index = i;
     draw_menu();
     break;
   case 2: /* search Left */
-    i = marker_search_left(markers[active_marker].index);
+    i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
     if (i != -1)
       markers[active_marker].index = i;
     draw_menu();
     break;
   case 3: /* search right */
-    i = marker_search_right(markers[active_marker].index);
+    i = marker_search_right(uistat.marker_search_mode, markers[active_marker].index);
     if (i != -1)
       markers[active_marker].index = i;
     draw_menu();
@@ -1718,11 +1719,11 @@ lever_search_marker(UIEvent evt)
   if (active_marker >= 0) {
     request_to_redraw_marker(active_marker, TRUE);
     if (evt.isJogLeft()) {
-      int i = marker_search_left(markers[active_marker].index);
+      int i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
       if (i != -1)
         markers[active_marker].index = i;
     } else if (evt.isJogRight()) {
-      int i = marker_search_right(markers[active_marker].index);
+      int i = marker_search_right(uistat.marker_search_mode, markers[active_marker].index);
       if (i != -1)
         markers[active_marker].index = i;
     }
