@@ -1555,7 +1555,7 @@ fetch_numeric_target(void)
     uistat.value = get_electrical_delay();
     break;
   case KM_VELOCITY_FACTOR:
-    uistat.value = velocity_factor;
+    uistat.value = velocity_factor * 100;
     break;
   case KM_SCALEDELAY:
     uistat.value = get_trace_scale(uistat.current_trace) * 1e12;
@@ -1603,7 +1603,7 @@ void set_numeric_value(void)
     set_electrical_delay(uistat.value);
     break;
   case KM_VELOCITY_FACTOR:
-    velocity_factor = uistat.value;
+    velocity_factor = uistat.value / 100.f;
     break;
   }
 }
@@ -1885,7 +1885,7 @@ keypad_click(int key)
       set_electrical_delay(value); // pico seconds
       break;
     case KM_VELOCITY_FACTOR:
-      velocity_factor = value;
+      velocity_factor = value / 100.f;
       break;
     case KM_SCALEDELAY:
       set_trace_scale(uistat.current_trace, value * 1e-12); // pico second

@@ -40,9 +40,9 @@ properties_t current_props = {
   /* markers[4] */ {
     { 1, 30, 0 }, { 0, 40, 0 }, { 0, 60, 0 }, { 0, 80, 0 }
   },
+  /* velocity_factor */   0.7,
   /* active_marker */      0,
   /* domain_mode */        0,
-  /* velocity_factor */   70,
   /* marker_smith_format */ MS_RLC,
   /* checksum */           0
 };
