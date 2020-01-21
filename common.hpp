@@ -112,6 +112,7 @@ constexpr int MEASUREMENT_NPERIODS_CALIBRATING = 30;
 constexpr int MEASUREMENT_ECAL_INTERVAL = 5;
 
 
+// TODO: name all enums and refer to them by name
 
 enum {
   TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_OFF
@@ -129,6 +130,11 @@ enum {
 // marker smith value format
 enum {
   MS_LIN, MS_LOG, MS_REIM, MS_RX, MS_RLC
+};
+
+enum MarkerSearchModes: uint8_t {
+	Min,
+	Max
 };
 
 enum {
@@ -193,6 +199,9 @@ struct uistat_t {
   uint32_t value; // for editing at numeric input area
   uint32_t previous_value;
   uint8_t lever_mode;
+  int8_t previous_marker;
+  MarkerSearchModes marker_search_mode;
+  bool marker_tracking;
   bool marker_delta;
 };
 

@@ -1137,23 +1137,25 @@ marker_position(int m, int t, int *x, int *y)
 	*y = CELL_Y(index);
 }
 
+typedef int (*compare_t)(int x, int y);
 static int greater(int x, int y) { return x > y; }
 static int lesser(int x, int y) { return x < y; }
 
-static int (*compare)(int x, int y) = lesser;
+compare_t marker_comparator(MarkerSearchModes mode) {
+	if (mode == MarkerSearchModes::Max)
+		return ::greater;
+	else
+		return ::lesser;
+}
 
 
 int
-marker_search(int mode)
+marker_search(MarkerSearchModes mode)
 {
+	compare_t compare = marker_comparator(mode);
 	int i;
 	int found = 0;
 
-	if (mode == 0)
-		compare = ::greater;
-	else
-		compare = ::lesser;
-		
 	if (uistat.current_trace == -1)
 		return -1;
 
@@ -1169,9 +1171,12 @@ marker_search(int mode)
 	return found;
 }
 
+// TODO: merge marker_search_left and marker_search_right into one function
+
 int
-marker_search_left(int from)
+marker_search_left(MarkerSearchModes mode, int from)
 {
+	compare_t compare = marker_comparator(mode);
 	int i;
 	int found = -1;
 
@@ -1198,8 +1203,9 @@ marker_search_left(int from)
 }
 
 int
-marker_search_right(int from)
+marker_search_right(MarkerSearchModes mode, int from)
 {
+	compare_t compare = marker_comparator(mode);
 	int i;
 	int found = -1;
 
