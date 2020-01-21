@@ -1097,6 +1097,7 @@ int main(void) {
 				// a full sweep has completed
 				if ((domain_mode & DOMAIN_MODE) == DOMAIN_TIME) {
 					plot_into_index(measured);
+					ui_marker_track();
 					draw_all(true);
 					continue;
 				}
@@ -1106,8 +1107,10 @@ int main(void) {
 		// if we have no pending events, use idle cycles to refresh the graph
 		if(!eventQueue.readable()) {
 			if(sweep_enabled) {
-				if((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ)
+				if((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 					plot_into_index(measured);
+					ui_marker_track();
+				}
 			}
 			draw_all(true);
 			continue;
