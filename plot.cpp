@@ -615,7 +615,7 @@ format_smith_value(char *buf, int len, complexf coeff, freqHz_t frequency)
 	float zi = 2*im * d;
 	int n;
 
-	switch (uistat.marker_smith_format) {
+	switch (marker_smith_format) {
 	case MS_LIN:
 		chsnprintf(buf, len, "%.2f %.1f" S_DEGREE, linear(coeff), phase(coeff));
 		break;

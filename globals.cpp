@@ -43,6 +43,7 @@ properties_t current_props = {
   /* active_marker */      0,
   /* domain_mode */        0,
   /* velocity_factor */   70,
+  /* marker_smith_format */ MS_RLC,
   /* checksum */           0
 };
 
@@ -64,6 +65,5 @@ uistat_t uistat = {
  previous_value: 0,
  lever_mode: LM_MARKER,
  marker_delta: false,
- marker_smith_format: MS_RLC
 };
 
