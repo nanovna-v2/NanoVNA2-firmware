@@ -886,6 +886,13 @@ void transform_domain() {
 	}
 }
 
+void apply_edelay(int i, complexf& refl, complexf& thru) {
+	float w = 2 * M_PI * electrical_delay * UIActions::frequencyAt(i) * 1E-12;
+	complexf s = polar(1.f, w);
+	refl *= s;
+	thru *= s;
+}
+
 // consume all items in the values fifo and update the "measured" array.
 bool processDataPoint() {
 	int ret = -1;
@@ -930,6 +937,7 @@ bool processDataPoint() {
 						current_props._cal_data[CAL_LOAD][freqIndex],
 						refl);
 		}
+		apply_edelay(usbDP.freqIndex, refl, thru);
 		measuredFreqDomain[0][usbDP.freqIndex] = refl;
 		measuredFreqDomain[1][usbDP.freqIndex] = thru;
 		if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
@@ -1336,20 +1344,6 @@ namespace UIActions {
 	float get_electrical_delay(void)
 	{
 		return electrical_delay;
-	}
-
-	void apply_edelay_at(int i) {
-		float w = 2 * M_PI * electrical_delay * frequencyAt(i) * 1E-12;
-		float s = sin(w);
-		float c = cos(w);
-		float real = measured[0][i].real();
-		float imag = measured[0][i].imag();
-		measured[0][i] = {real * c - imag * s,
-							imag * c + real * s};
-		real = measured[1][i].real();
-		imag = measured[1][i].imag();
-		measured[1][i] = {real * c - imag * s,
-							imag * c + real * s};
 	}
 	
 	int caldata_save(int id) {
