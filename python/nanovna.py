@@ -5,14 +5,13 @@ import pylab as pl
 import struct
 from serial.tools import list_ports
 
-VID = 0x0483 #1155
-PID = 0x5740 #22336
+VIDPIDs = set([(0x0483, 0x5740), (0x04b4,0x0008)]);
 
 # Get nanovna device automatically
 def getport() -> str:
     device_list = list_ports.comports()
     for device in device_list:
-        if device.vid == VID and device.pid == PID:
+        if (device.vid, device.pid) in VIDPIDs:
             return device.device
     raise OSError("device not found")
 
