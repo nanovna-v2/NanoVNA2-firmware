@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include "common.hpp"
 
-// global variables, to be defined in main.c that can be accessed by all modules.
-// DO NOT ADD FUNCTIONS HERE.
+// global variables, to be defined in globals.cpp that can be accessed by all modules.
+// DO NOT ADD STATEFUL FUNCTIONS HERE.
 // think thrice before adding anything here.
 
 // TODO(gabu-chan): eliminate these variables, make each module provide hooks
