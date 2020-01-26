@@ -1775,7 +1775,7 @@ draw_frequencies(void)
 			x += 5 * 6;
 			strcpy(buf, " ");
 			frequency_string(buf+1, 24-1, fcenter);
-			strcat(buf, "    ");
+			padString(buf, sizeof(buf));
 			ili9341_drawstring_5x7(buf, x, 233, 0xffff, 0x0000);
 			x = 205;
 			strcpy(buf, "SPAN");
@@ -1783,7 +1783,7 @@ draw_frequencies(void)
 			x += 5 * 4;
 			strcpy(buf, " ");
 			frequency_string(buf+1, 24-1, fspan);
-			strcat(buf, "    ");
+			padString(buf, sizeof(buf));
 			ili9341_drawstring_5x7(buf, x, 233, 0xffff, 0x0000);
 		} else {
 			int x = OFFSETX;
@@ -1792,6 +1792,7 @@ draw_frequencies(void)
 			x += 5 * 2;
 			strcpy(buf, " ");
 			frequency_string(buf+1, 24-1, frequency0);
+			padString(buf, sizeof(buf));
 			ili9341_drawstring_5x7(buf, x, 233, 0xffff, 0x0000);
 		}
 	} else {

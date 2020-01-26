@@ -723,8 +723,19 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 
 
 void updateSweepParams() {
-	freqHz_t start = current_props._frequency0;
-	freqHz_t step = (current_props._frequency1 - current_props._frequency0) / (current_props._sweep_points - 1);
+	freqHz_t start, stop;
+	if(current_props._frequency1 <= 0) {
+		// center/span mode
+		start = current_props._frequency0 + current_props._frequency1/2;
+		stop = current_props._frequency0 - current_props._frequency1/2;
+	} else {
+		start = current_props._frequency0;
+		stop = current_props._frequency1;
+	}
+	freqHz_t step = 0;
+	if(current_props._sweep_points > 0)
+		step = (stop - start) / (current_props._sweep_points - 1);
+
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
@@ -1205,16 +1216,37 @@ namespace UIActions {
 			f = FREQUENCY_MAX;
 	}
 
+	void freq_mode_startstop(void) {
+		if (frequency1 <= 0) {
+			auto start = frequency0 + frequency1/2;
+			auto stop = frequency0 - frequency1/2;
+			frequency0 = start;
+			frequency1 = stop;
+		}
+	}
+
+	void freq_mode_centerspan(void) {
+		if (frequency1 > 0) {
+			auto center = (frequency0 + frequency1) / 2;
+			auto span = frequency1 - frequency0;
+			frequency0 = center;
+			frequency1 = -span;
+		}
+	}
+
 	void set_sweep_frequency(SweepParameter type, freqHz_t frequency) {
-		clampFrequency(frequency);
 		switch(type) {
 			case ST_START:
+				clampFrequency(frequency);
+				freq_mode_startstop();
 				current_props._frequency0 = frequency;
 				if(current_props._frequency1 < current_props._frequency0) {
 					current_props._frequency1 = current_props._frequency0;
 				}
 				break;
 			case ST_STOP:
+				clampFrequency(frequency);
+				freq_mode_startstop();
 				current_props._frequency1 = frequency;
 				if(current_props._frequency1 < current_props._frequency0) {
 					current_props._frequency0 = current_props._frequency1;
@@ -1222,30 +1254,47 @@ namespace UIActions {
 				break;
 			case ST_CENTER:
 			{
-				freqHz_t span = current_props._frequency1 - current_props._frequency0;
-				current_props._frequency0 = frequency - span/2;
-				current_props._frequency1 = frequency + span/2;
+				clampFrequency(frequency);
+				freq_mode_centerspan();
+				frequency0 = frequency;
+				auto center = frequency0;
+				auto span = -frequency1;
+				if (center-span/2 < FREQUENCY_MIN) {
+					span = (center - FREQUENCY_MIN) * 2;
+					frequency1 = -span;
+				}
+				if (center+span/2 > FREQUENCY_MAX) {
+					span = (FREQUENCY_MAX - center) * 2;
+					frequency1 = -span;
+				}
 				break;
 			}
 			case ST_SPAN:
 			{
-				freqHz_t center = (frequency0 + frequency1)/2;
-				current_props._frequency0 = center - frequency/2;
-				current_props._frequency1 = center + frequency/2;
+				freq_mode_centerspan();
+				if (frequency > FREQUENCY_MAX-FREQUENCY_MIN)
+					frequency = FREQUENCY_MAX-FREQUENCY_MIN;
+				if (frequency < 0)
+					frequency = 0;
+				frequency1 = -frequency;
+				auto center = frequency0;
+				auto span = -frequency1;
+				if (center-span/2 < FREQUENCY_MIN) {
+					center = FREQUENCY_MIN + span/2;
+					frequency0 = center;
+				}
+				if (center+span/2 > FREQUENCY_MAX) {
+					center = FREQUENCY_MAX - span/2;
+					frequency0 = center;
+				}
 				break;
 			}
 			case ST_CW:
-			{
+				clampFrequency(frequency);
 				current_props._frequency0 = frequency;
-				current_props._frequency1 = frequency;
+				current_props._frequency1 = 0;
 				break;
-			}
 			default: return;
-		}
-		clampFrequency(current_props._frequency0);
-		clampFrequency(current_props._frequency1);
-		if(current_props._frequency1 < current_props._frequency0) {
-			current_props._frequency1 = current_props._frequency0;
 		}
 		updateSweepParams();
 		current_props._cal_status = 0;
