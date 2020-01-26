@@ -196,8 +196,8 @@ struct uistat_t {
   int8_t digit; /* 0~5 */
   int8_t digit_mode;
   int8_t current_trace; /* 0..3 */
-  uint32_t value; // for editing at numeric input area
-  uint32_t previous_value;
+  int64_t value; // for editing at numeric input area
+  int64_t previous_value;
   uint8_t lever_mode;
   int8_t previous_marker;
   MarkerSearchModes marker_search_mode;

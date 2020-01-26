@@ -1311,12 +1311,22 @@ namespace UIActions {
 		draw_cal_status();
 	}
 	freqHz_t get_sweep_frequency(int type) {
-		switch (type) {
-		case ST_START: return frequency0;
-		case ST_STOP: return frequency1;
-		case ST_CENTER: return (frequency0 + frequency1)/2;
-		case ST_SPAN: return frequency1 - frequency0;
-		case ST_CW: return (frequency0 + frequency1)/2;
+		if(frequency1 > 0) {
+			switch (type) {
+			case ST_START: return frequency0;
+			case ST_STOP: return frequency1;
+			case ST_CENTER: return (frequency0 + frequency1)/2;
+			case ST_SPAN: return frequency1 - frequency0;
+			case ST_CW: return (frequency0 + frequency1)/2;
+			}
+		} else {
+			switch (type) {
+			case ST_START: return frequency0 + frequency1/2;
+			case ST_STOP: return frequency0 - frequency1/2;
+			case ST_CENTER: return frequency0;
+			case ST_SPAN: return -frequency1;
+			case ST_CW: return frequency0;
+			}
 		}
 	}
 	freqHz_t frequencyAt(int index) {
