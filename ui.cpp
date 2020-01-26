@@ -1632,7 +1632,7 @@ void
 draw_numeric_area(void)
 {
   char buf[10];
-  chsnprintf(buf, sizeof buf, "%9d", uistat.value);
+  chsnprintf(buf, sizeof buf, "%9ld", uistat.value);
   draw_numeric_input(buf);
 }
 
@@ -1693,7 +1693,8 @@ ui_mode_keypad(int _keypad_mode)
   draw_menu();
   draw_keypad();
   draw_numeric_area_frame();
-  draw_numeric_input("");
+  fetch_numeric_target();
+  draw_numeric_area();
   enable_refresh(false);
   plot_cancel();
 }
