@@ -15,6 +15,10 @@
 extern int area_width;
 extern int area_height;
 
+// for debugging plots
+extern bool plot_checkerBoard; // draw a checkerboard pattern that indicates where the cells are
+extern bool plot_shadeCells; // shade all drawn cells from now on
+
 #define GRIDY 29
 
 // this function is called to determine frequency in hz at a marker point
@@ -25,6 +29,9 @@ extern small_function<freqHz_t(int index)> plot_getFrequencyAt;
 extern small_function<void()> plot_tick;
 
 void plot_init(void);
+
+// mark a cell for redraw. x: 0 to 15; y: 0 to 7
+void mark_map(int x, int y);
 
 // cancel ongoing draw operations further up the stack
 void plot_cancel();
@@ -41,6 +48,7 @@ float groupdelay_from_array(int i, complexf array[SWEEP_POINTS_MAX]);
 void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX]);
 void force_set_markmap(void);
 void draw_all(bool flush);
+void draw_all_cells(bool flush_markmap);
 void draw_frequencies(void);
 void draw_cal_status(void);
 
