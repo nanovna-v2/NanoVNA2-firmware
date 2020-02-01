@@ -854,10 +854,23 @@ force_set_markmap(void)
 	memset(markmap[current_mappage], 0xff, sizeof markmap[current_mappage]);
 }
 
+struct Line2d {
+	int dx, dy;
+};
+inline bool operator<=(const Line2d& a, const Line2d& b) {
+	return a.dy*b.dx <= b.dy*a.dx;
+}
+inline bool operator>=(const Line2d& a, const Line2d& b) {
+	return a.dy*b.dx >= b.dy*a.dx;
+}
+
 void
 mark_cells_from_index(void)
 {
 	int t;
+	constexpr int cellW = 1 << 5;
+	constexpr int cellH = 1 << 5;
+
 	/* mark cells between each neighber points */
 	for (t = 0; t < TRACES_MAX; t++) {
 		if (!trace[t].enabled)
@@ -879,18 +892,44 @@ mark_cells_from_index(void)
 				} else if (n0 == n1) {
 					if (m0 < m1) m0++; else m0--;
 				} else {
-					int x = (m0 < m1) ? (m0 + 1)<<5 : m0<<5;
-					int y = (n0 < n1) ? (n0 + 1)<<5 : n0<<5;
-					int sgn = (n0 < n1) ? 1 : -1;
-					if (sgn*(y-y0)*(x1-x0) < sgn*(x-x0)*(y1-y0)) {
-						if (m0 < m1) m0++;
-						else m0--;
-					} else {
-						if (n0 < n1) n0++;
-						else n0--;
+					// figure out which neighboring cell the line starting at
+					// x0,y0 and ending at x1,y1 exits into.
+					int xLower = m0 << 5;
+					int xUpper = xLower + cellW;
+					int yLower = n0 << 5;
+					int yUpper = yLower + cellH;
+					int mOrig = m0, nOrig = n0;
+
+					Line2d tanDst = {x1 - x0, y1 - y0};
+
+					// lines from the src point to the 4 corners of the current cell
+					Line2d tanTL = {xLower - x0, yLower - y0};
+					Line2d tanTR = {xUpper - x0, yLower - y0};
+					Line2d tanBR = {xUpper - x0, yUpper - y0};
+					Line2d tanBL = {xLower - x0, yUpper - y0};
+
+					// compare line slope/tangents to see which sides of the
+					// current cell the line intersects (only one direction counts).
+					if(tanDst >= tanTL && tanDst <= tanTR) {
+						n0--; // top side
+					}
+					if(tanDst >= tanTR && tanDst <= tanBR) {
+						m0++; // right side
+					}
+					if(tanDst >= tanBR && tanDst <= tanBL) {
+						n0++; // bottom side
+					}
+					if(tanDst >= tanBL && tanDst <= tanTL) {
+						m0--; // left side
+					}
+					if(mOrig == m0 && nOrig == n0) {
+						// if we reach here there is a bug
+						break;
 					}
 				}
 				mark_map(m0, n0);
+				if(m0 < 0 || m0 >= 16 || n0 < 0 || n0 >= 8)
+					break;
 			}
 			x0 = x1;
 			y0 = y1;
