@@ -384,27 +384,27 @@ rectangular_grid(int x, int y)
 #endif
 
 int
-rectangular_grid_x(int x)
+rectangular_grid_x(int x, int bg = 0)
 {
 	int c = config.grid_color;
 	if (x < 0)
-		return 0;
+		return bg;
 	if (x == 0 || x == WIDTH)
 		return c;
 	if ((((x + grid_offset) * 10) % grid_width) < 10)
 		return c;
-	return 0;
+	return bg;
 }
 
 int
-rectangular_grid_y(int y)
+rectangular_grid_y(int y, int bg = 0)
 {
 	int c = config.grid_color;
 	if (y < 0)
-		return 0;
+		return bg;
 	if ((y % GRIDY) == 0)
 		return c;
-	return 0;
+	return bg;
 }
 
 /*
@@ -816,7 +816,7 @@ static float distance_of_index(int idx) {
 }
 
 
-static inline void
+void
 mark_map(int x, int y)
 {
 	if (y >= 0 && y < 8 && x >= 0 && x < 16)
@@ -1316,8 +1316,8 @@ markmap_all_markers(void)
 	}
 	markmap_upperarea();
 }
-
-
+bool plot_checkerBoard = false;
+bool plot_shadeCells = false;
 static void
 draw_cell(int m, int n)
 {
@@ -1330,6 +1330,11 @@ draw_cell(int m, int n)
 	int i0, i1;
 	int i;
 	int t;
+	bool shade = plot_shadeCells;
+	if(plot_checkerBoard)
+		shade |= (((m + n) % 2) == 0);
+
+	int bg = shade ? RGB565(40,40,40) : 0;
 
 	if (x0off + w > area_width)
 		w = area_width - x0off;
@@ -1357,12 +1362,12 @@ draw_cell(int m, int n)
 	/* draw grid */
 	if (grid_mode & GRID_RECTANGULAR) {
 		for (x = 0; x < w; x++) {
-			uint16_t c = rectangular_grid_x(x+x0off);
+			uint16_t c = rectangular_grid_x(x+x0off, bg);
 			for (y = 0; y < h; y++)
 				ili9341_spi_buffer[y * w + x] = c;
 		}
 		for (y = 0; y < h; y++) {
-			uint16_t c = rectangular_grid_y(y+y0);
+			uint16_t c = rectangular_grid_y(y+y0, bg);
 			for (x = 0; x < w; x++)
 				if (x+x0off >= 0 && x+x0off <= WIDTH)
 					ili9341_spi_buffer[y * w + x] |= c;

@@ -968,6 +968,28 @@ bool processDataPoint() {
 }
 
 
+void debug_plot_markmap() {
+	plot_shadeCells = false;
+
+	//auto pt = complexf(1.2f, 0.8f);
+	auto pt = complexf(1.2f, -0.59f);
+
+	memset(measured, 0, sizeof(measured));
+	for(int i=5; i<SWEEP_POINTS_MAX; i++)
+		measured[0][i] = pt;
+	plot_into_index(measured);
+	force_set_markmap();
+
+	draw_all_cells(true);
+	draw_all_cells(true);
+	draw_all_cells(true);
+
+	plot_into_index(measured);
+	plot_shadeCells = true;
+	draw_all_cells(true);
+
+	while(true);
+}
 
 
 int main(void) {
@@ -1054,6 +1076,7 @@ int main(void) {
 
 	printk("xtal freq %d.%03d MHz\n", (xtalFreqHz/1000000), ((xtalFreqHz/1000) % 1000));
 
+	//debug_plot_markmap();
 	flash_config_recall();
 	UIActions::printTouchCal();
 
