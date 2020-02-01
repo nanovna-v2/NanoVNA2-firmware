@@ -287,7 +287,7 @@ registers map:
 -- e2: flashWriteStart[23..16]
 -- e3: flashWriteStart[31..24]
 -- e4: flash FIFO
--- e8: user argument (written to memory end - 4 bytes)
+-- e8..eb: user argument (written to memory end - 4 bytes)
 -- ef: write 0x5e to reboot device
 -- f0: device variant
 -- f1: protocol version (01)
