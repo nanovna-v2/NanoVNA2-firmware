@@ -894,19 +894,25 @@ mark_cells_from_index(void)
 				} else {
 					// figure out which neighboring cell the line starting at
 					// x0,y0 and ending at x1,y1 exits into.
-					int xLower = m0 << 5;
-					int xUpper = xLower + cellW;
-					int yLower = n0 << 5;
-					int yUpper = yLower + cellH;
+
+					// the bounding rect when drawing a cell seems to start at
+					// cellX - 0.5, cellY - 0.5, and end at
+					// cellX + W - 0.5, cellY + H - 0.5
+					// scale everything by 2 and subtract 1.
+					int xLower = (m0 << 5) * 2 - 1;
+					int xUpper = ((m0+1) << 5) * 2 - 1;
+					int yLower = (n0 << 5) * 2 - 1;
+					int yUpper = ((n0+1) << 5) * 2 - 1;
+					int srcX = x0 * 2, srcY = y0 * 2;
 					int mOrig = m0, nOrig = n0;
 
 					Line2d tanDst = {x1 - x0, y1 - y0};
 
 					// lines from the src point to the 4 corners of the current cell
-					Line2d tanTL = {xLower - x0, yLower - y0};
-					Line2d tanTR = {xUpper - x0, yLower - y0};
-					Line2d tanBR = {xUpper - x0, yUpper - y0};
-					Line2d tanBL = {xLower - x0, yUpper - y0};
+					Line2d tanTL = {xLower - srcX, yLower - srcY};
+					Line2d tanTR = {xUpper - srcX, yLower - srcY};
+					Line2d tanBR = {xUpper - srcX, yUpper - srcY};
+					Line2d tanBL = {xLower - srcX, yUpper - srcY};
 
 					// compare line slope/tangents to see which sides of the
 					// current cell the line intersects (only one direction counts).

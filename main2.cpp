@@ -967,14 +967,17 @@ bool processDataPoint() {
 	return false;
 }
 
-
+// plot a single line and show which cells are redrawn
 void debug_plot_markmap() {
+	current_props._trace[0].enabled = 0;
+	current_props._trace[3].enabled = 0;
+
 	plot_shadeCells = false;
+	auto src = complexf(0.04f, 0.7f);
+	auto pt = complexf(0.12f, -0.6f);
 
-	//auto pt = complexf(1.2f, 0.8f);
-	auto pt = complexf(1.2f, -0.59f);
-
-	memset(measured, 0, sizeof(measured));
+	for(int i=0; i<5; i++)
+		measured[0][i] = src;
 	for(int i=5; i<SWEEP_POINTS_MAX; i++)
 		measured[0][i] = pt;
 	plot_into_index(measured);
@@ -988,6 +991,7 @@ void debug_plot_markmap() {
 	plot_shadeCells = true;
 	draw_all_cells(true);
 
+	UIActions::enterDFU();
 	while(true);
 }
 
