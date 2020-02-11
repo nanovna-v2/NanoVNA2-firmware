@@ -1216,6 +1216,10 @@ extern "C" {
 		errorBlink(5);
 		while(1);
 	}
+	void _fini() {
+		errorBlink(6);
+		while(1);
+	}
 }
 
 
