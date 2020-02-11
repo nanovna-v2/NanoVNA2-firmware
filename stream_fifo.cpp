@@ -6,7 +6,7 @@ void StreamFIFO::input(const uint8_t* s, int len) {
 	int bufferSizeMask = bufferSize - 1;
 	__sync_synchronize();
 	uint32_t spaceLeft = (wrRPos - wrWPos - 1) & bufferSizeMask;
-	if(len > spaceLeft) len = spaceLeft;
+	if(len > int(spaceLeft)) len = spaceLeft;
 	uint32_t target = (wrWPos + len) & bufferSizeMask;
 
 	for(uint32_t i = wrWPos; i != target; i = ((i+1) & bufferSizeMask)) {

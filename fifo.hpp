@@ -74,7 +74,7 @@ public:
 		return myWPos2 & sizeMask;
 	}
 
-	uint32_t endEnqueue(uint32_t index) {
+	void endEnqueue(uint32_t index) {
 		__sync_synchronize();
 		elementStatus[index] = 1;
 	}
@@ -85,6 +85,7 @@ public:
 			return false;
 		at(i) = value;
 		endEnqueue(i);
+		return true;
 	}
 
 protected:
