@@ -45,6 +45,10 @@ SECTIONS
   __fini_array_end = .;
  } >rom
 
+ .fini : {
+  KEEP (*(.fini))
+ } >rom
+
  .ARM.extab : {
   *(.ARM.extab*)
  } >rom
