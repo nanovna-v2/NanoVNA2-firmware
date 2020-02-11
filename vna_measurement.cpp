@@ -134,7 +134,7 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 	clipFlag = false;
 	clipFlag2 = false;
 	dpCounterSynth++;
-	if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
+	if(int(dpCounterSynth) >= sweepDataPointsPerFreq && sweepPoints > 1) {
 		dpCounterSynth = 0;
 		sweepAdvance();
 	}

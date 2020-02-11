@@ -117,7 +117,7 @@ void adc_process();
 
 template<unsigned int N>
 static inline void pinMode(const array<Pad, N>& p, int mode) {
-	for(int i=0; i<N; i++)
+	for(int i=0; i<(int)N; i++)
 		pinMode(p[i], mode);
 }
 
@@ -1206,14 +1206,16 @@ extern "C" void __aeabi_atexit(void * arg , void (* func ) (void *)) {
 	// Leave this function empty. Program never exits.
 }*/
 
-extern "C" uintptr_t __stack_chk_guard = 0xdeadbeef;
-extern "C" void __cxa_pure_virtual() {
-	errorBlink(4);
-	while(1);
-}
-extern "C" void __stack_chk_fail() {
-	errorBlink(5);
-	while(1);
+extern "C" {
+	uintptr_t __stack_chk_guard = 0xdeadbeef;
+	void __cxa_pure_virtual() {
+		errorBlink(4);
+		while(1);
+	}
+	void __stack_chk_fail() {
+		errorBlink(5);
+		while(1);
+	}
 }
 
 
@@ -1355,6 +1357,7 @@ namespace UIActions {
 			case ST_CW: return frequency0;
 			}
 		}
+		return 0;
 	}
 	freqHz_t frequencyAt(int index) {
 		return vnaMeasurement.sweepStartHz + vnaMeasurement.sweepStepHz * index;
