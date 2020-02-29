@@ -175,6 +175,11 @@ struct alignas(4) properties_t {
   uint8_t _marker_smith_format;
 
   int32_t checksum;
+
+  // overwrite all fields of this instance with factory default values
+  void setFieldsToDefault();
+
+  properties_t() { setFieldsToDefault(); }
 };
 
 
