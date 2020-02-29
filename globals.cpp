@@ -22,30 +22,7 @@ config_t config = {
   .checksum =          0
 };
 
-properties_t current_props = {
-  /* magic */   CONFIG_MAGIC,
-  /* frequency0 */ 100000000, // start = 100MHz
-  /* frequency1 */ 900000000, // end = 900MHz
-  /* sweep_points */     101,
-  /* cal_status */         0,
-  /* cal_data */          {},
-  /* electrical_delay */   0,
-  /* trace[4] */
-  {/*enable, type, channel, polar, scale, refpos*/
-    { 1, TRC_LOGMAG, 0, 0, 1.0, 7.0 },
-    { 1, TRC_LOGMAG, 1, 0, 1.0, 7.0 },
-    { 1, TRC_SMITH,  0, 1, 1.0, 0.0 },
-    { 1, TRC_PHASE,  0, 0, 1.0, 4.0 }
-  },
-  /* markers[4] */ {
-    { 1, 30, 0 }, { 0, 40, 0 }, { 0, 60, 0 }, { 0, 80, 0 }
-  },
-  /* velocity_factor */   0.7,
-  /* active_marker */      0,
-  /* domain_mode */        0,
-  /* marker_smith_format */ MS_RLC,
-  /* checksum */           0
-};
+properties_t current_props;
 
 
 properties_t* active_props = &current_props;
