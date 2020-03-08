@@ -1207,15 +1207,20 @@ extern "C" void __aeabi_atexit(void * arg , void (* func ) (void *)) {
 }*/
 
 extern "C" {
+	__attribute__((used))
 	uintptr_t __stack_chk_guard = 0xdeadbeef;
+
+	__attribute__((used))
 	void __cxa_pure_virtual() {
 		errorBlink(4);
 		while(1);
 	}
+	__attribute__((used))
 	void __stack_chk_fail() {
 		errorBlink(5);
 		while(1);
 	}
+	__attribute__((used))
 	void _fini() {
 		errorBlink(6);
 		while(1);
