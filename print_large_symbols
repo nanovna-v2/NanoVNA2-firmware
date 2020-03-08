@@ -1,1 +1,26 @@
-arm-none-eabi-nm --print-size --size-sort -t d binary.elf
+#!/bin/bash
+
+# highlight flash symbols in green
+
+F="binary.elf"
+if [ "$1" != "" ]; then
+	F="$1"
+fi
+
+arm-none-eabi-nm --print-size --size-sort -t d "$F" | c++filt |
+	python /dev/fd/3 3<<EOF
+import sys
+flashSections = set(['T', 't', 'R', 'r'])
+try:
+	while True:
+		line = raw_input()
+		arr = line.split(' ')
+		prefix = ''
+		postfix = ''
+		if len(arr) > 3 and arr[2] in flashSections:
+			prefix = '\033[92m'
+			postfix = '\033[0m'
+		print prefix + line + postfix
+except EOFError: pass
+
+EOF
