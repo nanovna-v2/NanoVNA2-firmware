@@ -476,6 +476,10 @@ extern "C" void *memcpy(void *dest, const void *src, size_t n) {
 		((char*)dest)[i] = ((char*)src)[i];
 	return dest;
 }
+extern "C" void *memset(void *s, int c, size_t n) {
+	for(size_t i=0;i<n;i++)
+		((char*)s)[i] = c;
+}
 extern "C" int atoi(const char* s) {
 	// TODO: implement
 	return 0;
