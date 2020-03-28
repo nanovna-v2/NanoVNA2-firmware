@@ -30,8 +30,8 @@
 
 
 
-
-uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
+// aligned because we may do vector operations on the contents
+uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2] alignas(8);
 
 uint16_t* ili9341_spi_bufferA = ili9341_spi_buffers;
 uint16_t* ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_bufferSize];

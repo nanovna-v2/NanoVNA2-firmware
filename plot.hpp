@@ -2,15 +2,56 @@
 #include "common.hpp"
 #include <mculib/small_function.hpp>
 
-#define OFFSETX 15
-#define OFFSETY 0
-#define WIDTH 291
-#define HEIGHT 233
-#define TRACES_MAX 4
+
+// Offset of plot area
+#define OFFSETX 10
+#define OFFSETY  0
+
+#define WIDTH  300
+
+// HEIGHT = 8*GRIDY
+#define HEIGHT 232
+
+#define NGRIDY 8
+
+#define FREQUENCIES_XPOS1 OFFSETX
+#define FREQUENCIES_XPOS2 200
+#define FREQUENCIES_YPOS  (240-7)
+
+// GRIDX is calculated at runtime depending on frequency span
+#define GRIDY (HEIGHT / NGRIDY)
 
 
 #define CELLOFFSETX 5
-#define AREA_WIDTH_NORMAL (WIDTH + CELLOFFSETX*2)
+
+#define AREA_WIDTH_NORMAL  (CELLOFFSETX + WIDTH  + 1 + 4)
+#define AREA_HEIGHT_NORMAL (              HEIGHT + 1)
+
+
+// Smith/polar chart
+#define P_CENTER_X (CELLOFFSETX + WIDTH/2)
+#define P_CENTER_Y (HEIGHT/2)
+#define P_RADIUS   (HEIGHT/2)
+
+
+#define TRACES_MAX 4
+
+
+
+#define DEFAULT_FG_COLOR			RGB565(255,255,255)
+#define DEFAULT_BG_COLOR			RGB565(  0,  0,  0)
+#define DEFAULT_GRID_COLOR			RGB565(128,128,128)
+#define DEFAULT_MENU_COLOR			RGB565(255,255,255)
+#define DEFAULT_MENU_TEXT_COLOR		RGB565(  0,  0,  0)
+#define DEFAULT_MENU_ACTIVE_COLOR	RGB565(180,255,180)
+#define DEFAULT_TRACE_1_COLOR		RGB565(255,255,  0)
+#define DEFAULT_TRACE_2_COLOR		RGB565(  0,255,255)
+#define DEFAULT_TRACE_3_COLOR		RGB565(  0,255,  0)
+#define DEFAULT_TRACE_4_COLOR		RGB565(255,  0,255)
+#define DEFAULT_NORMAL_BAT_COLOR	RGB565( 31,227,  0)
+#define DEFAULT_LOW_BAT_COLOR		RGB565(255,  0,  0)
+#define	DEFAULT_SPEC_INPUT_COLOR	RGB565(128,255,128);
+
 
 extern int area_width;
 extern int area_height;
@@ -18,8 +59,6 @@ extern int area_height;
 // for debugging plots
 extern bool plot_checkerBoard; // draw a checkerboard pattern that indicates where the cells are
 extern bool plot_shadeCells; // shade all drawn cells from now on
-
-#define GRIDY 29
 
 // this function is called to determine frequency in hz at a marker point
 extern small_function<freqHz_t(int index)> plot_getFrequencyAt;

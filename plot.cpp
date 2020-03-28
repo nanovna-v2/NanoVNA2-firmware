@@ -24,16 +24,20 @@ void markmap_all_markers(void);
 
 uint16_t redraw_request = 0;
 
-/* indicate dirty cells */
+// indicate dirty cells (not redraw if cell data not changed)
+#define MAX_MARKMAP_X    ((320+CELLWIDTH-1)/CELLWIDTH)
+#define MAX_MARKMAP_Y    ((240+CELLHEIGHT-1)/CELLHEIGHT)
 uint16_t markmap[2][8];
 uint16_t current_mappage = 0;
+
+
 
 int32_t fgrid = 50000000;
 int16_t grid_offset;
 int16_t grid_width;
 
 int area_width = AREA_WIDTH_NORMAL;
-int area_height = HEIGHT;
+int area_height = AREA_HEIGHT_NORMAL;
 
 bool plot_canceled = false;
 
@@ -51,31 +55,24 @@ static inline freqHz_t freqAt(int i) {
 #define GRID_POLAR       (1<<3)
 
 
-#define CELLWIDTH 32
-#define CELLHEIGHT 32
+// Depends from ili9341_spi_buffer size, CELLWIDTH*CELLHEIGHT <= sizeof(ili9341_spi_buffer)
+#define CELLWIDTH  (32)
+#define CELLHEIGHT (32)
 
-/*
- * CELL_X0[27:31] cell position
- * CELL_Y0[22:26]
- * CELL_N[10:21] original order
- * CELL_X[5:9] position in the cell
- * CELL_Y[0:4]
- */
+// Trace data cache, for faster redraw cells
+//   CELL_X[16:31] x position
+//   CELL_Y[ 0:15] y position
 uint32_t trace_index[TRACES_MAX][SWEEP_POINTS_MAX];
 
-#define INDEX(x, y, n) \
-	((((x)&0x03e0UL)<<22) | (((y)&0x03e0UL)<<17) | (((n)&0x0fffUL)<<10)  \
- | (((x)&0x1fUL)<<5) | ((y)&0x1fUL))
+#define INDEX(x, y) ((((uint32_t)x)<<16)|(((uint32_t)y)))
+#define CELL_X(i)  (int)(((i)>>16))
+#define CELL_Y(i)  (int)(((i)&0xFFFF))
 
-#define CELL_X(i) (int)((((i)>>5)&0x1f) | (((i)>>22)&0x03e0))
-#define CELL_Y(i) (int)(((i)&0x1f) | (((i)>>17)&0x03e0))
-#define CELL_N(i) (int)(((i)>>10)&0xfff)
-
-#define CELL_X0(i) (int)(((i)>>22)&0x03e0)
-#define CELL_Y0(i) (int)(((i)>>17)&0x03e0)
-
-#define CELL_P(i, x, y) (((((x)&0x03e0UL)<<22) | (((y)&0x03e0UL)<<17)) == ((i)&0xffc00000UL))
-
+static int floatToInt(float v){
+  if (v < 0) return v-0.5;
+  if (v > 0) return v+0.5;
+    return 0;
+}
 
 void update_grid(void)
 {
@@ -104,8 +101,8 @@ void update_grid(void)
 	}
 	fgrid = grid;
 
-	grid_offset = (WIDTH-1) * ((fstart % fgrid) / 100) / (fspan / 100);
-	grid_width = (WIDTH-1) * (fgrid / 100) / (fspan / 1000);
+	grid_offset = (WIDTH) * ((fstart % fgrid) / 100) / (fspan / 100);
+	grid_width = (WIDTH) * (fgrid / 100) / (fspan / 1000);
 
 	force_set_markmap();
 	redraw_request |= REDRAW_FREQUENCY;
@@ -115,17 +112,13 @@ static inline int
 circle_inout(int x, int y, int r)
 {
 	int d = x*x + y*y - r*r;
-	if (d <= -r)
+	if (d < -r)
 		return 1;
 	if (d > r)
 		return -1;
 	return 0;
 }
 
-
-#define P_CENTER_X 146
-#define P_CENTER_Y 116
-#define P_RADIUS 116
 
 static int
 polar_grid(int x, int y)
@@ -386,6 +379,7 @@ rectangular_grid(int x, int y)
 int
 rectangular_grid_x(int x, int bg = 0)
 {
+	x -= CELLOFFSETX;
 	int c = config.grid_color;
 	if (x < 0)
 		return bg;
@@ -498,13 +492,14 @@ groupdelay_from_array(int i, complexf array[SWEEP_POINTS_MAX])
 }
 
 uint32_t
-trace_into_index(int x, int t, int i, complexf array[SWEEP_POINTS_MAX])
+trace_into_index(int t, int i, complexf array[SWEEP_POINTS_MAX])
 {
-	int y = 0;
-	float v = 0;
+	int y = 0, x = 0;
 	float refpos = 8 - get_trace_refpos(t);
+	float v = refpos;
 	float scale = 1 / get_trace_scale(t);
 	complexf coeff = array[i];
+
 	switch (trace[t].type) {
 	case TRC_LOGMAG:
 		v = refpos - logmag(coeff) * scale;
@@ -537,13 +532,14 @@ trace_into_index(int x, int t, int i, complexf array[SWEEP_POINTS_MAX])
 	//case TRC_ADMIT:
 	case TRC_POLAR:
 		cartesian_scale(coeff.real(), coeff.imag(), &x, &y, scale);
-		return INDEX(x +CELLOFFSETX, y, i);
-		break;
+		return INDEX(x, y);
 	}
+
 	if (v < 0) v = 0;
-	if (v > 8) v = 8;
-	y = v * GRIDY;
-	return INDEX(x +CELLOFFSETX, y, i);
+	if (v > 10) v = 10;
+	x = (i * (WIDTH) + (sweep_points-1)/2) / (sweep_points-1) + CELLOFFSETX;
+	y = floatToInt(v * GRIDY);
+	return INDEX(x, y);
 }
 
 static int
@@ -601,9 +597,6 @@ string_value_with_prefix(char *buf, int len, float val, char unit)
 	return n;
 }
 
-
-#define PI2 6.283184
-
 static void
 format_smith_value(char *buf, int len, complexf coeff, freqHz_t frequency)
 {
@@ -646,10 +639,10 @@ format_smith_value(char *buf, int len, complexf coeff, freqHz_t frequency)
 		buf[n++] = ' ';
 
 		if (zi < 0) {
-			float c = -1 / (PI2 * frequency * zi);
+			float c = -1 / (2 * M_PI * frequency * zi);
 			string_value_with_prefix(buf+n, len-n, c, 'F');
 		} else {
-			float l = zi / (PI2 * frequency);
+			float l = zi / (2 * M_PI * frequency);
 			string_value_with_prefix(buf+n, len-n, l, 'H');
 		}
 		break;
@@ -819,7 +812,7 @@ static float distance_of_index(int idx) {
 void
 mark_map(int x, int y)
 {
-	if (y >= 0 && y < 8 && x >= 0 && x < 16)
+	if (y >= 0 && y < MAX_MARKMAP_Y && x >= 0 && x < MAX_MARKMAP_X)
 		markmap[current_mappage][y] |= 1<<x;
 }
 
@@ -830,16 +823,31 @@ is_mapmarked(int x, int y)
 	return (markmap[0][y] & bit) || (markmap[1][y] & bit);
 }
 
+
+void invalidateRect(int x0, int y0, int x1, int y1) {
+	x0 /= CELLWIDTH;
+	y0 /= CELLHEIGHT;
+
+	// round up
+	x1 = (x1 + CELLWIDTH - 1) / CELLWIDTH;
+	y1 = (y1 + CELLHEIGHT - 1) / CELLHEIGHT;
+
+	for (int y = y0; y <= y1; y++)
+		for (int x = x0; x <= x1; x++)
+			mark_map(x, y);
+}
+
 static inline void
 markmap_upperarea(void)
 {
-	markmap[current_mappage][0] |= 0xffff;
+	// Hardcoded, Text info from upper area
+	invalidateRect(0, 0, AREA_WIDTH_NORMAL, 31);
 }
 
 static inline void
 swap_markmap(void)
 {
-	current_mappage = 1 - current_mappage;
+	current_mappage = !current_mappage;
 }
 
 static inline void
@@ -868,8 +876,6 @@ void
 mark_cells_from_index(void)
 {
 	int t;
-	constexpr int cellW = 1 << 5;
-	constexpr int cellH = 1 << 5;
 
 	/* mark cells between each neighber points */
 	for (t = 0; t < TRACES_MAX; t++) {
@@ -877,15 +883,15 @@ mark_cells_from_index(void)
 			continue;
 		int x0 = CELL_X(trace_index[t][0]);
 		int y0 = CELL_Y(trace_index[t][0]);
-		int m0 = x0 >> 5;
-		int n0 = y0 >> 5;
+		int m0 = x0 / CELLWIDTH;
+		int n0 = y0 / CELLHEIGHT;
 		int i;
 		mark_map(m0, n0);
 		for (i = 1; i < sweep_points; i++) {
 			int x1 = CELL_X(trace_index[t][i]);
 			int y1 = CELL_Y(trace_index[t][i]);
-			int m1 = x1 >> 5;
-			int n1 = y1 >> 5;
+			int m1 = x1 / CELLWIDTH;
+			int n1 = y1 / CELLHEIGHT;
 			while (m0 != m1 || n0 != n1) {
 				if (m0 == m1) {
 					if (n0 < n1) n0++; else n0--;
@@ -899,10 +905,10 @@ mark_cells_from_index(void)
 					// cellX - 0.5, cellY - 0.5, and end at
 					// cellX + W - 0.5, cellY + H - 0.5
 					// scale everything by 2 and subtract 1.
-					int xLower = (m0 << 5) * 2 - 1;
-					int xUpper = ((m0+1) << 5) * 2 - 1;
-					int yLower = (n0 << 5) * 2 - 1;
-					int yUpper = ((n0+1) << 5) * 2 - 1;
+					int xLower = (m0 * CELLWIDTH) * 2 - 1;
+					int xUpper = ((m0+1) * CELLWIDTH) * 2 - 1;
+					int yLower = (n0 * CELLHEIGHT) * 2 - 1;
+					int yUpper = ((n0+1) * CELLHEIGHT) * 2 - 1;
 					int srcX = x0 * 2, srcY = y0 * 2;
 					int mOrig = m0, nOrig = n0;
 
@@ -945,25 +951,6 @@ mark_cells_from_index(void)
 	}
 }
 
-void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX])
-{
-	mark_cells_from_index();
-	int i, t;
-	for (i = 0; i < sweep_points; i++) {
-		int x = i * (WIDTH-1) / (sweep_points-1);
-		for (t = 0; t < TRACES_MAX; t++) {
-			if (!trace[t].enabled)
-				continue;
-			int n = trace[t].channel;
-			trace_index[t][i] = trace_into_index(x, t, i, measured[n]);
-		}
-	}
-
-	mark_cells_from_index();
-	markmap_all_markers();
-	redraw_request |= REDRAW_CELLS;
-}
-
 const uint8_t INSIDE = 0b0000;
 const uint8_t LEFT   = 0b0001;
 const uint8_t RIGHT  = 0b0010;
@@ -976,200 +963,221 @@ _compute_outcode(int w, int h, int x, int y)
 		uint8_t code = 0;
 		if (x < 0) {
 				code |= LEFT;
-		} else
-		if (x > w) {
+		} else if (x > w) {
 				code |= RIGHT;
 		}
 		if (y < 0) {
 				code |= BOTTOM;
-		} else
-		if (y > h) {
+		} else if (y > h) {
 				code |= TOP;
 		}
 		return code;
 }
 
-void
-cell_drawline(int w, int h, int x0, int y0, int x1, int y1, int c)
+void cell_drawline(int w, int h, int x0, int y0, int x1, int y1, int c)
 {
 	uint8_t outcode0 = _compute_outcode(w, h, x0, y0);
 	uint8_t outcode1 = _compute_outcode(w, h, x1, y1);
 
 	if (outcode0 & outcode1) {
-			// this line is out of requested area. early return
-			return;
-	}
-
-	if (x0 > x1) {
-		SWAP(x0, x1);
-		SWAP(y0, y1);
-	}
-
-	int dx = x1 - x0;
-	int dy = y1 - y0;
-	int sy = dy > 0 ? 1 : -1;
-	int e = 0;
-
-	dy *= sy;
-
-	if (dx >= dy) {
-			e = dy * 2 - dx;
-			while (x0 != x1) {
-					if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
-					x0++;
-					e += dy * 2;
-					if (e >= 0) {
-							e -= dx * 2;
-							y0 += sy;
-					}
-			}
-			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
-	} else {
-			e = dx * 2 - dy;
-			while (y0 != y1) {
-					if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
-					y0 += sy;
-					e += dx * 2;
-					if (e >= 0) {
-							e -= dy * 2;
-							x0++;
-					}
-			}
-			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)  ili9341_spi_buffer[y0*w+x0] |= c;
-	}
-}
-
-int
-search_index_range(int x, int y, uint32_t* index, int *i0, int *i1)
-{
-	int i, j;
-	int head = 0;
-	int tail = sweep_points;
-	i = 0;
-	x &= 0x03e0;
-	y &= 0x03e0;
-	while (head < tail) {
-		i = (head + tail) / 2;
-		if (x < CELL_X0(index[i]))
-			tail = i+1;
-		else if (x > CELL_X0(index[i]))
-			head = i;
-		else if (y < CELL_Y0(index[i]))
-			tail = i+1;
-		else if (y > CELL_Y0(index[i]))
-			head = i;
-		else
-			break;
-	}
-
-	if (x != CELL_X0(index[i]) || y != CELL_Y0(index[i]))
-		return FALSE;
-		
-	j = i;
-	while (j > 0 && x == CELL_X0(index[j-1]) && y == CELL_Y0(index[j-1]))
-		j--;
-	*i0 = j;
-	j = i;
-	while (j < (sweep_points - 1) && x == CELL_X0(index[j+1]) && y == CELL_Y0(index[j+1]))
-		j++;
-	*i1 = j;
-	return TRUE;
-}
-
-int
-search_index_range_x(int x, uint32_t* index, int *i0, int *i1)
-{
-	int i, j;
-	int head = 0;
-	int tail = sweep_points;
-	x &= 0x03e0;
-	i = 0;
-	while (head < tail) {
-		i = (head + tail) / 2;
-		if (x == CELL_X0(index[i]))
-			break;
-		else if (x < CELL_X0(index[i])) {
-			if (tail == i+1)
-				break;
-			tail = i+1;      
-		} else {
-			if (head == i)
-				break;
-			head = i;
-		}
-	}
-
-	if (x != CELL_X0(index[i]))
-		return FALSE;
-
-	j = i;
-	while (j > 0 && x == CELL_X0(index[j-1]))
-		j--;
-	*i0 = j;
-	j = i;
-	while (j < (sweep_points - 1) && x == CELL_X0(index[j+1]))
-		j++;
-	*i1 = j;
-	return TRUE;
-}
-
-void
-draw_refpos(int w, int h, int x, int y, int c)
-{
-	// draw triangle
-	int i, j;
-	if (y < -3 || y > 32 + 3)
+		// this line is out of requested area. early return
 		return;
-	for (j = 0; j < 3; j++) {
-		int j0 = 6 - j*2;
-		for (i = 0; i < j0; i++) {
-			int x0 = x + i-5;
-			int y0 = y - j;
-			int y1 = y + j;
-			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)
-				ili9341_spi_buffer[y0*w+x0] = c;
-			if (j != 0 && y1 >= 0 && y1 < h && x0 >= 0 && x0 < w)
-				ili9341_spi_buffer[y1*w+x0] = c;
+	}
+
+	// If outcode1 == 0  && outcode2 == 0, no clipping, not need check
+	//outcode1+=outcode2;
+	// modifed Bresenham's line algorithm, see https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+	int dx = x1 - x0, sx = 1; if (dx < 0) {dx = -dx; sx = -1;}
+	int dy = y1 - y0, sy = 1; if (dy < 0) {dy = -dy; sy = -1;}
+	int err = (dx > dy ? dx : -dy) / 2;
+
+	while(true) {
+		if ((y0 >= 0 && y0 < h && x0 >= 0 && x0 < w))
+			ili9341_spi_buffer[y0*w + x0] |= c;
+
+		if (x0 == x1 && y0 == y1)
+			break;
+
+		int e2 = err;
+		if (e2 > -dx) { err -= dy; x0 += sx; }
+		if (e2 <  dy) { err += dx; y0 += sy; }
+	}
+}
+
+
+int
+search_index_range_x(int x1, int x2, uint32_t* index, int *i0, int *i1)
+{
+	int i, j;
+	int head = 0;
+	int tail = sweep_points;
+	int idx_x;
+
+	// Search index point in cell
+	while (1) {
+		i = (head + tail) / 2;
+		idx_x = CELL_X(index[i]);
+		if (idx_x >= x2) { // index after cell
+			if (tail == i)
+				return false;
+			tail = i;
+		} else if (idx_x < x1) {    // index before cell
+			if (head == i)
+				return false;
+			head = i;
+		} else {
+			break;
+		}
+	}
+
+	j = i;
+
+	// Search index left from point
+	do {
+		j--;
+	} while (j > 0 && x1 <= CELL_X(index[j]));
+	*i0 = j;
+
+	// Search index right from point
+	do {
+		i++;
+	} while (i < sweep_points-1 && CELL_X(index[i]) < x2);
+	*i1 = i;
+	return TRUE;
+}
+
+#define REFERENCE_WIDTH    5
+#define REFERENCE_HEIGHT   5
+#define REFERENCE_X_OFFSET 5
+#define REFERENCE_Y_OFFSET 2
+
+// Reference bitmap
+static const uint8_t reference_bitmap[] = {
+	0b11000000,
+	0b11110000,
+	0b11111100,
+	0b11110000,
+	0b11000000,
+};
+
+void draw_refpos(int w, int h, int x, int y, int c)
+{
+	int y0=y, j;
+	for (j=0; j<REFERENCE_HEIGHT; j++, y0++) {
+		if (y0 < 0 || y0 >= h)
+			continue;
+		int x0=x;
+		uint8_t bits = reference_bitmap[j];
+		while (bits) {
+			if (x0 >= 0 && x0 < w)
+				ili9341_spi_buffer[y0*w+x0] = (bits&0x80) ? c : DEFAULT_BG_COLOR;
+			x0++;
+			bits<<=1;
 		}
 	}
 }
 
 
-void
-cell_draw_refpos(int m, int n, int w, int h)
+
+#define MARKER_WIDTH  7
+#define MARKER_HEIGHT 10
+#define X_MARKER_OFFSET 3
+#define Y_MARKER_OFFSET 10
+
+static const uint8_t marker_bitmap[] = {
+	// Marker 1
+	0b11111110,
+	0b11101110,
+	0b11001110,
+	0b11101110,
+	0b11101110,
+	0b11101110,
+	0b11000110,
+	0b01111100,
+	0b00111000,
+	0b00010000,
+	// Marker 2
+	0b11111110,
+	0b11000110,
+	0b10111010,
+	0b11111010,
+	0b11000110,
+	0b10111110,
+	0b10000010,
+	0b01111100,
+	0b00111000,
+	0b00010000,
+	// Marker 3
+	0b11111110,
+	0b11000110,
+	0b10111010,
+	0b11100110,
+	0b11111010,
+	0b10111010,
+	0b11000110,
+	0b01111100,
+	0b00111000,
+	0b00010000,
+	// Marker 4
+	0b11111110,
+	0b11110110,
+	0b11100110,
+	0b11010110,
+	0b10110110,
+	0b10110110,
+	0b10000010,
+	0b01110100,
+	0b00111000,
+	0b00010000,
+};
+
+
+void markmap_marker(int marker)
 {
-	int x0 = m * CELLWIDTH;
-	int y0 = n * CELLHEIGHT;
 	int t;
+	if (!markers[marker].enabled)
+		return;
 	for (t = 0; t < TRACES_MAX; t++) {
 		if (!trace[t].enabled)
 			continue;
-		if (trace[t].type == TRC_SMITH || trace[t].type == TRC_POLAR)
-			continue;
-		int x = 0 - x0 +CELLOFFSETX;
-		int y = 8*GRIDY - (int)(get_trace_refpos(t) * GRIDY) - y0;
-		if (x > -5 && x < w && y >= -3 && y < h+3)
-			draw_refpos(w, h, x, y, config.trace_color[t]);
+		uint32_t index = trace_index[t][markers[marker].index];
+		int x = CELL_X(index) - X_MARKER_OFFSET;
+		int y = CELL_Y(index) - Y_MARKER_OFFSET;
+		invalidateRect(x, y, x+MARKER_WIDTH-1, y+MARKER_HEIGHT-1);
 	}
 }
 
-void
-draw_marker(int w, int h, int x, int y, int c, int ch)
+void markmap_all_markers(void)
 {
-	int i, j;
-	for (j = 10; j >= 0; j--) {
-		int j0 = j / 2;
-		for (i = -j0; i <= j0; i++) {
-			int x0 = x + i;
-			int y0 = y - j;
-			int cc = c;
-			if (j <= 9 && j > 2 && i >= -1 && i <= 3) {
-				uint16_t bits = x5x7_bits[(ch * 7) + (9-j)];
-				if (bits & (0x80>>(i+1)))
-					cc = 0;
+	int i;
+	for (i = 0; i < MARKERS_MAX; i++) {
+		if (!markers[i].enabled)
+			continue;
+		markmap_marker(i);
+	}
+	markmap_upperarea();
+}
+
+
+void draw_marker(int w, int h, int x, int y, int c, int ch)
+{
+	int y0 = y;
+	int j;
+	for (j=0; j<MARKER_HEIGHT; j++, y0++) {
+		int x0 = x;
+		uint8_t bits = marker_bitmap[ch*10+j];
+		bool force_color = false;
+		while (bits){
+			if (bits & 0x80)
+				force_color = true;
+			if (x0 >= 0 && x0 < w && y0 >= 0 && y0 < h){
+				if (bits & 0x80)
+					ili9341_spi_buffer[y0*w+x0] = c;
+				else if (force_color)
+					ili9341_spi_buffer[y0*w+x0] = DEFAULT_BG_COLOR;
 			}
-			if (y0 >= 0 && y0 < h && x0 >= 0 && x0 < w)
-				ili9341_spi_buffer[y0*w+x0] = cc;
+			x0++;
+			bits<<=1;
 		}
 	}
 }
@@ -1285,14 +1293,15 @@ search_nearest_index(int x, int y, int t)
 	int min_d = 1000;
 	int i;
 	for (i = 0; i < sweep_points; i++) {
-		int16_t dx = x - CELL_X(index[i]) - OFFSETX;
-		int16_t dy = y - CELL_Y(index[i]) - OFFSETY;
+		int16_t dx = x - CELL_X(index[i]);
+		int16_t dy = y - CELL_Y(index[i]);
 		if (dx < 0) dx = -dx;
 		if (dy < 0) dy = -dy;
 		if (dx > 20 || dy > 20)
 			continue;
 		int d = dx*dx + dy*dy;
 		if (d < min_d) {
+			min_d = d;
 			min_i = i;
 		}
 	}
@@ -1300,67 +1309,52 @@ search_nearest_index(int x, int y, int t)
 	return min_i;
 }
 
-void
-cell_draw_markers(int m, int n, int w, int h)
+void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX])
 {
-	int x0 = m * CELLWIDTH;
-	int y0 = n * CELLHEIGHT;
+	redraw_request |= REDRAW_CELLS;
 	int t, i;
-	for (i = 0; i < MARKERS_MAX; i++) {
-		if (!markers[i].enabled)
-			continue;
-		for (t = 0; t < TRACES_MAX; t++) {
-			if (!trace[t].enabled)
-				continue;
-			uint32_t index = trace_index[t][markers[i].index];
-			int x = CELL_X(index) - x0;
-			int y = CELL_Y(index) - y0;
-			if (x > -6 && x < w+6 && y >= 0 && y < h+12)
-				draw_marker(w, h, x, y, config.trace_color[t], '1' + i);
-		}
-	}
-}
-
-void
-markmap_marker(int marker)
-{
-	int t;
-	if (!markers[marker].enabled)
-		return;
 	for (t = 0; t < TRACES_MAX; t++) {
 		if (!trace[t].enabled)
 			continue;
-		uint32_t index = trace_index[t][markers[marker].index];
-		int x = CELL_X(index);
-		int y = CELL_Y(index);
-		int m = x>>5;
-		int n = y>>5;
-		mark_map(m, n);
-		if ((x&31) < 6)
-			mark_map(m-1, n);
-		if ((x&31) > 32-6)
-			mark_map(m+1, n);
-		if ((y&31) < 12) {
-			mark_map(m, n-1);
-			if ((x&31) < 6)
-				mark_map(m-1, n-1);
-			if ((x&31) > 32-6)
-				mark_map(m+1, n-1);
-		}
+		int ch = trace[t].channel;
+		for (i = 0; i < sweep_points; i++)
+			trace_index[t][i] = trace_into_index(t, i, measured[ch]);
 	}
+	mark_cells_from_index();
+	markmap_all_markers();
 }
 
-void
-markmap_all_markers(void)
-{
-	int i;
-	for (i = 0; i < MARKERS_MAX; i++) {
-		if (!markers[i].enabled)
-			continue;
-		markmap_marker(i);
-	}
-	markmap_upperarea();
+// copy one horizontal line of size w into buffer at line # dstLine
+void copyCellLine(uint16_t* buffer, uint16_t* srcLine, int w, int dstLine) {
+	/*uint32_t* dst = (uint32_t*) (buffer + dstLine*w);
+	int dstWords = w/2; // 2 pixels per word
+	for(int i=0; i<dstWords/4; i++) {
+		dst[0] = srcLine[0];
+		dst[1] = srcLine[1];
+		dst[2] = srcLine[2];
+		dst[3] = srcLine[3];
+		dst += 4;
+		srcLine += 4;
+	}*/
+	memcpy(buffer + dstLine*w, srcLine, w*2);
 }
+// set one horizontal line of size w to a color
+void setCellLine(uint16_t* buffer, uint16_t color, int w, int dstLine) {
+	/*uint32_t* dst = (uint32_t*) (buffer + dstLine*w);
+	int dstWords = w/2; // 2 pixels per word
+	uint32_t wordValue = (uint32_t(color) << 16) | uint32_t(color);
+	for(int i=0; i<dstWords/4; i++) {
+		dst[0] = wordValue;
+		dst[1] = wordValue;
+		dst[2] = wordValue;
+		dst[3] = wordValue;
+		dst += 4;
+	}*/
+	uint16_t* dst = buffer + dstLine*w;
+	for(int i=0; i<w; i++)
+		dst[i] = color;
+}
+
 bool plot_checkerBoard = false;
 bool plot_shadeCells = false;
 static void
@@ -1406,19 +1400,29 @@ draw_cell(int m, int n)
 	PULSE;
 	/* draw grid */
 	if (grid_mode & GRID_RECTANGULAR) {
+		// a line containing the pixels of all vertical lines
+		uint16_t hLine[w];
 		for (x = 0; x < w; x++) {
 			uint16_t c = rectangular_grid_x(x+x0off, bg);
-			for (y = 0; y < h; y++)
-				ili9341_spi_buffer[y * w + x] = c;
+			hLine[x] = c;
 		}
 		for (y = 0; y < h; y++) {
 			uint16_t c = rectangular_grid_y(y+y0, bg);
-			for (x = 0; x < w; x++)
+			if(c == bg)
+				copyCellLine(ili9341_spi_buffer, hLine, w, y);
+			else setCellLine(ili9341_spi_buffer, c, w, y);
+			/*for (x = 0; x < w; x++)
 				if (x+x0off >= 0 && x+x0off <= WIDTH)
-					ili9341_spi_buffer[y * w + x] |= c;
+					ili9341_spi_buffer[y * w + x] |= c;*/
 		}
+		/*for (x = 0; x < w; x++) {
+			uint16_t c = rectangular_grid_x(x+x0off, bg);
+			for (y = 0; y < h; y++)
+				ili9341_spi_buffer[y * w + x] = c;
+		}*/
+		
 	} else {
-		memset(ili9341_spi_buffer, 0, sizeof ili9341_spi_buffer);
+		memset(ili9341_spi_buffer, 0, ili9341_bufferSize * sizeof(*ili9341_spi_buffer));
 	}
 	if (grid_mode & (GRID_SMITH|GRID_ADMIT|GRID_POLAR)) {
 		for (y = 0; y < h; y++) {
@@ -1445,7 +1449,7 @@ draw_cell(int m, int n)
 		if (trace[t].type == TRC_SMITH || trace[t].type == TRC_POLAR)
 			continue;
 		
-		if (search_index_range_x(x0, trace_index[t], &i0, &i1)) {
+		if (search_index_range_x(x0, x0 + w, trace_index[t], &i0, &i1)) {
 			if (i0 > 0)
 				i0--;
 			if (i1 < current_props._sweep_points-1)
@@ -1484,15 +1488,41 @@ draw_cell(int m, int n)
 	}
 #endif
 
-	PULSE;
-	//draw marker symbols on each trace
-	cell_draw_markers(m, n, w, h);
-	// draw trace and marker info on the top
-	cell_draw_marker_info(m, n, w, h);
+	for (i = 0; i < MARKERS_MAX; i++) {
+		if (!markers[i].enabled)
+			continue;
+		for (t = 0; t < TRACES_MAX; t++) {
+			if (!trace[t].enabled)
+				continue;
+			uint32_t index = trace_index[t][markers[i].index];
+			int x = CELL_X(index) - x0 - X_MARKER_OFFSET;
+			int y = CELL_Y(index) - y0 - Y_MARKER_OFFSET;
+			// Check marker icon on cell
+			if (x+MARKER_WIDTH>=0 && x-MARKER_WIDTH<CELLWIDTH && y+MARKER_HEIGHT>=0 && y-MARKER_HEIGHT<CELLHEIGHT)
+				draw_marker(w, h, x, y, config.trace_color[t], i);
+		}
+	}
+
+	// Draw trace and marker info on the top
+	if (n == 0)
+		cell_draw_marker_info(m, n, w, h);
+
 	PULSE;
 
-	if (m == 0)
-		cell_draw_refpos(m, n, w, h);
+	// Draw refrence position
+	for (t = 0; t < TRACES_MAX; t++) {
+		if (!trace[t].enabled)
+			continue;
+		uint32_t trace_type = (1<<trace[t].type);
+		if (trace_type & ((1<<TRC_SMITH)|(1<<TRC_POLAR)))
+			continue;
+		int x = 0 - x0 + CELLOFFSETX - REFERENCE_X_OFFSET;
+		if (x+REFERENCE_WIDTH>=0 && x-REFERENCE_WIDTH<w){
+			int y = 10*GRIDY - floatToInt((get_trace_refpos(t) * GRIDY)) - y0 - REFERENCE_Y_OFFSET;
+			if (y+REFERENCE_HEIGHT>=0 && y-REFERENCE_HEIGHT<h)
+				draw_refpos(w, h, x, y, config.trace_color[t]);
+		}
+	}
 
 	ili9341_bulk(OFFSETX + x0off, OFFSETY + y0, w, h);
 }
@@ -1632,7 +1662,7 @@ cell_draw_marker_info(int m, int n, int w, int h)
 				continue;
 			int xpos = 1 + (j%2)*146;
 			int ypos = 1 + (j/2)*7;
-			xpos -= m * CELLWIDTH -CELLOFFSETX;
+			xpos -= m * CELLWIDTH - CELLOFFSETX;
 			ypos -= n * CELLHEIGHT;
 			strcpy(buf, "MK1");
 			buf[2] += mk;
