@@ -1418,7 +1418,7 @@ draw_cell(int m, int n)
 					ili9341_spi_buffer[y * w + x] |= c;
 		}
 	} else {
-		memset(ili9341_spi_buffer, 0, sizeof ili9341_spi_buffer);
+		memset(ili9341_spi_buffer, 0, ili9341_bufferSize * sizeof(*ili9341_spi_buffer));
 	}
 	if (grid_mode & (GRID_SMITH|GRID_ADMIT|GRID_POLAR)) {
 		for (y = 0; y < h; y++) {
