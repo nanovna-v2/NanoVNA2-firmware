@@ -48,7 +48,7 @@ typedef int64_t freqHz_t;
 #define USB_POINTS_MAX 1024
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
-#define FFT_SIZE 256
+#define FFT_SIZE 512
 #define ECAL_PARTIAL
 
 #ifdef ECAL_PARTIAL

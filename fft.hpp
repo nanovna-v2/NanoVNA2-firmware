@@ -32,12 +32,12 @@
  * dir = forward: 0, inverse: 1
  * https://www.nayuki.io/res/free-small-fft-in-multiple-languages/fft.c
  */
-void fft256(float array[][2], const uint8_t dir);
+void fft512(float array[][2], const uint8_t dir);
 
-static inline void fft256_forward(float array[][2]) {
-	fft256(array, 0);
+static inline void fft512_forward(float array[][2]) {
+	fft512(array, 0);
 }
 
-static inline void fft256_inverse(float array[][2]) {
-	fft256(array, 1);
+static inline void fft512_inverse(float array[][2]) {
+	fft512(array, 1);
 }

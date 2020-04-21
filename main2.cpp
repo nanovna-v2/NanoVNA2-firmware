@@ -832,9 +832,10 @@ void transform_domain() {
 
 	// lowpass uses 2x sweep_points of input buffer space
 	static_assert((sizeof(measuredFreqDomain[0]) * 2) <= sizeof(ili9341_spi_buffers));
+	static_assert(FFT_SIZE*sizeof(float)*2 <= sizeof(ili9341_spi_buffers));
 
 	int points = current_props._sweep_points;
-	uint8_t window_size = current_props._sweep_points, offset = 0;
+	int window_size = current_props._sweep_points, offset = 0;
 	bool is_lowpass = false;
 	switch (domain_mode & TD_FUNC) {
 		case TD_FUNC_BANDPASS:
@@ -881,7 +882,7 @@ void transform_domain() {
 			}
 		}
 
-		fft256_inverse((float(*)[2])tmp);
+		fft512_inverse((float(*)[2])tmp);
 		memcpy(measured[ch], tmp, sizeof(measured[0]));
 		for (int i = 0; i < points; i++) {
 			measured[ch][i] /= (float)FFT_SIZE;
