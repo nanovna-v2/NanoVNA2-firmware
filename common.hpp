@@ -33,6 +33,7 @@ typedef int64_t freqHz_t;
 
 #define VERSION "git"
 #define FIRMWARE_MAJOR_VERSION 1
+#define FIRMWARE_MINOR_VERSION 1
 #define CH_KERNEL_VERSION "None"
 #define PORT_COMPILER_NAME "gcc"
 #define PORT_ARCHITECTURE_NAME "arm"
