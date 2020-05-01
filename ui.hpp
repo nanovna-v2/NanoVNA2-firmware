@@ -9,6 +9,7 @@ void ui_process(UIHW::UIEvent evt);
 
 
 #define TOUCH_THRESHOLD 2000
+#define NUMERIC_INPUT_DIGITS 10
 
 void touch_cal_exec(void);
 void touch_draw_test(void);

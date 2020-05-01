@@ -1321,8 +1321,8 @@ draw_numeric_input(const char *buf)
   int i = 0;
   int x = 64;
   int focused = FALSE;
-  const uint16_t xsim[] = { 0, 0, 8, 0, 0, 8, 0, 0, 0, 0 };
-  for (i = 0; i < 10 && buf[i]; i++) {
+  const uint16_t xsim[] = { 8, 0, 0, 8, 0, 0, 8, 0, 0, 0, 0 };
+  for (i = 0; i < (NUMERIC_INPUT_DIGITS + 1) && buf[i]; i++) {
     uint16_t fg = 0x0000;
     uint16_t bg = 0xffff;
     int c = buf[i];
@@ -1335,7 +1335,7 @@ draw_numeric_input(const char *buf)
     else
       c = -1;
 
-    if (uistat.digit == 8-i) {
+    if (uistat.digit == NUMERIC_INPUT_DIGITS-i-1) {
       fg = RGB565(128,255,128);
       focused = TRUE;
       if (uistat.digit_mode)
@@ -1355,8 +1355,8 @@ draw_numeric_input(const char *buf)
       x += xsim[i];
     }
   }
-  if (i < 10) {
-      ili9341_fill(x, 208+4, 20*(10-i), 24, 0xffff);
+  if (i <= NUMERIC_INPUT_DIGITS) {
+      ili9341_fill(x, 208+4, 20*(NUMERIC_INPUT_DIGITS+1-i), 24, 0xffff);
   }
 }
 
@@ -1629,8 +1629,13 @@ void set_numeric_value(void)
 void
 draw_numeric_area(void)
 {
-  char buf[10];
-  chsnprintf(buf, sizeof buf, "%9ld", uistat.value);
+  char buf[NUMERIC_INPUT_DIGITS+1];
+
+  // if NUMERIC_INPUT_DIGITS is changed, the below format string
+  // must be changed as well.
+  static_assert(NUMERIC_INPUT_DIGITS == 10);
+  chsnprintf(buf, sizeof buf, "%10ld", uistat.value);
+
   draw_numeric_input(buf);
 }
 
