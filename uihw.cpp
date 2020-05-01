@@ -45,31 +45,38 @@ namespace UIHW {
 			if(buttonDebouncer[i].checkChanged()) {
 				evt.type = (buttonDebouncer[i].state == board::LEVER_POLARITY) ? UIEventTypes::Down : UIEventTypes::Up;
 				emitEvent(evt);
-				if(evt.type == UIEventTypes::Up) {
+				// only emit the click event if we haven't entered tick or long-press
+				if(evt.type == UIEventTypes::Up && tickCounter[i] >= 0) {
 					evt.type = UIEventTypes::Click;
 					emitEvent(evt);
 				}
 			}
-			// ticks are only generated on lever left and right
-			if(i == 0 || i == 2) {
-				if(buttonDebouncer[i].state == board::LEVER_POLARITY) {
-					// button is depressed
-					if(tickCounter[i] < 0) {
-						// tick has started
+			if(buttonDebouncer[i].state == board::LEVER_POLARITY) {
+				// button is depressed
+				if(tickCounter[i] < 0) {
+					// tick has started
+					// ticks are only generated on lever left and right
+					if(i == 0 || i == 2) {
 						tickCounter[i]--;
 						if(tickCounter[i] <= -tickInterval) {
 							evt.type = UIEventTypes::Tick;
 							emitEvent(evt);
 							tickCounter[i] = -1;
 						}
-					} else {
-						tickCounter[i]++;
-						if(tickCounter[i] >= tickDelay)
-							tickCounter[i] = -1;
+					}
+					// lever center generates longpress events
+					if(i == 1 && tickCounter[i] == -1) {
+						evt.type = UIEventTypes::LongPress;
+						emitEvent(evt);
+						tickCounter[i] = -2;
 					}
 				} else {
-					tickCounter[i] = 0;
+					tickCounter[i]++;
+					if(tickCounter[i] >= tickDelay)
+						tickCounter[i] = -1;
 				}
+			} else {
+				tickCounter[i] = 0;
 			}
 		}
 	}
