@@ -47,7 +47,7 @@ using namespace UIActions;
 int8_t previous_marker = -1;
 
 enum {
-  UI_NORMAL, UI_MENU, UI_NUMERIC, UI_KEYPAD
+  UI_NORMAL, UI_MENU, UI_NUMERIC, UI_KEYPAD, UI_USB_MODE
 };
 
 enum {
@@ -82,7 +82,6 @@ int8_t kp_index = 0;
 bool uiEventsEnabled = true;
 UIEvent lastUIEvent = {};
 
-void ui_mode_normal(void);
 void ui_mode_menu(void);
 void ui_mode_numeric(int _keypad_mode);
 void ui_mode_keypad(int _keypad_mode);
@@ -301,9 +300,7 @@ show_dmesg(void)
 }
 
 
-void
-show_usb_data_mode(void)
-{
+void ui_mode_usb(void) {
   int x = 5, y = 5;
 
   ili9341_fill(0, 0, 320, 240, 0);
@@ -312,6 +309,7 @@ show_usb_data_mode(void)
   y += 50;
 
   ili9341_drawstring_size("USB MODE", x, y, 0xffff, 0x0000, 4);
+  ui_mode = UI_USB_MODE;
 }
 
 
@@ -1834,7 +1832,7 @@ ui_process_normal(UIEvent evt)
 static void
 ui_process_menu(UIEvent evt)
 {
-  if (evt.isLeverClick()) {
+  if (evt.isLeverClick() || evt.isLeverLongPress()) {
     if(selection < 0)
       goto menuclose;
     menu_invoke(evt, selection);
@@ -2197,6 +2195,14 @@ touch_pickup_marker(void)
 void
 ui_process(UIEvent evt)
 {
+  // if the display is flipped, flip jog left/right too
+  if(config.ui_options & UI_OPTIONS_FLIP) {
+    if(evt.button == UIEventButtons::LeverLeft)
+      evt.button = UIEventButtons::LeverRight;
+    else if(evt.button == UIEventButtons::LeverRight)
+      evt.button = UIEventButtons::LeverLeft;
+  }
+
   if(uiEventsEnabled)
     lastUIEvent = {};
   else {
@@ -2222,29 +2228,10 @@ ui_process(UIEvent evt)
   case UI_KEYPAD:
     ui_process_keypad(evt);
     break;
-  }
-}
-
-
-void
-ui_init()
-{
-  plot_getFrequencyAt = [](int index) {
-    return frequencyAt(index);
-  };
-  uiEnableProcessing();
-  UIHW::emitEvent = [](UIEvent evt) {
-    // if the display is flipped, flip jog left/right too
-    if(config.ui_options & UI_OPTIONS_FLIP) {
-      if(evt.button == UIEventButtons::LeverLeft)
-        evt.button = UIEventButtons::LeverRight;
-      else if(evt.button == UIEventButtons::LeverRight)
-        evt.button = UIEventButtons::LeverLeft;
+  case UI_USB_MODE:
+    if(evt.isLeverLongPress()) {
+      UIActions::reconnectUSB();
     }
-
-    // process the event on main thread; we are currently in interrupt context.
-    enqueueEvent([evt]() {
-      ui_process(evt);
-    });
-  };
+    break;
+  }
 }

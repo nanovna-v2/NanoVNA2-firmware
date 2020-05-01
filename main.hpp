@@ -44,6 +44,8 @@ namespace UIActions {
 
 	void enterDFU();
 
+	void reconnectUSB();
+
 	// process all outstanding events in the main event queue.
 	void application_doEvents();
 

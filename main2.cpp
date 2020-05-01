@@ -277,7 +277,7 @@ void adc_read(volatile uint16_t*& data, int& len) {
 }
 
 
-void lcd_setup() {
+void lcd_and_ui_setup() {
 	lcd_spi_init();
 
 	ili9341_conf_cs = ili9341_cs;
@@ -294,6 +294,9 @@ void lcd_setup() {
 	};
 
 	xpt2046.spiTransfer = [](uint32_t sdi, int bits) {
+		// a single SPI master is used for both the ILI9346 display and the
+		// touch controller; if an outstanding background DMA is in progress,
+		// we must wait for it to complete.
 		lcd_spi_waitDMA();
 		digitalWrite(ili9341_cs, HIGH);
 		
@@ -315,17 +318,39 @@ void lcd_setup() {
 	// clear screen
 	ili9341_fill(0, 0, 320, 240, 0);
 
-	plot_init();
-	ui_init();
+	// tell the plotting code how to calculate frequency in Hz given an index
+	plot_getFrequencyAt = [](int index) {
+		return frequencyAt(index);
+	};
+
+	// the plotter will periodically call this function when doing cpu-heavy work;
+	// use it to process outstanding UI events so that the UI isn't sluggish.
 	plot_tick = []() {
 		UIActions::application_doEvents();
 	};
+
+	plot_init();
+
+	// redraw all zones next time we draw
 	redraw_request |= 0xff;
+
+	// don't block events
+	uiEnableProcessing();
+
+	// when the UI hardware emits an event, forward it to the UI code
+	UIHW::emitEvent = [](UIEvent evt) {
+		// process the event on main thread; we are currently in interrupt context.
+		enqueueEvent([evt]() {
+			ui_process(evt);
+		});
+	};
 }
 
 void enterUSBDataMode() {
 	usbDataMode = true;
-	vnaMeasurement.nPeriods = 4;
+}
+void exitUSBDataMode() {
+	usbDataMode = false;
 }
 
 
@@ -385,6 +410,15 @@ complexf applyFixedCorrectionsThru(complexf thru, freqHz_t freq) {
 }
 
 
+bool serialSendTimeout(const char* s, int len, int timeoutMillis) {
+	for(int i = 0; i < timeoutMillis; i++) {
+		if(serial.trySend(s, len))
+			return true;
+		delay(1);
+	}
+	return false;
+}
+
 /*
 For a description of the command interface see command_parser.hpp
 -- register map:
@@ -408,7 +442,7 @@ For a description of the command interface see command_parser.hpp
 -- 21: sweepPoints[15..8]
 -- 22: valuesPerFrequency[7..0]
 -- 23: valuesPerFrequency[15..8]
--- 26: dataMode: 0 => normal, 1 => raw data
+-- 26: dataMode: 0 => VNA data, 1 => raw data, 2 => exit usb data mode
 -- 30: valuesFIFO - returns data points; elements are 32-byte. See below for data format.
 --                  command 0x14 reads FIFO data; writing any value clears FIFO.
 -- f0: device variant (01)
@@ -537,39 +571,46 @@ void cmdReadFIFO(int address, int nValues) {
 			checksum = (checksum xor ((checksum<<1) | 1)) xor txbuf[i];
 		txbuf[31] = checksum;
 
-		serial.print((char*)txbuf, sizeof(txbuf));
+		if(!serialSendTimeout((char*)txbuf, sizeof(txbuf), 1500)) {
+			return;
+		}
+
 		__sync_synchronize();
 		usbTxQueueRPos = (rdRPos + 1) & usbTxQueueMask;
 		i++;
 	}
 }
 
+// apply usb-configured sweep parameters
+void setVNASweepToUSB() {
+	int points = *(uint16_t*)(registers + 0x20);
+	int values = *(uint16_t*)(registers + 0x22);
+
+	if(points > USB_POINTS_MAX)
+		points = USB_POINTS_MAX;
+
+	vnaMeasurement.sweepStartHz = (freqHz_t)*(uint64_t*)(registers + 0x00);
+	vnaMeasurement.sweepStepHz = (freqHz_t)*(uint64_t*)(registers + 0x10);
+	vnaMeasurement.sweepDataPointsPerFreq = values;
+	vnaMeasurement.sweepPoints = points;
+	vnaMeasurement.resetSweep();
+}
 void cmdRegisterWrite(int address) {
 	if(!usbDataMode)
 		enterUSBDataMode();
-	if(address == 0x00) {
-		vnaMeasurement.sweepStartHz = (freqHz_t)*(uint64_t*)(registers + 0x00);
-		vnaMeasurement.resetSweep();
-	}
-	if(address == 0x10) {
-		vnaMeasurement.sweepStepHz = (freqHz_t)*(uint64_t*)(registers + 0x10);
-		vnaMeasurement.resetSweep();
-	}
-	if(address == 0x20) {
-		int points = *(uint16_t*)(registers + 0x20);
-		if(points > USB_POINTS_MAX)
-			points = USB_POINTS_MAX;
-		vnaMeasurement.sweepPoints = points;
-		vnaMeasurement.resetSweep();
-	}
-	if(address == 0x22) {
-		int values = *(uint16_t*)(registers + 0x22);
-		vnaMeasurement.sweepDataPointsPerFreq = values;
-		vnaMeasurement.resetSweep();
+	if(address == 0x00 || address == 0x10 || address == 0x20 || address == 0x22) {
+		setVNASweepToUSB();
 	}
 	if(address == 0x26) {
-		if(registers[0x26] != 0)
+		auto val = registers[0x26];
+		if(val == 0) {
+			outputRawSamples = false;
+		} else if(val == 1) {
 			outputRawSamples = true;
+		} else if(val == 2) {
+			outputRawSamples = false;
+			exitUSBDataMode();
+		}
 	}
 	if(address == 0x00 || address == 0x10 || address == 0x20) {
 		ecalState = ECAL_STATE_MEASURING;
@@ -591,7 +632,7 @@ void cmdInit() {
 		return cmdRegisterWrite(address);
 	};
 	cmdParser.send = [](const uint8_t* s, int len) {
-		return serial.print((char*) s, len);
+		serialSendTimeout((char*) s, len, 1500);
 	};
 	cmdParser.registers = registers;
 	cmdParser.registersSizeMask = registersSizeMask;
@@ -721,8 +762,8 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	}
 }
 
-
-void updateSweepParams() {
+// apply user-entered (on device) sweep parameters
+void setVNASweepToUI() {
 	freqHz_t start, stop;
 	if(current_props._frequency1 <= 0) {
 		// center/span mode
@@ -769,7 +810,7 @@ void measurement_setup() {
 		adf4350_freqStep = 12000;
 		vnaMeasurement.setCorrelationTable(sinROM25x2, 50);
 	}
-	updateSweepParams();
+	setVNASweepToUI();
 }
 
 void adc_process() {
@@ -1025,7 +1066,7 @@ int main(void) {
 	registers[0xf1 & registersSizeMask] = 1;	// protocol version
 	registers[0xf2 & registersSizeMask] = (uint8_t) BOARD_REVISION;
 	registers[0xf3 & registersSizeMask] = (uint8_t) FIRMWARE_MAJOR_VERSION;
-	registers[0xf4 & registersSizeMask] = 0;	// firmware minor version, TBD
+	registers[0xf4 & registersSizeMask] = (uint8_t) FIRMWARE_MINOR_VERSION;
 
 	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
@@ -1063,9 +1104,13 @@ int main(void) {
 
 	nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, 0xf0);
 
+	// set up lcd and hook up UI events
+	lcd_and_ui_setup();
 
-	lcd_setup();
+	// initialize UI hardware (buttons)
 	UIHW::init(tim2Period);
+
+	// this timer is used by UI hardware to perform button ticks
 	ui_timer_setup();
 
 	// work around spurious ui events at startup
@@ -1099,6 +1144,7 @@ int main(void) {
 
 	setFrequency(56000000);
 
+	// initialize VNAMeasurement
 	measurement_setup();
 	adc_setup();
 	dsp_timer_setup();
@@ -1131,14 +1177,34 @@ int main(void) {
 		if(usbDataMode) {
 			if(outputRawSamples)
 				usb_transmit_rawSamples();
+
 			// display "usb mode" screen
 			if(!lastUSBDataMode) {
-				show_usb_data_mode();
+				ui_mode_usb();
+				setVNASweepToUSB();
 			}
 			lastUSBDataMode = usbDataMode;
+			
+			// process ui events, but skip processing data points
+			UIActions::application_doSingleEvent();
 			continue;
+		} else {
+			if(lastUSBDataMode) {
+				// exiting usb data mode
+				ui_mode_normal();
+				redraw_frame();
+				request_to_redraw_grid();
+				setVNASweepToUI();
+			}
 		}
 		lastUSBDataMode = usbDataMode;
+
+		// read data points from the values FIFO and plot them.
+		// there is only one values FIFO that is used in both USB mode
+		// and normal UI mode; therefore the execution should not reach here
+		// when we are in USB mode.
+		assert(!usbDataMode);
+
 		if(sweep_enabled) {
 			if(processDataPoint()) {
 				// a full sweep has completed
@@ -1335,7 +1401,7 @@ namespace UIActions {
 				break;
 			default: return;
 		}
-		updateSweepParams();
+		setVNASweepToUI();
 		current_props._cal_status = 0;
 		draw_cal_status();
 	}
@@ -1345,7 +1411,7 @@ namespace UIActions {
 		if(points > SWEEP_POINTS_MAX)
 			points = SWEEP_POINTS_MAX;
 		current_props._sweep_points = points;
-		updateSweepParams();
+		setVNASweepToUI();
 		current_props._cal_status = 0;
 		draw_cal_status();
 	}
@@ -1454,7 +1520,7 @@ namespace UIActions {
 	int caldata_recall(int id) {
 		int ret = flash_caldata_recall(id);
 		if(ret == 0)
-			updateSweepParams();
+			setVNASweepToUI();
 		return ret;
 	}
 
@@ -1483,6 +1549,10 @@ namespace UIActions {
 		// soft reset
 		SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 		while(true);
+	}
+
+	void reconnectUSB() {
+		exitUSBDataMode();
 	}
 
 	void application_doEvents() {

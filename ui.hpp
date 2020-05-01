@@ -4,8 +4,6 @@
 #include "uihw.hpp"
 
 
-void ui_init(void);
-
 // only process one event
 void ui_process(UIHW::UIEvent evt);
 
@@ -18,8 +16,9 @@ void touch_start_watchdog(void);
 bool touch_position(int *x, int *y);
 void ui_enter_dfu(void);
 
+void ui_mode_normal(void);
 void ui_mode_menu(void);
-void show_usb_data_mode(void);
+void ui_mode_usb(void);
 void draw_numeric_input(const char *buf);
 void draw_menu();
 
