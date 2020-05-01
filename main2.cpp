@@ -36,6 +36,7 @@
 #include "plot.hpp"
 #include "uihw.hpp"
 #include "ui.hpp"
+#include "uihw.hpp"
 #include "common.hpp"
 #include "globals.hpp"
 #include "synthesizers.hpp"
@@ -114,6 +115,9 @@ int collectMeasurementState = 0;
 small_function<void()> collectMeasurementCB;
 
 void adc_process();
+
+
+#define myassert(x) if(!(x)) do { errorBlink(3); } while(1)
 
 template<unsigned int N>
 static inline void pinMode(const array<Pad, N>& p, int mode) {
@@ -320,7 +324,7 @@ void lcd_and_ui_setup() {
 
 	// tell the plotting code how to calculate frequency in Hz given an index
 	plot_getFrequencyAt = [](int index) {
-		return frequencyAt(index);
+		return UIActions::frequencyAt(index);
 	};
 
 	// the plotter will periodically call this function when doing cpu-heavy work;
@@ -338,9 +342,9 @@ void lcd_and_ui_setup() {
 	uiEnableProcessing();
 
 	// when the UI hardware emits an event, forward it to the UI code
-	UIHW::emitEvent = [](UIEvent evt) {
+	UIHW::emitEvent = [](UIHW::UIEvent evt) {
 		// process the event on main thread; we are currently in interrupt context.
-		enqueueEvent([evt]() {
+		UIActions::enqueueEvent([evt]() {
 			ui_process(evt);
 		});
 	};
@@ -1203,7 +1207,7 @@ int main(void) {
 		// there is only one values FIFO that is used in both USB mode
 		// and normal UI mode; therefore the execution should not reach here
 		// when we are in USB mode.
-		assert(!usbDataMode);
+		myassert(!usbDataMode);
 
 		if(sweep_enabled) {
 			if(processDataPoint()) {
@@ -1290,6 +1294,12 @@ extern "C" {
 	__attribute__((used))
 	void _fini() {
 		errorBlink(6);
+		while(1);
+	}
+	__attribute__((used))
+	void __assert_fail(const char *__assertion, const char *__file,
+               unsigned int __line, const char *__function) {
+		errorBlink(3);
 		while(1);
 	}
 }
