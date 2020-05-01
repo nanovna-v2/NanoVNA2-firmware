@@ -7,6 +7,8 @@
 // only process one event
 void ui_process(UIHW::UIEvent evt);
 
+void uiEnableProcessing();
+void uiDisableProcessing();
 
 #define TOUCH_THRESHOLD 2000
 #define NUMERIC_INPUT_DIGITS 10
