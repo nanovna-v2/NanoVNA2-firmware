@@ -224,9 +224,37 @@ void adf4350_update(freqHz_t freqHz) {
 	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
 }
 
+// automatically set IF frequency depending on rf frequency and board parameters
+void updateIFrequency(freqHz_t txFreqHz) {
+	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
+	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
+		// 6.25/12.5kHz IF
+		if(txFreqHz >= 100000) {
+			lo_freq = 12500;
+			adf4350_freqStep = 12500;
+			vnaMeasurement.setCorrelationTable(sinROM24x2, 48);
+		} else {
+			lo_freq = 6250;
+			adf4350_freqStep = 6250;
+			vnaMeasurement.setCorrelationTable(sinROM48x1, 48);
+		}
+	} else {
+		// 6.0/12.0kHz IF
+		if(txFreqHz >= 100000) {
+			lo_freq = 12000;
+			adf4350_freqStep = 12000;
+			vnaMeasurement.setCorrelationTable(sinROM25x2, 50);
+		} else {
+			lo_freq = 6000;
+			adf4350_freqStep = 6000;
+			vnaMeasurement.setCorrelationTable(sinROM50x1, 50);
+		}
+	}
+}
 
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(freqHz_t freqHz) {
+	updateIFrequency(freqHz);
 	if(freqHz > 2500000000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
 	else if(freqHz > 140000000)
@@ -802,18 +830,6 @@ void measurement_setup() {
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 	vnaMeasurement.init();
 
-	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
-	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
-		// 12.5kHz IF
-		lo_freq = 12500;
-		adf4350_freqStep = 12500;
-		vnaMeasurement.setCorrelationTable(sinROM24x2, 48);
-	} else {
-		// 12.0kHz IF
-		lo_freq = 12000;
-		adf4350_freqStep = 12000;
-		vnaMeasurement.setCorrelationTable(sinROM25x2, 50);
-	}
 	setVNASweepToUI();
 }
 
