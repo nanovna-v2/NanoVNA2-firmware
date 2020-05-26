@@ -1137,6 +1137,10 @@ int main(void) {
 	while(eventQueue.readable())
 		eventQueue.dequeue();
 
+	flash_config_recall();
+	if(config.ui_options & UI_OPTIONS_FLIP)
+		ili9341_set_flip(true, true);
+
 	// show dmesg and wait for user input if there is an important error
 	if(shouldShowDmesg) {
 		printk1("Touch anywhere to continue...\n");
@@ -1146,11 +1150,7 @@ int main(void) {
 	printk("xtal freq %d.%03d MHz\n", (xtalFreqHz/1000000), ((xtalFreqHz/1000) % 1000));
 
 	//debug_plot_markmap();
-	flash_config_recall();
 	UIActions::printTouchCal();
-
-	if(config.ui_options & UI_OPTIONS_FLIP)
-		ili9341_set_flip(true, true);
 
 	si5351_i2c.init();
 	if(!synthesizers::si5351_setup()) {
