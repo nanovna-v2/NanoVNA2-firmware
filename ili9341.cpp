@@ -33,8 +33,8 @@
 
 uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
 
-uint16_t* ili9341_spi_bufferA = ili9341_spi_buffers;
-uint16_t* ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_bufferSize];
+static uint16_t* const ili9341_spi_bufferA = ili9341_spi_buffers;
+static uint16_t* const ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_bufferSize];
 
 uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 
@@ -43,11 +43,6 @@ Pad ili9341_conf_dc;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
 small_function<void()> ili9341_spi_wait_bulk;
-
-void ssp_wait(void)
-{
-}
-
 
 static inline void ssp_senddata(uint8_t x)
 {
@@ -64,11 +59,7 @@ static inline void ssp_senddata16(uint16_t x)
   ili9341_spi_transfer(x, 16);
 }
 
-uint32_t txdmamode;
-
-
-void
-send_command(uint8_t cmd, int len, const uint8_t *data)
+static void send_command(uint8_t cmd, int len, const uint8_t *data)
 {
 	CS_LOW;
 	DC_CMD;
@@ -82,20 +73,7 @@ send_command(uint8_t cmd, int len, const uint8_t *data)
 	//CS_HIGH;
 }
 
-void
-send_command16(uint8_t cmd, int data)
-{
-	CS_LOW;
-	DC_CMD;
-    delayMicroseconds(1);
-	ssp_senddata(cmd);
-	DC_DATA;
-    delayMicroseconds(1);
-	ssp_senddata16(byteReverse16(data));
-	CS_HIGH;
-}
-
-const uint8_t ili9341_init_seq[] = {
+static const uint8_t ili9341_init_seq[] = {
 		// cmd, len, data...,
 		// Power control B
 		0xCF, 3, 0x00, 0x83, 0x30,
@@ -435,7 +413,7 @@ ili9341_drawfont(uint8_t ch, const font_t *font, int x, int y, uint16_t fg, uint
 	ili9341_bulk(x, y, font->width, font->height);
 }
 
-#if 1
+#if 0
 const uint16_t colormap[] = {
   RGB565(255,0,0), RGB565(0,255,0), RGB565(0,0,255),
   RGB565(255,255,0), RGB565(0,255,255), RGB565(255,0,255)
