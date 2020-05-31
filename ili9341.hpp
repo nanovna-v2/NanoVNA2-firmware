@@ -48,7 +48,7 @@ void ili9341_test(int mode);
 void ili9341_bulk(int x, int y, int w, int h);
 void ili9341_set_flip(bool flipX, bool flipY);
 void ili9341_line(int, int, int, int, int);
-void ili9341_fill(int x, int y, int w, int h, int color);
+void ili9341_fill(int x, int y, int w, int h, uint16_t color);
 void ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg);
 void ili9341_drawstring_5x7_inv(const char *str, int x, int y, uint16_t fg, uint16_t bg, bool inv);
 void ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg);

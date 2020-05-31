@@ -65,32 +65,32 @@ using namespace board;
 // this can be any value since we are not using shared libraries.
 void* __dso_handle = (void*) &__dso_handle;
 
-bool outputRawSamples = false;
+static bool outputRawSamples = false;
 int cpu_mhz = 24;
 
 
-int lo_freq = 12000; // IF frequency, Hz
-int adf4350_freqStep = 12000; // adf4350 resolution, Hz
+static int lo_freq = 12000; // IF frequency, Hz
+static int adf4350_freqStep = 12000; // adf4350 resolution, Hz
 
-USBSerial serial;
+static USBSerial serial;
 
 static const int adcBufSize=1024;	// must be power of 2
-volatile uint16_t adcBuffer[adcBufSize];
+static volatile uint16_t adcBuffer[adcBufSize];
 
-VNAMeasurement vnaMeasurement;
-CommandParser cmdParser;
-StreamFIFO cmdInputFIFO;
-uint8_t cmdInputBuffer[128];
+static VNAMeasurement vnaMeasurement;
+static CommandParser cmdParser;
+static StreamFIFO cmdInputFIFO;
+static uint8_t cmdInputBuffer[128];
 
 
 struct usbDataPoint {
 	VNAObservation value;
 	int freqIndex;
 };
-usbDataPoint usbTxQueue[64];
-constexpr int usbTxQueueMask = 63;
-volatile int usbTxQueueWPos = 0;
-volatile int usbTxQueueRPos = 0;
+static usbDataPoint usbTxQueue[64];
+static constexpr int usbTxQueueMask = 63;
+static volatile int usbTxQueueWPos = 0;
+static volatile int usbTxQueueRPos = 0;
 
 // periods of a 1MHz clock; how often to call adc_process()
 static constexpr int tim1Period = 25;	// 1MHz / 25 = 40kHz
@@ -102,19 +102,19 @@ static constexpr int tim2Period = 250;	// 1MHz / 250 = 4kHz
 // value is in microseconds; increments at 40kHz by TIM1 interrupt
 volatile uint32_t systemTimeCounter = 0;
 
-FIFO<small_function<void()>, 8> eventQueue;
+static FIFO<small_function<void()>, 8> eventQueue;
 
-volatile bool usbDataMode = false;
+static volatile bool usbDataMode = false;
 
 // if nonzero, any ecal data in the next ecalIgnoreValues data points will be ignored.
 // this variable is decremented every time a data point arrives, if nonzero.
-volatile int ecalIgnoreValues = 0;
-volatile int collectMeasurementType = -1;
-int collectMeasurementOffset = -1;
-int collectMeasurementState = 0;
-small_function<void()> collectMeasurementCB;
+static volatile int ecalIgnoreValues = 0;
+static volatile int collectMeasurementType = -1;
+static int collectMeasurementOffset = -1;
+static int collectMeasurementState = 0;
+static small_function<void()> collectMeasurementCB;
 
-void adc_process();
+static void adc_process();
 
 
 #define myassert(x) if(!(x)) do { errorBlink(3); } while(1)
@@ -125,7 +125,7 @@ static inline void pinMode(const array<Pad, N>& p, int mode) {
 		pinMode(p[i], mode);
 }
 
-void errorBlink(int cnt) {
+static void errorBlink(int cnt) {
 	digitalWrite(led, HIGH);
 	while (1) {
 		for(int i=0;i<cnt;i++) {
@@ -139,7 +139,7 @@ void errorBlink(int cnt) {
 }
 
 // period is in units of us
-void startTimer(uint32_t timerDevice, int period) {
+static void startTimer(uint32_t timerDevice, int period) {
 	// set the timer to count one tick per us
 	timer_set_mode(timerDevice, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
 	timer_set_prescaler(timerDevice, cpu_mhz-1);
@@ -161,7 +161,7 @@ void startTimer(uint32_t timerDevice, int period) {
 	timer_set_counter(timerDevice, 0);
 	timer_enable_counter(timerDevice);
 }
-void ui_timer_setup() {
+static void ui_timer_setup() {
 	rcc_periph_clock_enable(RCC_TIM2);
 	rcc_periph_reset_pulse(RST_TIM2);
 	nvic_set_priority(NVIC_TIM2_IRQ, 0x80);
@@ -170,7 +170,7 @@ void ui_timer_setup() {
 }
 
 
-void dsp_timer_setup() {
+static void dsp_timer_setup() {
 	rcc_periph_clock_enable(RCC_TIM1);
 	rcc_periph_reset_pulse(RST_TIM1);
 	// set tim1 to highest priority
@@ -189,14 +189,14 @@ extern "C" void tim2_isr() {
 	UIHW::checkButtons();
 }
 
-int si5351_doUpdate(uint32_t freqHz) {
+static int si5351_doUpdate(uint32_t freqHz) {
 	// si5351 code seems to give high frequency errors when frequency
 	// isn't a multiple of 10Hz. TODO: investigate
 	freqHz = (freqHz/10) * 10;
 	return synthesizers::si5351_set(freqHz+lo_freq, freqHz);
 }
 
-int si5351_update(uint32_t freqHz) {
+static int si5351_update(uint32_t freqHz) {
 	static uint32_t prevFreq = 0;
 	int ret = si5351_doUpdate(freqHz);
 	if(freqHz < prevFreq)
@@ -207,7 +207,7 @@ int si5351_update(uint32_t freqHz) {
 
 
 
-void adf4350_setup() {
+static void adf4350_setup() {
 	adf4350_rx.N = 120;
 	adf4350_rx.rfPower = 0b00;
 	adf4350_rx.sendConfig();
@@ -218,14 +218,14 @@ void adf4350_setup() {
 	adf4350_tx.sendConfig();
 	adf4350_tx.sendN();
 }
-void adf4350_update(freqHz_t freqHz) {
+static void adf4350_update(freqHz_t freqHz) {
 	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
 	synthesizers::adf4350_set(adf4350_tx, freqHz, adf4350_freqStep);
 	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
 }
 
 // automatically set IF frequency depending on rf frequency and board parameters
-void updateIFrequency(freqHz_t txFreqHz) {
+static void updateIFrequency(freqHz_t txFreqHz) {
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -253,7 +253,7 @@ void updateIFrequency(freqHz_t txFreqHz) {
 }
 
 // set the measurement frequency including setting the tx and rx synthesizers
-void setFrequency(freqHz_t freqHz) {
+static void setFrequency(freqHz_t freqHz) {
 	updateIFrequency(freqHz);
 	if(freqHz > 2500000000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
@@ -281,8 +281,8 @@ void setFrequency(freqHz_t freqHz) {
 	}
 }
 
-void adc_setup() {
-	static uint8_t channel_array[16] = {adc_rxChannel};
+static void adc_setup() {
+	static uint8_t channel_array[1] = {adc_rxChannel};
 	dmaADC.buffer = adcBuffer;
 	dmaADC.bufferSizeBytes = sizeof(adcBuffer);
 	dmaADC.init(channel_array, 1);
@@ -292,7 +292,7 @@ void adc_setup() {
 }
 
 // read and consume data from the adc ring buffer
-void adc_read(volatile uint16_t*& data, int& len) {
+static void adc_read(volatile uint16_t*& data, int& len) {
 	static uint32_t lastIndex = 0;
 	uint32_t cIndex = dmaADC.position();
 	uint32_t bufWords = dmaADC.bufferSizeBytes / 2;
@@ -309,7 +309,7 @@ void adc_read(volatile uint16_t*& data, int& len) {
 }
 
 
-void lcd_and_ui_setup() {
+static void lcd_and_ui_setup() {
 	lcd_spi_init();
 
 	ili9341_conf_cs = ili9341_cs;
@@ -378,15 +378,15 @@ void lcd_and_ui_setup() {
 	};
 }
 
-void enterUSBDataMode() {
+static void enterUSBDataMode() {
 	usbDataMode = true;
 }
-void exitUSBDataMode() {
+static void exitUSBDataMode() {
 	usbDataMode = false;
 }
 
 
-complexf ecalApplyReflection(complexf refl, int freqIndex) {
+static complexf ecalApplyReflection(complexf refl, int freqIndex) {
 	#ifdef ECAL_PARTIAL
 		return refl - measuredEcal[0][freqIndex];
 	#else
@@ -399,7 +399,7 @@ complexf ecalApplyReflection(complexf refl, int freqIndex) {
 }
 
 
-complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
+static complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
 	// These corrections do not affect calibrated measurements
 	// and is only there to fix uglyness when uncalibrated and
 	// without full ecal.
@@ -432,7 +432,7 @@ complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
 	return refl;
 }
 
-complexf applyFixedCorrectionsThru(complexf thru, freqHz_t freq) {
+static complexf applyFixedCorrectionsThru(complexf thru, freqHz_t freq) {
 	float scale = 0.5;
 	if(freq > 1900000000) {
 		float x = float(freq - 1900000000) / (4400000000 - 1900000000);
@@ -523,13 +523,12 @@ For a description of the command interface see command_parser.hpp
 */
 
 
-void cmdReadFIFO(int address, int nValues);
-void cmdRegisterWrite(int address);
+static void cmdRegisterWrite(int address);
 
 //1425tX^^^^^^^^^^^^^^XXXXXXXXXXXXXXXXXXXXXXMMMMMM%Vc222$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$44443 \uuuuuuuuuuuuiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiyhz<ggggggggggggggggggggggggggggggggggg
 
 
-void cmdReadFIFO(int address, int nValues) {
+static void cmdReadFIFO(int address, int nValues) {
 	if(address != 0x30) return;
 	if(!usbDataMode)
 		enterUSBDataMode();
@@ -614,7 +613,7 @@ void cmdReadFIFO(int address, int nValues) {
 }
 
 // apply usb-configured sweep parameters
-void setVNASweepToUSB() {
+static void setVNASweepToUSB() {
 	int points = *(uint16_t*)(registers + 0x20);
 	int values = *(uint16_t*)(registers + 0x22);
 
@@ -627,7 +626,7 @@ void setVNASweepToUSB() {
 	vnaMeasurement.sweepPoints = points;
 	vnaMeasurement.resetSweep();
 }
-void cmdRegisterWrite(int address) {
+static void cmdRegisterWrite(int address) {
 	if(!usbDataMode)
 		enterUSBDataMode();
 	if(address == 0x00 || address == 0x10 || address == 0x20 || address == 0x22) {
@@ -655,7 +654,7 @@ void cmdRegisterWrite(int address) {
 }
 
 
-void cmdInit() {
+static void cmdInit() {
 	cmdParser.handleReadFIFO = [](int address, int nValues) {
 		return cmdReadFIFO(address, nValues);
 	};
@@ -677,7 +676,7 @@ void cmdInit() {
 }
 
 // callback called by VNAMeasurement to change rf switch positions.
-void measurementPhaseChanged(VNAMeasurementPhases ph) {
+static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -795,7 +794,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 }
 
 // apply user-entered (on device) sweep parameters
-void setVNASweepToUI() {
+static void setVNASweepToUI() {
 	freqHz_t start, stop;
 	if(current_props._frequency1 <= 0) {
 		// center/span mode
@@ -817,7 +816,7 @@ void setVNASweepToUI() {
 	update_grid();
 }
 
-void measurement_setup() {
+static void measurement_setup() {
 	vnaMeasurement.phaseChanged = [](VNAMeasurementPhases ph) {
 		measurementPhaseChanged(ph);
 	};
@@ -833,7 +832,7 @@ void measurement_setup() {
 	setVNASweepToUI();
 }
 
-void adc_process() {
+static void adc_process() {
 	if(!outputRawSamples) {
 		volatile uint16_t* buf;
 		int len;
@@ -845,7 +844,7 @@ void adc_process() {
 }
 
 static int cnt = 0;
-void usb_transmit_rawSamples() {
+static void usb_transmit_rawSamples() {
 	volatile uint16_t* buf;
 	int len;
 	adc_read(buf, len);
@@ -863,7 +862,7 @@ void usb_transmit_rawSamples() {
 	rfsw(RFSW_REFL, RFSW_REFL_ON);
 }
 
-float bessel0(float x) {
+static float bessel0(float x) {
 	const float eps = 0.0001;
 
 	float ret = 0;
@@ -879,13 +878,13 @@ float bessel0(float x) {
 	return ret;
 }
 
-float kaiser_window(float k, float n, float beta) {
+static float kaiser_window(float k, float n, float beta) {
 	if (beta == 0.0) return 1.0;
 	float r = (2 * k) / (n - 1) - 1;
 	return bessel0(beta * sqrt(1 - r * r)) / bessel0(beta);
 }
 
-void transform_domain() {
+static void transform_domain() {
 	if ((domain_mode & DOMAIN_MODE) != DOMAIN_TIME) return; // nothing to do for freq domain
 	// use spi_buffer as temporary buffer
 	// and calculate ifft for time domain
@@ -959,7 +958,7 @@ void transform_domain() {
 	}
 }
 
-void apply_edelay(int i, complexf& refl, complexf& thru) {
+static void apply_edelay(int i, complexf& refl, complexf& thru) {
 	float w = 2 * M_PI * electrical_delay * UIActions::frequencyAt(i) * 1E-12;
 	complexf s = polar(1.f, w);
 	refl *= s;
@@ -967,7 +966,7 @@ void apply_edelay(int i, complexf& refl, complexf& thru) {
 }
 
 // consume all items in the values fifo and update the "measured" array.
-bool processDataPoint() {
+static bool processDataPoint() {
 	int ret = -1;
 	int rdRPos = usbTxQueueRPos;
 	int rdWPos = usbTxQueueWPos;
@@ -1154,6 +1153,10 @@ int main(void) {
 	while(eventQueue.readable())
 		eventQueue.dequeue();
 
+	flash_config_recall();
+	if(config.ui_options & UI_OPTIONS_FLIP)
+		ili9341_set_flip(true, true);
+
 	// show dmesg and wait for user input if there is an important error
 	if(shouldShowDmesg) {
 		printk1("Touch anywhere to continue...\n");
@@ -1163,11 +1166,7 @@ int main(void) {
 	printk("xtal freq %d.%03d MHz\n", (xtalFreqHz/1000000), ((xtalFreqHz/1000) % 1000));
 
 	//debug_plot_markmap();
-	flash_config_recall();
 	UIActions::printTouchCal();
-
-	if(config.ui_options & UI_OPTIONS_FLIP)
-		ili9341_set_flip(true, true);
 
 	si5351_i2c.init();
 	if(!synthesizers::si5351_setup()) {
