@@ -1063,16 +1063,8 @@ bool cpu_enable_fpu(void)
 	if((SCB_CPACR & fpuEnable) != fpuEnable) {
 		SCB_CPACR |= fpuEnable;
 		if((SCB_CPACR & fpuEnable) != fpuEnable) {
-			// printk1() does not invoke printf() and does not use fpu
-
-			// if you encounter this error, see:
-			// https://www.amobbs.com/thread-5719892-1-1.html
-			printk1("FPU NOT DETECTED!\nCHECK GD32F303 BATCH OR REBUILD WITHOUT FPU\n");
 			return false;
-		} else {
-			printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
-			return true;
-		}
+		} 
 	}
 	return true;
 }
