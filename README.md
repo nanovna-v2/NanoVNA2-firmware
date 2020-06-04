@@ -58,8 +58,8 @@ Another option is using a debugger using the debug pins.
 ### Entering DFU mode
 ```
 Switch the device off
-Press the left button (the one closest to the Port 1 or the On/Off switch)
-Switch the device on (screen stays white)
+Press and hold down the left button (the one closest to the Port 1 or the On/Off switch)
+Switch the device on (screen stays white), release the button
 ```
 
 
@@ -67,7 +67,11 @@ The current user probably needs to be part of the dialout group to allow access.
 
 Flashing can be done by running:
 ```
-python dfu.py -F binary.bin
+python dfu.py -f binary.bin
+```
+On some systems you may need to invoke python3 instead:
+```
+python3 dfu.py -f binary.bin
 ```
 
 Note that depending on your installation the device might be seen as an Mobile Modem (3G/4G/etc) and it will not open the /dev/ttyACM0 port. 
