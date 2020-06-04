@@ -49,7 +49,7 @@ make
 
 ## Flashing the firmware
 There are two options to update the firmware when using the regular USB interface:
- - Use NanaVNAQT
+ - Use NanoVNA-QT
  - Command line
 For this to work the device must stay in the bootloader and enter _DFU mode_
 
