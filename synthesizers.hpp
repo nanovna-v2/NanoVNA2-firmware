@@ -38,10 +38,6 @@ namespace synthesizers {
 		uint64_t N = freqHz*O/freqStepHz;
 		uint32_t modulus = board::xtalFreqHz/R/freqStepHz;
 
-		if(board::xtalFreqHz > 32000000) {
-			modulus /= 2;
-			adf4350.refDiv2 = true;
-		}
 		adf4350.R = R;
 		adf4350.O = O;
 		adf4350.N = N / modulus;

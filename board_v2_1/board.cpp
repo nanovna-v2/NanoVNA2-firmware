@@ -27,7 +27,6 @@ namespace board {
 
 	// set by board_init()
 	uint32_t hseEstimateHz = 0;
-	uint32_t xtalFreqHz = 0;
 	uint32_t adc_ratecfg = 0;
 	uint32_t adc_srate = 0; // Hz
 	uint32_t adc_period_cycles, adc_clk;
@@ -86,12 +85,9 @@ namespace board {
 		RCC_CFGR2 = old2 | ((adcpre & 0b1000) << (29 - 3));
 	}
 
-	// mult:
-	// 2 => 48MHz in
-	// 3 => 32MHz in
-	// 4 => 24MHz in
-	// 5 => 19.2MHz in
-	void rcc_clock_setup_in_hse_out_96mhz(int mult) {
+	/* TODO this code is a copy of code in libopencm3. 
+	 * Should this move to libopencm3? */
+	void rcc_clock_setup_in_hse_24mhz_out_96mhz(void) {
 		 /* Enable internal high-speed oscillator. */
 		 rcc_osc_on(RCC_HSI);
 		 rcc_wait_for_osc_ready(RCC_HSI);
@@ -120,17 +116,9 @@ namespace board {
 		 flash_set_ws(FLASH_ACR_LATENCY_0WS);
 
 		 /*
-		  * Set the PLL multiplication factor.
+		  * Set the PLL multiplication factor. (x4) 24 * 4 = 96Mhz
 		  */
-		 uint32_t multValues[] = {
-			0,
-			0,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL2,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL3,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL4,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL5};
-
-		 rcc_set_pll_multiplication_factor(multValues[mult]);
+		 rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL4);
 
 		 /* Select HSE as PLL source. */
 		 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
@@ -152,9 +140,11 @@ namespace board {
 		 rcc_ahb_frequency = 96000000;
 		 rcc_apb1_frequency = 48000000;
 		 rcc_apb2_frequency = 96000000;
+
+		 cpu_mhz = 96;
 	}
 
-	void rcc_clock_setup_in_hse_out_120mhz(int mult) {
+	void rcc_clock_setup_in_hse_24mhz_out_120mhz(void) {
 		 /* Enable internal high-speed oscillator. */
 		 rcc_osc_on(RCC_HSI);
 		 rcc_wait_for_osc_ready(RCC_HSI);
@@ -183,17 +173,9 @@ namespace board {
 		 flash_set_ws(FLASH_ACR_LATENCY_0WS);
 
 		 /*
-		  * Set the PLL multiplication factor.
+		  * Set the PLL multiplication factor. (x5) 24 * 5 = 120Mhz
 		  */
-		 uint32_t multValues[] = {
-			0,
-			0,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL2,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL3,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL4,
-			RCC_CFGR_PLLMUL_PLL_CLK_MUL5};
-
-		 rcc_set_pll_multiplication_factor(multValues[mult]);
+		 rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL5);
 
 		 /* Select HSE as PLL source. */
 		 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
@@ -215,30 +197,24 @@ namespace board {
 		 rcc_ahb_frequency = 120000000;
 		 rcc_apb1_frequency = 60000000;
 		 rcc_apb2_frequency = 120000000;
+
+		 cpu_mhz = 120;
 	}
 
 	void boardInit() {
 		hseEstimateHz = detectHSEFreq();
-		int mult = 2;
-		if(hseEstimateHz < 21466200) {
-			mult = 5; xtalFreqHz = 19200000;
-		} else if(hseEstimateHz < 27712800) {
-			mult = 4; xtalFreqHz = 24000000;
-		} else if(hseEstimateHz < 35777000) {
-			mult = 3; xtalFreqHz = 32000000;
-		} else if(hseEstimateHz < 43817000) {
-			mult = 3; xtalFreqHz = 40000000;
-		} else {
-			mult = 2; xtalFreqHz = 48000000;
+		if(21466200 < hseEstimateHz && hseEstimateHz < 27712800)
+		{
+			/* 24Mhz HSE detected */
 		}
-		if(xtalFreqHz == 40000000) {
-			rcc_clock_setup_in_hse_out_120mhz(mult);
-			cpu_mhz = 120;
-		} else {
-			rcc_clock_setup_in_hse_out_96mhz(mult);
-			cpu_mhz = 96;
+		else {
+			/* Error HSE is at an unexpected frequency.
+			 * TODO how do we handle this? 
+			 * Is it worth to boot using internal 8 Mhz, and start display
+			 * to tell something is terribly wrong?
+			 */
 		}
-		//rcc_clock_setup_in_hsi_out_48mhz();
+		rcc_clock_setup_in_hse_24mhz_out_96mhz();
 
 		// enable basic peripherals
 		rcc_periph_clock_enable(RCC_GPIOA);
@@ -278,6 +254,8 @@ namespace board {
 	}
 
 
+	// returns an estimate of the HSE frequency in Hz.
+	// called by boardInit() to set hseEstimateHz.
 	uint32_t detectHSEFreq() {
 		cpu_mhz = 8;
 		rcc_osc_on(RCC_HSE);
