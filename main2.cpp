@@ -1073,7 +1073,7 @@ int main(void) {
 	bool shouldShowDmesg = false;
 
 #ifndef GD32F3_NOFPU
-	if(cpu_has_fpu()) {
+	if(cpu_enable_fpu()) {
 		printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
 	} else {
 		// printk1() does not invoke printf() and does not use fpu
