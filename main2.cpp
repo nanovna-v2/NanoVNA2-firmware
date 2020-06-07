@@ -66,7 +66,7 @@ using namespace board;
 void* __dso_handle = (void*) &__dso_handle;
 
 static bool outputRawSamples = false;
-int cpu_mhz = 24;
+int cpu_mhz = 8; /* The CPU boots on internal (HSI) 8Mhz */
 
 
 static int lo_freq = 12000; // IF frequency, Hz
