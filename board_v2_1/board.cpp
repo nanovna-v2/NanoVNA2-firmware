@@ -257,7 +257,6 @@ namespace board {
 	// returns an estimate of the HSE frequency in Hz.
 	// called by boardInit() to set hseEstimateHz.
 	uint32_t detectHSEFreq() {
-		cpu_mhz = 8;
 		rcc_osc_on(RCC_HSE);
 		rcc_osc_on(RCC_HSI);
 		rtc_auto_awake(RCC_HSE, 1 << 19);
