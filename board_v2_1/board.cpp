@@ -338,7 +338,7 @@ namespace board {
 		spi_enable(SPI1);
 	}
 	void lcd_spi_fast() {
-		spi_set_baudrate_prescaler(SPI1, 0b010);
+		spi_set_baudrate_prescaler(SPI1, 0b000);
 	}
 	void lcd_spi_slow() {
 		spi_set_baudrate_prescaler(SPI1, 0b110);
