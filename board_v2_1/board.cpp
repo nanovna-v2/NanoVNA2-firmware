@@ -77,7 +77,7 @@ namespace board {
 	constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV10 = 0b1010;
 	constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV20 = 0b1011;
 
-	void rcc_set_adcpre_gd32(uint32_t adcpre) {
+	static void rcc_set_adcpre_gd32(uint32_t adcpre) {
 		uint32_t RCC_CFGR_ADCPRE_MASK = (0b11 << 14) | (1 << 28);
 		uint32_t RCC_CFGR2_ADCPRE_MASK = 1 << 29;
 		uint32_t old = (RCC_CFGR & ~RCC_CFGR_ADCPRE_MASK);

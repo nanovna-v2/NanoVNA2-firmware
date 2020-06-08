@@ -219,6 +219,7 @@ void
 show_version(void)
 {
   int x = 5, y = 5;
+  const char *fpu;
   
   uiDisableProcessing();
   ili9341_fill(0, 0, 320, 240, 0);
@@ -240,6 +241,11 @@ show_version(void)
   ili9341_drawstring_5x7("Port Info: " PORT_INFO, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Platform: " PLATFORM_NAME, x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("Board: " BOARD_NAME, x, y += 10, 0xffff, 0x0000);
+  if(cpu_enable_fpu())
+	  fpu = "Has FPU: yes";
+  else
+	  fpu = "Has FPU: no";
+  ili9341_drawstring_5x7(fpu, x, y += 10, 0xffff, 0x0000);
 
   while (true) {
     UIEvent evt = uiWaitEvent();
