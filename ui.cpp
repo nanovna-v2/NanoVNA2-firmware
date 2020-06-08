@@ -130,10 +130,10 @@ touch_cal_exec(void)
   int status;
   uint16_t x1, x2, y1, y2;
   UIEvent evt;
-  
+
   uiDisableProcessing();
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_line(0, 0, 0, 32, 0xffff);
   ili9341_line(0, 0, 32, 0, 0xffff);
   ili9341_drawstring_5x7("TOUCH UPPER LEFT", 10, 10, 0xffff, 0x0000);
@@ -145,7 +145,7 @@ touch_cal_exec(void)
   } while(!evt.isTouchRelease());
 
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_line(320-1, 240-1, 320-1, 240-32, 0xffff);
   ili9341_line(320-1, 240-1, 320-32, 240-1, 0xffff);
   ili9341_drawstring_5x7("TOUCH LOWER RIGHT", 230, 220, 0xffff, 0x0000);
@@ -172,10 +172,10 @@ touch_draw_test(void)
   UIEvent evt;
   int x0, y0;
   int x1, y1;
-  
+
   uiDisableProcessing();
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_drawstring_5x7("TOUCH TEST: DRAG PANEL", OFFSETX, 233, 0xffff, 0x0000);
 
   do {
@@ -220,9 +220,9 @@ show_version(void)
 {
   int x = 5, y = 5;
   const char *fpu;
-  
+
   uiDisableProcessing();
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
 
   ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
   y += 25;
@@ -261,12 +261,12 @@ void
 show_dmesg(void)
 {
   int x = 5, y = 5;
-  
+
   uiDisableProcessing();
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
 
   int maxLines = 23;
-  
+
   const char* msg = dmesg();
   int len = strlen(msg);
   const char* end = msg + len;
@@ -309,7 +309,7 @@ show_dmesg(void)
 void ui_mode_usb(void) {
   int x = 5, y = 5;
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
 
   ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
   y += 50;
@@ -339,8 +339,8 @@ ui_enter_dfu(void)
 
   int x = 5, y = 5;
 
-  // leave a last message 
-  ili9341_fill(0, 0, 320, 240, 0);
+  // leave a last message
+  ili9341_clear_screen();
   ili9341_drawstring_5x7("DFU: Device Firmware Update Mode", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("To exit DFU mode, please reset device yourself.", x, y += 10, 0xffff, 0x0000);
 
@@ -348,7 +348,7 @@ ui_enter_dfu(void)
 }
 
 
-// type of menu item 
+// type of menu item
 enum {
   MT_NONE,
   MT_BLANK,
@@ -502,7 +502,7 @@ menu_save_cb(UIEvent evt, int item)
   }
 }
 
-static void 
+static void
 choose_active_trace(void)
 {
   int i;
@@ -676,14 +676,14 @@ menu_display_cb(UIEvent evt, int item)
       else ili9341_set_flip(false, false);
       redraw_request |= 0xff;
       force_set_markmap();
-      ili9341_fill(0, 0, 320, 240, 0);
+      ili9341_clear_screen();
       draw_all(true);
       draw_menu();
       plot_cancel();
   }
 }
 
-static void 
+static void
 choose_active_marker(void)
 {
   int i;
@@ -734,7 +734,7 @@ menu_stimulus_cb(UIEvent evt, int item)
   }
 }
 
-static void 
+static void
 menu_top_cb(UIEvent evt, int item)
 {
   switch (item) {
@@ -775,7 +775,7 @@ menu_marker_op_cb(UIEvent evt, int item)
   case 3: /* MARKERS->SPAN */
     {
       if (previous_marker == -1 || active_marker == previous_marker) {
-        // if only 1 marker is active, keep center freq and make span the marker comes to the edge  
+        // if only 1 marker is active, keep center freq and make span the marker comes to the edge
         freqHz_t center = get_sweep_frequency(ST_CENTER);
         freqHz_t span = center - freq;
        if (span < 0) span = -span;
@@ -795,7 +795,7 @@ menu_marker_op_cb(UIEvent evt, int item)
     }
     break;
   case 4: /* MARKERS->EDELAY */
-    { 
+    {
       if (uistat.current_trace == -1)
         break;
       complexf* array = measured[trace[uistat.current_trace].channel];
@@ -866,7 +866,7 @@ menu_marker_smith_cb(UIEvent evt, int item)
 }
 
 
-void 
+void
 active_marker_select(UIEvent evt, int item)
 {
   if (item == -1) {
@@ -904,7 +904,7 @@ menu_marker_sel_cb(UIEvent evt, int item)
       markers[2].enabled = FALSE;
       markers[3].enabled = FALSE;
       previous_marker = -1;
-      active_marker = -1;     
+      active_marker = -1;
   } else if (item == 5) { /* marker delta */
     uistat.marker_delta = !uistat.marker_delta;
   }
@@ -968,7 +968,7 @@ const menuitem_t menu_format[] = {
   { MT_CALLBACK, "DELAY", menu_format_cb },
   { MT_CALLBACK, "SMITH", menu_format_cb },
   { MT_CALLBACK, "SWR", menu_format_cb },
-  { MT_SUBMENU, S_RARROW" MORE", NULL, menu_format2 },  
+  { MT_SUBMENU, S_RARROW" MORE", NULL, menu_format2 },
   //{ MT_CALLBACK, "LINEAR", menu_format_cb },
   //{ MT_CALLBACK, "SWR", menu_format_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
@@ -1354,7 +1354,7 @@ draw_numeric_input(const char *buf)
       ili9341_drawfont(0, &NF20x22, x, 208+4, fg, bg);
     else
       ili9341_fill(x, 208+4, 20, 24, bg);
-      
+
     x += 20;
     if (xsim[i] > 0) {
       //ili9341_fill(x, 208+4, xsim[i], 20, bg);
@@ -1457,7 +1457,7 @@ draw_menu_buttons(const menuitem_t *menu)
     const char *l1, *l2;
     if (menu[i].type == MT_NONE)
       break;
-    if (menu[i].type == MT_BLANK) 
+    if (menu[i].type == MT_BLANK)
       continue;
     int y = 32*i;
     uint16_t bg = config.menu_normal_color;
@@ -1466,7 +1466,7 @@ draw_menu_buttons(const menuitem_t *menu)
     if (ui_mode == UI_MENU && i == selection)
       bg = config.menu_active_color;
     ili9341_fill(320-60, y, 60, 30, bg);
-    
+
     menu_item_modify_attribute(menu, i, &fg, &bg);
     if (menu_is_multiline(menu[i].label, &l1, &l2)) {
       ili9341_drawstring_5x7(l1, 320-54, y+8, fg, bg);
@@ -1501,7 +1501,7 @@ menu_apply_touch(UIEvent evt)
   for (i = 0; i < 7; i++) {
     if (menu[i].type == MT_NONE)
       break;
-    if (menu[i].type == MT_BLANK) 
+    if (menu[i].type == MT_BLANK)
       continue;
     int y = 32*i;
     if (y-2 < touch_y && touch_y < y+30+2
@@ -1585,7 +1585,7 @@ fetch_numeric_target(void)
     uistat.value = get_trace_scale(uistat.current_trace) * 1e12;
     break;
   }
-  
+
   {
     uint32_t x = uistat.value;
     int n = 0;
@@ -1649,7 +1649,7 @@ draw_numeric_area(void)
 void
 ui_mode_menu(void)
 {
-  if (ui_mode == UI_MENU) 
+  if (ui_mode == UI_MENU)
     return;
 
   ui_mode = UI_MENU;
@@ -1663,11 +1663,11 @@ ui_mode_menu(void)
 void
 ui_mode_numeric(int _keypad_mode)
 {
-  if (ui_mode == UI_NUMERIC) 
+  if (ui_mode == UI_NUMERIC)
     return;
 
   leave_ui_mode();
-  
+
   // keypads array
   keypad_mode = _keypad_mode;
   ui_mode = UI_NUMERIC;
@@ -1683,7 +1683,7 @@ ui_mode_numeric(int _keypad_mode)
 void
 ui_mode_keypad(int _keypad_mode)
 {
-  if (ui_mode == UI_KEYPAD) 
+  if (ui_mode == UI_KEYPAD)
     return;
 
   kp_index = 0;
@@ -1711,7 +1711,7 @@ ui_mode_keypad(int _keypad_mode)
 void
 ui_mode_normal(void)
 {
-  if (ui_mode == UI_NORMAL) 
+  if (ui_mode == UI_NORMAL)
     return;
 
   area_width = AREA_WIDTH_NORMAL;
@@ -1770,13 +1770,13 @@ step_round(freqHz_t v)
   freqHz_t x = 1;
   for (x = 1; x*10 < v; x *= 10)
     ;
-  
+
   // 1-2-5 step
   if (x * 2 > v)
     return x;
   else if (x * 5 > v)
     return x * 2;
-  else 
+  else
     return x * 5;
 }
 
@@ -1820,7 +1820,7 @@ ui_process_normal(UIEvent evt)
       case LM_MARKER: lever_move_marker(evt);   break;
       case LM_SEARCH: lever_search_marker(evt); break;
       case LM_CENTER: lever_move_center(evt);   break;
-      case LM_SPAN:   lever_zoom_span(evt);     break;      
+      case LM_SPAN:   lever_zoom_span(evt);     break;
     }
 #else
     lever_move_marker(evt);
@@ -1872,7 +1872,7 @@ menuclose:
 }
 
 static int
-keypad_click(int key) 
+keypad_click(int key)
 {
   int c = keypads[key].c;
   if ((c >= KP_X1 && c <= KP_G) || c == KP_N || c == KP_P) {
@@ -2013,11 +2013,11 @@ numeric_apply_touch(UIEvent evt)
     uistat.value += step;
   }
   draw_numeric_area();
-  
+
   uiWaitEvent();
   uistat.digit_mode = FALSE;
   draw_numeric_area();
-  
+
   return;
 }
 
@@ -2155,7 +2155,7 @@ drag_marker(int t, int m)
   }
 }
 
-static int 
+static int
 sq_distance(int x0, int y0)
 {
   return x0*x0 + y0*y0;
@@ -2190,7 +2190,7 @@ touch_pickup_marker(void)
         }
         // select trace
         uistat.current_trace = t;
-        
+
         // drag marker until release
         drag_marker(t, m);
         return TRUE;
@@ -2229,13 +2229,13 @@ ui_process(UIEvent evt)
   switch (ui_mode) {
   case UI_NORMAL:
     ui_process_normal(evt);
-    break;    
+    break;
   case UI_MENU:
     ui_process_menu(evt);
-    break;    
+    break;
   case UI_NUMERIC:
     ui_process_numeric(evt);
-    break;    
+    break;
   case UI_KEYPAD:
     ui_process_keypad(evt);
     break;

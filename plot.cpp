@@ -89,7 +89,7 @@ void update_grid(void)
 		fspan = -frequency1;
 		fstart = frequency0 - fspan/2;
 	}
-	
+
 	while (gdigit > 100) {
 		grid = 5 * gdigit;
 		if (fspan / grid >= 4)
@@ -180,14 +180,14 @@ smith_grid(int x, int y)
 	// offset to center
 	x -= P_CENTER_X;
 	y -= P_CENTER_Y;
-	
+
 	// outer circle
 	d = circle_inout(x, y, P_RADIUS);
 	if (d < 0)
 		return 0;
 	if (d == 0)
 		return c;
-	
+
 	// horizontal axis
 	if (y == 0)
 		return c;
@@ -238,7 +238,7 @@ smith_grid2(int x, int y, float scale)
 	// offset to center
 	x -= P_CENTER_X;
 	y -= P_CENTER_Y;
-	
+
 	// outer circle
 	d = circle_inout(x, y, P_RADIUS);
 	if (d < 0)
@@ -324,7 +324,7 @@ const int cirs[][4] = {
 	{ 116/2, 0, 116/2, 1 },  // Constant Resistance Circle: 0 : R
 	{ 174/2, 0, 174/2, 1 },  // Constant Resistance Circle: -1/3 : R*3/2 = 174
 	{ 0, 0, 0, 0 } // sentinel
-};  
+};
 
 int
 smith_grid3(int x, int y)
@@ -335,7 +335,7 @@ smith_grid3(int x, int y)
 	// offset to center
 	x -= P_CENTER_X;
 	y -= P_CENTER_Y;
-	
+
 	// outer circle
 	d = circle_inout(x, y, P_RADIUS);
 	if (d < 0)
@@ -409,7 +409,7 @@ rectangular_grid_y(int y, int bg = 0)
 
 /*
  * calculate log10(abs(gamma))
- */ 
+ */
 float logmag(complexf v) {
 	float re = v.real(), im = v.imag();
 	return log10f(re*re + im*im) * 10;
@@ -417,7 +417,7 @@ float logmag(complexf v) {
 
 /*
  * calculate phase[-2:2] of coefficient
- */ 
+ */
 float phase(complexf v) {
 	float re = v.real(), im = v.imag();
 	return 2 * atan2f(im, re) / M_PI * 90;
@@ -442,7 +442,7 @@ float linear(complexf v) {
 
 /*
  * calculate vswr; (1+gamma)/(1-gamma)
- */ 
+ */
 float swr(complexf v) {
 	float re = v.real(), im = v.imag();
 	float x = sqrtf(re*re + im*im);
@@ -632,7 +632,7 @@ format_smith_value(char *buf, int len, complexf coeff, freqHz_t frequency)
 		n = string_value_with_prefix(buf, len, coeff.real(), '\0');
 		if (coeff.imag() >= 0) buf[n++] = '+';
 		string_value_with_prefix(buf+n, len-n, coeff.imag(), 'j');
-		break;  
+		break;
 
 	case MS_RX:
 		n = string_value_with_prefix(buf, len, zr, S_OHM[0]);
@@ -1064,7 +1064,7 @@ search_index_range(int x, int y, uint32_t* index, int *i0, int *i1)
 
 	if (x != CELL_X0(index[i]) || y != CELL_Y0(index[i]))
 		return FALSE;
-		
+
 	j = i;
 	while (j > 0 && x == CELL_X0(index[j-1]) && y == CELL_Y0(index[j-1]))
 		j--;
@@ -1091,7 +1091,7 @@ search_index_range_x(int x, uint32_t* index, int *i0, int *i1)
 		else if (x < CELL_X0(index[i])) {
 			if (tail == i+1)
 				break;
-			tail = i+1;      
+			tail = i+1;
 		} else {
 			if (head == i)
 				break;
@@ -1444,7 +1444,7 @@ draw_cell(int m, int n)
 			continue;
 		if (trace[t].type == TRC_SMITH || trace[t].type == TRC_POLAR)
 			continue;
-		
+
 		if (search_index_range_x(x0, trace_index[t], &i0, &i1)) {
 			if (i0 > 0)
 				i0--;
@@ -1586,7 +1586,7 @@ cell_drawchar_5x7(int w, int h, uint8_t ch, int x, int y, uint16_t fg, int inver
 		if (invert)
 			bits = ~bits;
 		for (r = 0; r < 5; r++) {
-			if ((x+r) >= 0 && (x+r) < w && (0x80 & bits)) 
+			if ((x+r) >= 0 && (x+r) < w && (0x80 & bits))
 				ili9341_spi_buffer[(y+c)*w + (x+r)] = fg;
 			bits <<= 1;
 		}
@@ -1977,7 +1977,7 @@ request_to_redraw_grid(void)
 void
 redraw_frame(void)
 {
-	ili9341_fill(0, 0, 320, 240, 0);
+	ili9341_clear_screen();
 	draw_frequencies();
 	draw_cal_status();
 }

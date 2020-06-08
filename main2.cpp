@@ -348,7 +348,7 @@ static void lcd_and_ui_setup() {
 	// show test pattern
 	//ili9341_test(5);
 	// clear screen
-	ili9341_fill(0, 0, 320, 240, 0);
+	ili9341_clear_screen();
 
 	// tell the plotting code how to calculate frequency in Hz given an index
 	plot_getFrequencyAt = [](int index) {

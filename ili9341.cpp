@@ -303,8 +303,13 @@ void ili9341_fill(int x, int y, int w, int h, uint16_t color)
 		ili9341_spi_transfer_bulk(chunkSize);
 		len -= chunkSize;
 	}
-	while (len-- > 0) 
+	while (len-- > 0)
 	  ssp_senddata16(color);
+}
+
+void ili9341_clear_screen(void)
+{
+	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, 0);
 }
 
 void ili9341_bulk(int x, int y, int w, int h)
@@ -355,7 +360,7 @@ ili9341_read_memory(int x, int y, int w, int h, int len, uint16_t *out)
 	ili9341_spi_wait_bulk();
 	send_command(ILI9341_COLUMN_ADDRESS_SET, 4, (uint8_t *)&xx);
 	send_command(ILI9341_PAGE_ADDRESS_SET, 4, (uint8_t*)&yy);
-	
+
 	ili9341_read_memory_raw(0x2E, len, out);
 }
 
@@ -535,13 +540,13 @@ ili9341_test(int mode)
   switch (mode) {
   default:
 #if 1
-	ili9341_fill(0, 0, 320, 240, 0);
+	ili9341_clear_screen();
 	for (y = 0; y < 240; y++) {
 	  ili9341_fill(0, y, 320, 1, RGB565(y, (y + 120) % 256, 240-y));
 	}
 	break;
   case 1:
-	ili9341_fill(0, 0, 320, 240, 0);
+	ili9341_clear_screen();
 	for (y = 0; y < 240; y++) {
 	  for (x = 0; x < 320; x++) {
 		ili9341_pixel(x, y, (y<<8)|x);
