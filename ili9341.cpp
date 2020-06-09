@@ -145,6 +145,10 @@ static uint16_t* const ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_buffer
 
 uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 
+// Default foreground & background colors
+uint16_t foreground_color = 0;
+uint16_t background_color = 0;
+
 Pad ili9341_conf_cs;
 Pad ili9341_conf_dc;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
@@ -261,14 +265,7 @@ ili9341_init(void)
 	delay(5);
   }
 }
-#if 0
-static inline uint32_t __REV16(uint32_t rev)
-{
-	uint32_t a = __builtin_bswap16(rev >> 16);
-	uint32_t b = __builtin_bswap16(rev & 0xFFFF);
-	return (a << 16) | (b);
-}
-#else
+
 // Reverses the byte order within each halfword of a word. For example, 0x12345678 becomes 0x34127856.
 static inline uint32_t __REV16(uint32_t value)
 {
@@ -276,7 +273,6 @@ static inline uint32_t __REV16(uint32_t value)
   __asm volatile("rev16 %0, %1" : "=r" (result) : "r" (value));
   return result;
 }
-#endif
 
 #if 0
 void ili9341_pixel(int x, int y, uint16_t color)
@@ -384,41 +380,108 @@ ili9341_set_flip(bool flipX, bool flipY) {
 	send_command(ILI9341_MEMORY_ACCESS_CONTROL, 1, &memAcc);
 }
 
+//********************************************************************
+void
+ili9341_set_foreground(uint16_t fg)
+{
+  foreground_color = fg;
+}
 
+void
+ili9341_set_background(uint16_t bg)
+{
+  background_color = bg;
+}
 
+void
+blit8BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+                         const uint8_t *bitmap)
+{
+  uint16_t *buf = ili9341_spi_buffer;
+  for (uint16_t c = 0; c < height; c++) {
+    uint8_t bits = *bitmap++;
+    for (uint16_t r = 0; r < width; r++) {
+      *buf++ = (0x80 & bits) ? foreground_color : background_color;
+      bits <<= 1;
+    }
+  }
+  ili9341_bulk(x, y, width, height);
+}
+
+void
+blit16BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+                                 const uint16_t *bitmap)
+{
+  uint16_t *buf = ili9341_spi_buffer;
+  for (uint16_t c = 0; c < height; c++) {
+    uint16_t bits = *bitmap++;
+    for (uint16_t r = 0; r < width; r++) {
+      *buf++ = (0x8000 & bits) ? foreground_color : background_color;
+      bits <<= 1;
+    }
+  }
+  ili9341_bulk(x, y, width, height);
+}
+
+void
+ili9341_drawchar(uint8_t ch, int x, int y)
+{
+  blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
+}
+
+void
+ili9341_drawstring(const char *str, int x, int y)
+{
+  while (*str) {
+    uint8_t ch = *str++;
+    const uint8_t *char_buf = FONT_GET_DATA(ch);
+    uint16_t w = FONT_GET_WIDTH(ch);
+    blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
+    x += w;
+  }
+}
+
+int
+ili9341_drawchar_size(uint8_t ch, int x, int y, uint8_t size)
+{
+  uint16_t *buf = ili9341_spi_buffer;
+  const uint8_t *char_buf = FONT_GET_DATA(ch);
+  uint16_t w = FONT_GET_WIDTH(ch);
+  for (int c = 0; c < FONT_GET_HEIGHT; c++, char_buf++) {
+    for (int i = 0; i < size; i++) {
+      uint8_t bits = *char_buf;
+      for (int r = 0; r < w; r++, bits <<= 1)
+        for (int j = 0; j < size; j++)
+          *buf++ = (0x80 & bits) ? foreground_color : background_color;
+    }
+  }
+  ili9341_bulk(x, y, w * size, FONT_GET_HEIGHT * size);
+  return w*size;
+}
+//********************************************************************
+// Need replace this
 void
 ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg)
 {
-  uint16_t *buf = ili9341_spi_buffer;
-  uint8_t bits;
-  int c, r;
-  for(c = 0; c < 7; c++) {
-	bits = x5x7_bits[(ch * 7) + c];
-	for (r = 0; r < 5; r++) {
-	  *buf++ = (0x80 & bits) ? fg : bg;
-	  bits <<= 1;
-	}
-  }
-  ili9341_bulk(x, y, 5, 7);
+	foreground_color = fg;
+	background_color = bg;
+	blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
 }
-
+/*
 void
 ili9341_drawstring_5x7_inv(const char *str, int x, int y, uint16_t fg, uint16_t bg, bool invert)
 {
-  if (invert)
-    ili9341_drawstring_5x7(str, x, y, bg, fg);
-  else
-    ili9341_drawstring_5x7(str, x, y, fg, bg);
-}
+	foreground_color = invert ? bg : fg;
+	background_color = invert ? fg : bg;
+	ili9341_drawstring(str, x, y);
+}*/
 
 void
 ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg)
 {
-  while (*str) {
-	ili9341_drawchar_5x7(*str, x, y, fg, bg);
-	x += 5;
-	str++;
-  }
+	foreground_color = fg;
+	background_color = bg;
+	ili9341_drawstring(str, x, y);
 }
 
 
@@ -434,36 +497,19 @@ ili9341_drawstring_5x7(const char *str, int len, int x, int y, uint16_t fg, uint
 }
 
 void
-ili9341_drawchar_size(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
-{
-  uint16_t *buf = ili9341_spi_buffer;
-  uint8_t bits;
-  int c, r;
-  for(c = 0; c < 7*size; c++) {
-	bits = x5x7_bits[(ch * 7) + (c / size)];
-	for (r = 0; r < 5*size; r++) {
-	  *buf++ = (0x80 & bits) ? fg : bg;
-	  if (r % size == (size-1)) {
-		  bits <<= 1;
-	  }
-	}
-  }
-  ili9341_bulk(x, y, 5*size, 7*size);
-}
-
-void
 ili9341_drawstring_size(const char *str, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
 {
+  foreground_color = fg;
+  background_color = bg;
   int origX = x;
-  while (*str) {
-	if((*str) == '\n') {
+  while (*str){
+    uint8_t c =*str++;
+    if(c == '\n'){
         x = origX;
-        y += 7 * size;
-    } else {
-        ili9341_drawchar_size(*str, x, y, fg, bg, size);
-        x += 5 * size;
+        y += FONT_STR_HEIGHT * size;
+    	continue;
     }
-    str++;
+    x += ili9341_drawchar_size(c, x, y, size);
   }
 }
 
