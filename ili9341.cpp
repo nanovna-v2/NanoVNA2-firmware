@@ -382,6 +382,12 @@ ili9341_set_flip(bool flipX, bool flipY) {
 
 //********************************************************************
 void
+ili9341_clear_screen(void)
+{
+	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, background_color);
+}
+
+void
 ili9341_set_foreground(uint16_t fg)
 {
   foreground_color = fg;
@@ -467,14 +473,6 @@ ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg)
 	background_color = bg;
 	blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
 }
-/*
-void
-ili9341_drawstring_5x7_inv(const char *str, int x, int y, uint16_t fg, uint16_t bg, bool invert)
-{
-	foreground_color = invert ? bg : fg;
-	background_color = invert ? fg : bg;
-	ili9341_drawstring(str, x, y);
-}*/
 
 void
 ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg)

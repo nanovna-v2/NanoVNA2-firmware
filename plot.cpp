@@ -1832,7 +1832,7 @@ request_to_redraw_grid(void)
 void
 redraw_frame(void)
 {
-	ili9341_fill(0, 0, 320, 240, 0);
+	ili9341_clear_screen();
 	draw_frequencies();
 	draw_cal_status();
 }

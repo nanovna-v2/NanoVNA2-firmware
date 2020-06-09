@@ -133,7 +133,7 @@ touch_cal_exec(void)
   
   uiDisableProcessing();
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_line(0, 0, 0, 32, 0xffff);
   ili9341_line(0, 0, 32, 0, 0xffff);
   ili9341_drawstring_5x7("TOUCH UPPER LEFT", 10, 10, 0xffff, 0x0000);
@@ -145,7 +145,7 @@ touch_cal_exec(void)
   } while(!evt.isTouchRelease());
 
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_line(320-1, 240-1, 320-1, 240-32, 0xffff);
   ili9341_line(320-1, 240-1, 320-32, 240-1, 0xffff);
   ili9341_drawstring_5x7("TOUCH LOWER RIGHT", 230, 220, 0xffff, 0x0000);
@@ -175,7 +175,7 @@ touch_draw_test(void)
   
   uiDisableProcessing();
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_drawstring_5x7("TOUCH TEST: DRAG PANEL", OFFSETX, 233, 0xffff, 0x0000);
 
   do {
@@ -222,7 +222,7 @@ show_version(void)
   const char *fpu;
   
   uiDisableProcessing();
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
 
   ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
   y += 25;
@@ -263,7 +263,7 @@ show_dmesg(void)
   int x = 5, y = 5;
   
   uiDisableProcessing();
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
 
   int maxLines = 23;
   
@@ -309,7 +309,7 @@ show_dmesg(void)
 void ui_mode_usb(void) {
   int x = 5, y = 5;
 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
 
   ili9341_drawstring_size(BOARD_NAME, x, y, 0xffff, 0x0000, 4);
   y += 50;
@@ -340,7 +340,7 @@ ui_enter_dfu(void)
   int x = 5, y = 5;
 
   // leave a last message 
-  ili9341_fill(0, 0, 320, 240, 0);
+  ili9341_clear_screen();
   ili9341_drawstring_5x7("DFU: Device Firmware Update Mode", x, y += 10, 0xffff, 0x0000);
   ili9341_drawstring_5x7("To exit DFU mode, please reset device yourself.", x, y += 10, 0xffff, 0x0000);
 
@@ -676,7 +676,7 @@ menu_display_cb(UIEvent evt, int item)
       else ili9341_set_flip(false, false);
       redraw_request |= 0xff;
       force_set_markmap();
-      ili9341_fill(0, 0, 320, 240, 0);
+      ili9341_clear_screen();
       draw_all(true);
       draw_menu();
       plot_cancel();

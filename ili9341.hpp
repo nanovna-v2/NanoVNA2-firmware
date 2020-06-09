@@ -50,6 +50,7 @@ void ili9341_init(void);
 void ili9341_test(int mode);
 void ili9341_bulk(int x, int y, int w, int h);
 void ili9341_set_flip(bool flipX, bool flipY);
+void ili9341_clear_screen(void);
 void ili9341_set_foreground(uint16_t fg);
 void ili9341_set_background(uint16_t bg);
 void ili9341_line(int, int, int, int, int);
