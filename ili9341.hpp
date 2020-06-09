@@ -16,8 +16,6 @@ typedef struct {
 	const uint8_t *bitmap;
 } font_t;
 
-extern const font_t NF20x22;
-
 extern uint16_t foreground_color;
 extern uint16_t background_color;
 
@@ -59,6 +57,6 @@ void ili9341_drawstring(const char *str, int x, int y);
 void ili9341_drawstring(const char *str, int len, int x, int y);
 //int ili9341_drawchar_size(uint8_t ch, int x, int y, uint8_t size);
 void ili9341_drawstring_size(const char *str, int x, int y, uint8_t size);
-void ili9341_drawfont(uint8_t ch, const font_t *font, int x, int y, uint16_t fg, uint16_t bg);
+void ili9341_drawfont(uint8_t ch, int x, int y);
 void ili9341_read_memory(int x, int y, int w, int h, int len, uint16_t* out);
 void ili9341_read_memory_continue(int len, uint16_t* out);

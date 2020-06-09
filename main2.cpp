@@ -341,7 +341,7 @@ static void lcd_and_ui_setup() {
 	};
 	delay(10);
 
-	xpt2046.begin(320, 240);
+	xpt2046.begin(LCD_WIDTH, LCD_HEIGHT);
 	
 	ili9341_init();
 
