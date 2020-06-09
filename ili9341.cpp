@@ -384,7 +384,7 @@ ili9341_set_flip(bool flipX, bool flipY) {
 void
 ili9341_clear_screen(void)
 {
-	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, 0x0000);
+	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, background_color);
 }
 
 void
@@ -447,6 +447,19 @@ ili9341_drawstring(const char *str, int x, int y)
   }
 }
 
+void
+ili9341_drawstring(const char *str, int len, int x, int y)
+{
+	const char* end = str + len;
+	while (str < end) {
+		uint8_t ch = *str++;
+		const uint8_t *char_buf = FONT_GET_DATA(ch);
+		uint16_t w = FONT_GET_WIDTH(ch);
+		blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
+		x += w;
+	}
+}
+
 int
 ili9341_drawchar_size(uint8_t ch, int x, int y, uint8_t size)
 {
@@ -465,40 +478,10 @@ ili9341_drawchar_size(uint8_t ch, int x, int y, uint8_t size)
   return w*size;
 }
 //********************************************************************
-// Need replace this
-void
-ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg)
-{
-	foreground_color = fg;
-	background_color = bg;
-	blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
-}
 
 void
-ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg)
+ili9341_drawstring_size(const char *str, int x, int y, uint8_t size)
 {
-	foreground_color = fg;
-	background_color = bg;
-	ili9341_drawstring(str, x, y);
-}
-
-
-void
-ili9341_drawstring_5x7(const char *str, int len, int x, int y, uint16_t fg, uint16_t bg)
-{
-  const char* end = str + len;
-  while (str < end) {
-	ili9341_drawchar_5x7(*str, x, y, fg, bg);
-	x += 5;
-	str++;
-  }
-}
-
-void
-ili9341_drawstring_size(const char *str, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
-{
-  foreground_color = fg;
-  background_color = bg;
   int origX = x;
   while (*str){
     uint8_t c =*str++;
@@ -514,7 +497,7 @@ ili9341_drawstring_size(const char *str, int x, int y, uint16_t fg, uint16_t bg,
 #define SWAP(x,y) do { int z=x; x = y; y = z; } while(0)
 
 void
-ili9341_line(int x0, int y0, int x1, int y1, int fg)
+ili9341_line(int x0, int y0, int x1, int y1)
 {
   if (x0 > x1) {
 	SWAP(x0, x1);
@@ -540,9 +523,9 @@ ili9341_line(int x0, int y0, int x1, int y1, int fg)
 	  }
 	}
 	if (dy > 0)
-	  ili9341_fill(x0, y0, dx, dy, fg);
+	  ili9341_fill(x0, y0, dx, dy, foreground_color);
 	else
-	  ili9341_fill(x0, y0+dy, dx, -dy, fg);
+	  ili9341_fill(x0, y0+dy, dx, -dy, foreground_color);
 	x0 += dx;
 	y0 += dy;
   }
