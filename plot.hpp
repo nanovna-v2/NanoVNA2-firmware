@@ -1,19 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include <mculib/small_function.hpp>
-/*
-#define OFFSETX 15
-#define OFFSETY 0
-#define WIDTH 291
-#define HEIGHT 233
-#define TRACES_MAX 4
 
-#define P_CENTER_X 146
-#define P_CENTER_Y 116
-#define P_RADIUS 116
-#define CELLOFFSETX 5
-#define AREA_WIDTH_NORMAL (WIDTH + CELLOFFSETX*2)
-*/
 #define LCD_WIDTH                   320
 #define LCD_HEIGHT                  240
 
@@ -38,7 +26,7 @@
 //#define GRIDY 29
 #define GRIDY (HEIGHT / NGRIDY)
 
-//
+// Plot area size and left offset
 #define CELLOFFSETX 5
 #define AREA_WIDTH_NORMAL  (CELLOFFSETX + WIDTH  + 1 + 4)
 #define AREA_HEIGHT_NORMAL (              HEIGHT + 1)
