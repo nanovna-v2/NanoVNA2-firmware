@@ -384,7 +384,7 @@ ili9341_set_flip(bool flipX, bool flipY) {
 void
 ili9341_clear_screen(void)
 {
-	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, background_color);
+	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, 0x0000);
 }
 
 void
