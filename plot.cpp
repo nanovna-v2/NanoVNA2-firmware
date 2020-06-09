@@ -306,7 +306,7 @@ const int cirs[][4] = {
 	{ 116/2, 0, 116/2, 1 },  // Constant Resistance Circle: 0 : R
 	{ 174/2, 0, 174/2, 1 },  // Constant Resistance Circle: -1/3 : R*3/2 = 174
 	{ 0, 0, 0, 0 } // sentinel
-};  
+};
 
 int
 smith_grid3(int x, int y)
@@ -389,7 +389,7 @@ rectangular_grid_y(int y)
 
 /*
  * calculate log10(abs(gamma))
- */ 
+ */
 float logmag(complexf v) {
 	float re = v.real(), im = v.imag();
 	return log10f(re*re + im*im) * 10;
@@ -397,7 +397,7 @@ float logmag(complexf v) {
 
 /*
  * calculate phase[-2:2] of coefficient
- */ 
+ */
 float phase(complexf v) {
 	float re = v.real(), im = v.imag();
 	return 2 * atan2f(im, re) / M_PI * 90;
@@ -422,7 +422,7 @@ float linear(complexf v) {
 
 /*
  * calculate vswr; (1+gamma)/(1-gamma)
- */ 
+ */
 float swr(complexf v) {
 	float re = v.real(), im = v.imag();
 	float x = sqrtf(re*re + im*im);
@@ -611,7 +611,7 @@ format_smith_value(char *buf, int len, complexf coeff, freqHz_t frequency)
 		n = string_value_with_prefix(buf, len, coeff.real(), '\0');
 		if (coeff.imag() >= 0) buf[n++] = '+';
 		string_value_with_prefix(buf+n, len-n, coeff.imag(), 'j');
-		break;  
+		break;
 
 	case MS_RX:
 		n = string_value_with_prefix(buf, len, zr, S_OHM[0]);
@@ -1672,10 +1672,13 @@ void
 draw_frequencies(void)
 {
 	char buf[24];
+	ili9341_set_foreground(0xFFFF);
+	ili9341_set_background(0x0000);
+
 	ili9341_fill(0, FREQUENCIES_YPOS, LCD_WIDTH, FONT_GET_HEIGHT, 0x0000);
 	// draw sweep points
 	chsnprintf(buf, sizeof(buf), "%3d P", (int)sweep_points);
-	ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS3, FREQUENCIES_YPOS, 0xffff, 0x0000);
+	ili9341_drawstring(buf, FREQUENCIES_XPOS3, FREQUENCIES_YPOS);
 
 	if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 		if (frequency1 > 0) {
@@ -1684,31 +1687,31 @@ draw_frequencies(void)
 
 			strcpy(buf, " START ");
 			frequency_string(buf+7, 24-7, start);
-			ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS, 0xffff, 0x0000);
+			ili9341_drawstring(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS);
 			strcpy(buf, " STOP ");
 			frequency_string(buf+6, 24-6, stop);
-			ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS2, FREQUENCIES_YPOS, 0xffff, 0x0000);
+			ili9341_drawstring(buf, FREQUENCIES_XPOS2, FREQUENCIES_YPOS);
 		} else if (frequency1 < 0) {
 			auto fcenter = frequency0;
 			auto fspan = -frequency1;
 			strcpy(buf, " CENTER ");if (uistat.lever_mode == LM_CENTER) buf[0] = S_SARROW[0];
 			frequency_string(buf+8, 24-8, fcenter);
-			ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS, 0xffff, 0x0000);
+			ili9341_drawstring(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS);
 			strcpy(buf, " SPAN "); if (uistat.lever_mode == LM_SPAN) buf[0] = S_SARROW[0];
 			frequency_string(buf+6, 24-6, fspan);
-			ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS2, FREQUENCIES_YPOS, 0xffff, 0x0000);
+			ili9341_drawstring(buf, FREQUENCIES_XPOS2, FREQUENCIES_YPOS);
 		} else {
 			strcpy(buf, " CW ");if (uistat.lever_mode == LM_CENTER) buf[0] = S_SARROW[0];
 			frequency_string(buf+4, 24-4, frequency0);
-			ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS, 0xffff, 0x0000);
+			ili9341_drawstring(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS);
 		}
 	} else {
 		strcpy(buf, " START 0s");
-		ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS, 0xffff, 0x0000);
+		ili9341_drawstring(buf, FREQUENCIES_XPOS1, FREQUENCIES_YPOS);
 
 		strcpy(buf, " STOP ");
 		chsnprintf(buf+6, 24-6, "%d ns", (uint16_t)(time_of_index(current_props._sweep_points) * 1e9));
-		ili9341_drawstring_5x7(buf, FREQUENCIES_XPOS2, FREQUENCIES_YPOS, 0xffff, 0x0000);
+		ili9341_drawstring(buf, FREQUENCIES_XPOS2, FREQUENCIES_YPOS);
 	}
 }
 
@@ -1717,7 +1720,8 @@ draw_cal_status(void)
 {
 	int x = 0;
 	int y = 100;
-
+	ili9341_set_foreground(0xFFFF);
+	ili9341_set_background(0x0000);
 	ili9341_fill(0, y, 10, 6*FONT_STR_HEIGHT, 0x0000);
 	if (cal_status & CALSTAT_APPLY) {
 		char c[3] = "C0";
@@ -1726,28 +1730,28 @@ draw_cal_status(void)
 			c[0] = 'c';
 		else if (active_props == &current_props)
 			c[1] = '*';
-		ili9341_drawstring_5x7(c, x, y, 0xffff, 0x0000);
+		ili9341_drawstring(c, x, y);
 		y += FONT_STR_HEIGHT;
 	}
 
 	if (cal_status & CALSTAT_ED) {
-		ili9341_drawstring_5x7("D", x, y, 0xffff, 0x0000);
+		ili9341_drawstring("D", x, y);
 		y += FONT_STR_HEIGHT;
 	}
 	if (cal_status & CALSTAT_ER) {
-		ili9341_drawstring_5x7("R", x, y, 0xffff, 0x0000);
+		ili9341_drawstring("R", x, y);
 		y += FONT_STR_HEIGHT;
 	}
 	if (cal_status & CALSTAT_ES) {
-		ili9341_drawstring_5x7("S", x, y, 0xffff, 0x0000);
+		ili9341_drawstring("S", x, y);
 		y += FONT_STR_HEIGHT;
 	}
 	if (cal_status & CALSTAT_ET) {
-		ili9341_drawstring_5x7("T", x, y, 0xffff, 0x0000);
+		ili9341_drawstring("T", x, y);
 		y += FONT_STR_HEIGHT;
 	}
 	if (cal_status & CALSTAT_EX) {
-		ili9341_drawstring_5x7("X", x, y, 0xffff, 0x0000);
+		ili9341_drawstring("X", x, y);
 		y += FONT_STR_HEIGHT;
 	}
 }
@@ -1832,6 +1836,7 @@ request_to_redraw_grid(void)
 void
 redraw_frame(void)
 {
+	ili9341_set_background(0x0000);
 	ili9341_clear_screen();
 	draw_frequencies();
 	draw_cal_status();
