@@ -1469,8 +1469,8 @@ draw_menu_buttons(const menuitem_t *menu)
     
     menu_item_modify_attribute(menu, i, &fg, &bg);
     if (menu_is_multiline(menu[i].label, &l1, &l2)) {
-      ili9341_drawstring_5x7(l1, 320-54, y+8, fg, bg);
-      ili9341_drawstring_5x7(l2, 320-54, y+15, fg, bg);
+      ili9341_drawstring_5x7(l1, 320-54, y+7, fg, bg);
+      ili9341_drawstring_5x7(l2, 320-54, y+16, fg, bg);
     } else {
       ili9341_drawstring_5x7(menu[i].label, 320-54, y+12, fg, bg);
     }
@@ -1654,7 +1654,7 @@ ui_mode_menu(void)
 
   ui_mode = UI_MENU;
   /* narrowen plotting area */
-  area_width = AREA_WIDTH_NORMAL - (64-8);
+  area_width = AREA_WIDTH_NORMAL - 60;
   area_height = HEIGHT;
   ensure_selection();
   draw_menu();
@@ -1672,7 +1672,7 @@ ui_mode_numeric(int _keypad_mode)
   keypad_mode = _keypad_mode;
   ui_mode = UI_NUMERIC;
   area_width = AREA_WIDTH_NORMAL;
-  area_height = 240-32;//HEIGHT - 32;
+  area_height = LCD_HEIGHT-32;//HEIGHT - 32;
 
   draw_numeric_area_frame();
   fetch_numeric_target();
@@ -1697,7 +1697,7 @@ ui_mode_keypad(int _keypad_mode)
   keypads_last_index = i;
 
   ui_mode = UI_KEYPAD;
-  area_width = AREA_WIDTH_NORMAL - (64-8);
+  area_width = AREA_WIDTH_NORMAL - 60;
   area_height = HEIGHT - 32;
   draw_menu();
   draw_keypad();
@@ -1715,7 +1715,7 @@ ui_mode_normal(void)
     return;
 
   area_width = AREA_WIDTH_NORMAL;
-  area_height = HEIGHT;
+  area_height = AREA_HEIGHT_NORMAL;
   leave_ui_mode();
   ui_mode = UI_NORMAL;
 }
@@ -2171,11 +2171,11 @@ touch_pickup_marker(void)
   touch_x -= OFFSETX;
   touch_y -= OFFSETY;
 
-  for (m = 0; m < 4; m++) {
+  for (m = 0; m < MARKERS_MAX; m++) {
     if (!markers[m].enabled)
       continue;
 
-    for (t = 0; t < 4; t++) {
+    for (t = 0; t < TRACES_MAX; t++) {
       int x, y;
       if (!trace[t].enabled)
         continue;

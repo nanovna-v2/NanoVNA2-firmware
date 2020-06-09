@@ -18,6 +18,9 @@ typedef struct {
 
 extern const font_t NF20x22;
 
+extern uint16_t foreground_color;
+extern uint16_t background_color;
+
 // internal buffer space; may be repurposed
 constexpr int ili9341_bufferSize = 1024;
 extern uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
@@ -47,6 +50,8 @@ void ili9341_init(void);
 void ili9341_test(int mode);
 void ili9341_bulk(int x, int y, int w, int h);
 void ili9341_set_flip(bool flipX, bool flipY);
+void ili9341_set_foreground(uint16_t fg);
+void ili9341_set_background(uint16_t bg);
 void ili9341_line(int, int, int, int, int);
 void ili9341_fill(int x, int y, int w, int h, uint16_t color);
 void ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg);

@@ -1,16 +1,52 @@
 #pragma once
 #include "common.hpp"
 #include <mculib/small_function.hpp>
-
+/*
 #define OFFSETX 15
 #define OFFSETY 0
 #define WIDTH 291
 #define HEIGHT 233
 #define TRACES_MAX 4
 
-
+#define P_CENTER_X 146
+#define P_CENTER_Y 116
+#define P_RADIUS 116
 #define CELLOFFSETX 5
 #define AREA_WIDTH_NORMAL (WIDTH + CELLOFFSETX*2)
+*/
+#define LCD_WIDTH                   320
+#define LCD_HEIGHT                  240
+
+// Offset of plot area
+#define OFFSETX 10
+#define OFFSETY  0
+
+// WIDTH better be n*(POINTS_COUNT-1)
+#define WIDTH  300
+// HEIGHT = 8*GRIDY
+#define HEIGHT 232
+
+//#define NGRIDY 10
+#define NGRIDY 8
+
+#define FREQUENCIES_XPOS1 OFFSETX
+#define FREQUENCIES_XPOS2 206
+#define FREQUENCIES_XPOS3 135
+#define FREQUENCIES_YPOS  (240-7)
+
+// GRIDX calculated depends from frequency span
+//#define GRIDY 29
+#define GRIDY (HEIGHT / NGRIDY)
+
+//
+#define CELLOFFSETX 5
+#define AREA_WIDTH_NORMAL  (CELLOFFSETX + WIDTH  + 1 + 4)
+#define AREA_HEIGHT_NORMAL (              HEIGHT + 1)
+
+// Smith/polar chart
+#define P_CENTER_X (CELLOFFSETX + WIDTH/2)
+#define P_CENTER_Y (HEIGHT/2)
+#define P_RADIUS   (HEIGHT/2)
 
 extern int area_width;
 extern int area_height;
@@ -18,8 +54,6 @@ extern int area_height;
 // for debugging plots
 extern bool plot_checkerBoard; // draw a checkerboard pattern that indicates where the cells are
 extern bool plot_shadeCells; // shade all drawn cells from now on
-
-#define GRIDY 29
 
 // this function is called to determine frequency in hz at a marker point
 extern small_function<freqHz_t(int index)> plot_getFrequencyAt;
