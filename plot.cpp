@@ -4,7 +4,7 @@
 #include "globals.hpp"
 #include "plot.hpp"
 #include "ili9341.hpp"
-#include "Font5x7.h"
+#include "Font.h"
 #include <board.hpp>
 #include <mculib/printf.hpp>
 
@@ -1520,7 +1520,7 @@ cell_draw_marker_info(int x0, int y0)
 			strcpy(buf, " M1"); if (mk == active_marker) buf[0] = S_SARROW[0];
 			buf[2] += mk;
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 20;
+			xpos += 4*FONT_WIDTH + 4;
 			//trace_get_info(t, buf, sizeof buf);
 			int32_t freq = freqAt(markers[mk].index);
 			if (uistat.marker_delta && mk != active_marker) {
@@ -1530,7 +1530,7 @@ cell_draw_marker_info(int x0, int y0)
 				frequency_string_short(buf, sizeof buf, freq, 0);
 			}
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 64;
+			xpos += 9*FONT_WIDTH + 9;
 			if (uistat.marker_delta && mk != active_marker)
 				trace_get_value_string_delta(t, buf, sizeof buf, measured[trace[t].channel], markers[mk].index, markers[active_marker].index);
 			else
@@ -1549,7 +1549,7 @@ cell_draw_marker_info(int x0, int y0)
 			buf[1] += previous_marker;
 			ili9341_set_foreground(0xFFFF);
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 19;
+			xpos += 3*FONT_WIDTH + 3;
 			if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 				frequency_string(buf, sizeof buf, freqAt(idx) - freqAt(idx0));
 			} else {
@@ -1572,10 +1572,10 @@ cell_draw_marker_info(int x0, int y0)
 			ili9341_set_foreground(config.trace_color[t]);
 			//chsnprintf(buf, sizeof buf, "CH%d", trace[t].channel);
 			cell_drawstring(buf, xpos, ypos); // invert
-			xpos += 20;
+			xpos += 4*FONT_WIDTH + 4;
 			trace_get_info(t, buf, sizeof buf);
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 64;
+			xpos += 11*FONT_WIDTH + 11;
 			trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel], idx);
 			ili9341_set_foreground(0xFFFF);
 			cell_drawstring(buf, xpos, ypos);
@@ -1587,10 +1587,10 @@ cell_draw_marker_info(int x0, int y0)
 		int ypos = 1 + (j/2)*(FONT_STR_HEIGHT) - y0;
 		strcpy(buf, " 1:");if (uistat.lever_mode == LM_MARKER) buf[0] = S_SARROW[0];
 		buf[0] += active_marker;
-		xpos += 5;
+		xpos += FONT_WIDTH;
 		ili9341_set_foreground(0xFFFF);
 		cell_drawstring(buf, xpos, ypos);
-		xpos += 14;
+		xpos += 3*FONT_WIDTH;
 		if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 			frequency_string(buf, sizeof buf, plot_getFrequencyAt(idx));
 		} else {
@@ -1608,10 +1608,10 @@ cell_draw_marker_info(int x0, int y0)
 		chsnprintf(buf, sizeof buf, "Edelay");
 		ili9341_set_foreground(0xFFFF);
 		cell_drawstring(buf, xpos, ypos);
-		xpos += 7 * 5;
+		xpos += 7*FONT_WIDTH + 7;
 		int n = string_value_with_prefix(buf, sizeof buf, electrical_delay * 1e-12, 's');
 		cell_drawstring(buf, xpos, ypos);
-		xpos += n * 5 + 5;
+		xpos += 5*FONT_WIDTH + 5;
 		float light_speed_ps = 299792458e-12; //(m/ps)
 		string_value_with_prefix(buf, sizeof buf, electrical_delay * light_speed_ps * velocity_factor, 'm');
 		cell_drawstring(buf, xpos, ypos);

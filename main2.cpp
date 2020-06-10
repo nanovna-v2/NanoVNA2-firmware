@@ -344,7 +344,7 @@ static void lcd_and_ui_setup() {
 	xpt2046.begin(LCD_WIDTH, LCD_HEIGHT);
 	
 	ili9341_init();
-
+	lcd_spi_fast();
 	// show test pattern
 	//ili9341_test(5);
 	// clear screen

@@ -23,7 +23,7 @@
 #include "flash.hpp"
 #include "globals.hpp"
 #include "ili9341.hpp"
-#include "Font5x7.h"
+#include "Font.h"
 #include "numfont20x22.h"
 #include "plot.hpp"
 #include "ui.hpp"
@@ -228,28 +228,28 @@ show_version(void)
   uiDisableProcessing();
   ili9341_clear_screen();
 
-  ili9341_drawstring_size(BOARD_NAME, x, y, 4);
-  y += 4*FONT_GET_HEIGHT + 4;
-
-  ili9341_drawstring("Software copyright @edy555 et al", x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Hardware designed by OwOComm", x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Licensed under GPL. ", x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("https://github.com/ttrftech/NanoVNA", x + 10, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("https://github.com/nanovna/NanoVNA-V2-firmware", x + 10, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Version: " GITVERSION, x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Build Time: " __DATE__ " - " __TIME__, x, y += FONT_STR_HEIGHT);
+  ili9341_drawstring_size(BOARD_NAME, x, y, 3);
+  y += 3*FONT_GET_HEIGHT;
+  int step = FONT_STR_HEIGHT + 3;
+  ili9341_drawstring("Software copyright @edy555 et al", x, y += step);
+  ili9341_drawstring("Hardware designed by OwOComm", x, y += step);
+  ili9341_drawstring("Licensed under GPL. ", x, y += step);
+  ili9341_drawstring("https://github.com/ttrftech/NanoVNA", x + 10, y += step);
+  ili9341_drawstring("https://github.com/nanovna/NanoVNA-V2-firmware", x + 10, y += step);
+  ili9341_drawstring("Version: " GITVERSION, x, y += step);
+  ili9341_drawstring("Build Time: " __DATE__ " - " __TIME__, x, y += step);
   y += 5;
-  ili9341_drawstring("Kernel: " CH_KERNEL_VERSION, x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Compiler: " PORT_COMPILER_NAME, x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Architecture: " PORT_ARCHITECTURE_NAME " Core Variant: " PORT_CORE_VARIANT_NAME, x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Port Info: " PORT_INFO, x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Platform: " PLATFORM_NAME, x, y += FONT_STR_HEIGHT);
-  ili9341_drawstring("Board: " BOARD_NAME, x, y += FONT_STR_HEIGHT);
+  ili9341_drawstring("Kernel: " CH_KERNEL_VERSION, x, y += step);
+  ili9341_drawstring("Compiler: " PORT_COMPILER_NAME, x, y += step);
+  ili9341_drawstring("Architecture: " PORT_ARCHITECTURE_NAME " Core Variant: " PORT_CORE_VARIANT_NAME, x, y += step);
+  ili9341_drawstring("Port Info: " PORT_INFO, x, y += step);
+  ili9341_drawstring("Platform: " PLATFORM_NAME, x, y += step);
+  ili9341_drawstring("Board: " BOARD_NAME, x, y += step);
   if(cpu_enable_fpu())
 	  fpu = "Has FPU: yes";
   else
 	  fpu = "Has FPU: no";
-  ili9341_drawstring(fpu, x, y += FONT_STR_HEIGHT);
+  ili9341_drawstring(fpu, x, y += step);
 
   while (true) {
     UIEvent evt = uiWaitEvent();
@@ -317,10 +317,10 @@ void ui_mode_usb(void) {
   ili9341_set_background(0x0000);
   ili9341_clear_screen();
 
-  ili9341_drawstring_size(BOARD_NAME, x, y, 4);
-  y += 4 * FONT_GET_HEIGHT + 25;
+  ili9341_drawstring_size(BOARD_NAME, x, y, 3);
+  y += 3 * FONT_GET_HEIGHT + 25;
 
-  ili9341_drawstring_size("USB MODE", x, y, 4);
+  ili9341_drawstring_size("USB MODE", x, y, 3);
   ui_mode = UI_USB_MODE;
 }
 
@@ -333,8 +333,8 @@ show_message(const char* title, const char* message, int fg, int bg)
   ili9341_set_background(bg);
   ili9341_clear_screen();
 
-  ili9341_drawstring_size(title, x, y, 4);
-  y += 4 * FONT_GET_HEIGHT + 25;
+  ili9341_drawstring_size(title, x, y, 3);
+  y += 3 * FONT_GET_HEIGHT + 25;
 
   ili9341_drawstring_size(message, x, y, 1);
 }
@@ -1208,20 +1208,6 @@ void menu_invoke(UIEvent evt, int item)
     break;
   }
 }
-
-// Maximum menu buttons count
-#define MENU_BUTTON_MAX     7
-// Menu buttons size
-#define MENU_BUTTON_WIDTH  60
-#define MENU_BUTTON_HEIGHT 30
-// Height of numerical input field (at bottom)
-#define NUM_INPUT_HEIGHT   30
-
-#define KP_WIDTH     48
-#define KP_HEIGHT    48
-// Key x, y position (0 - 15) on screen
-#define KP_GET_X(posx) ((posx)*KP_WIDTH + (LCD_WIDTH-64-KP_WIDTH*4))
-#define KP_GET_Y(posy) ((posy)*KP_HEIGHT + 12 )
 
 // Key names
 #define KP_0          0
