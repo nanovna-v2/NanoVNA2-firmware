@@ -2,25 +2,39 @@
 #include "common.hpp"
 #include <mculib/small_function.hpp>
 
+#ifndef DISPLAY_ST7796
 #define LCD_WIDTH                   320
 #define LCD_HEIGHT                  240
-
 // Offset of plot area
 #define OFFSETX 10
 #define OFFSETY  0
-
 // WIDTH better be n*(POINTS_COUNT-1)
 #define WIDTH  300
 // HEIGHT = 8*GRIDY
 #define HEIGHT 232
-
 //#define NGRIDY 10
 #define NGRIDY 8
-
 #define FREQUENCIES_XPOS1 OFFSETX
 #define FREQUENCIES_XPOS2 206
 #define FREQUENCIES_XPOS3 135
 #define FREQUENCIES_YPOS  (240-7)
+#else
+#define LCD_WIDTH                   480
+#define LCD_HEIGHT                  320
+// Offset of plot area
+#define OFFSETX 15
+#define OFFSETY  0
+// WIDTH better be n*(POINTS_COUNT-1)
+#define WIDTH  455
+// HEIGHT = 8*GRIDY
+#define HEIGHT 304
+//#define NGRIDY 10
+#define NGRIDY 8
+#define FREQUENCIES_XPOS1 OFFSETX
+#define FREQUENCIES_XPOS2 320
+#define FREQUENCIES_XPOS3 200
+#define FREQUENCIES_YPOS  (320-12)
+#endif
 
 // GRIDX calculated depends from frequency span
 //#define GRIDY 29

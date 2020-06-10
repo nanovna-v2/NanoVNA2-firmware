@@ -18,12 +18,9 @@
  * Boston, MA 02110-1301, USA.
  */
 #include "ili9341.hpp"
-#include "Font5x7.h"
+#include "Font.h"
 #include "numfont20x22.h"
-
-// Display width and height definition
-#define ILI9341_WIDTH     320
-#define ILI9341_HEIGHT    240
+#include "plot.hpp"
 
 // Display commands list
 #define ILI9341_NOP                        0x00
@@ -183,8 +180,8 @@ static void send_command(uint8_t cmd, int len, const uint8_t *data)
 	}
 	//CS_HIGH;
 }
-
-static const uint8_t ili9341_init_seq[] = {
+#ifndef DISPLAY_ST7796
+static const uint8_t ili_init_seq[] = {
   // cmd, len, data...,
   // SW reset
   ILI9341_SOFTWARE_RESET, 0,
@@ -247,6 +244,55 @@ static const uint8_t ili9341_init_seq[] = {
   ILI9341_DISPLAY_ON, 0,
   0 // sentinel
 };
+#else
+static const uint8_t ili_init_seq[] = {
+  // SW reset
+  ILI9341_SOFTWARE_RESET, 0,
+  // display off
+  ILI9341_DISPLAY_OFF, 0,
+
+  // Interface Mode Control
+  ILI9341_RGB_INTERFACE_CONTROL, 1, 0x00,
+  // Frame Rate
+  ILI9341_FRAME_RATE_CONTROL_1, 1, 0xA,
+  // Display Inversion Control , 2 Dot
+  ILI9341_DISPLAY_INVERSION_CONTROL, 1, 0x02,
+  // RGB/MCU Interface Control
+  ILI9341_DISPLAY_FUNCTION_CONTROL, 3, 0x02, 0x02, 0x3B,
+  // EntryMode
+  ILI9341_ENTRY_MODE_SET, 1, 0xC6,
+  // Power Control 1
+//  ILI9341_POWER_CONTROL_1, 2, 0x17, 0x15,
+  // Power Control 2
+  ILI9341_POWER_CONTROL_2, 1, 0x41,
+  // VCOM Control
+//  ILI9341_VCOM_CONTROL_1, 2, 0x35, //0x00, 0x4D, 0x90,
+  // VCOM_CONTROL_2
+//  ILI9341_VCOM_CONTROL_2, 1, 0xBE,
+  // Memory Access
+  ILI9341_MEMORY_ACCESS_CONTROL, 1, 0x28,  // landscape, BGR
+//ILI9341_MEMORY_ACCESS_CONTROL, 1, 0x20,  // landscape, RGB
+  // Interface Pixel Format,	16bpp DPI and DBI and
+  ILI9341_PIXEL_FORMAT_SET, 1, 0x55,
+  // P-Gamma
+//  ILI9341_POSITIVE_GAMMA_CORRECTION, 15, 0x00, 0x03, 0x09, 0x08, 0x16, 0x0A, 0x3F, 0x78, 0x4C, 0x09, 0x0A, 0x08, 0x16, 0x1A, 0x0F,
+  // N-Gamma
+//  ILI9341_NEGATIVE_GAMMA_CORRECTION, 15, 0x00, 0X16, 0X19, 0x03, 0x0F, 0x05, 0x32, 0x45, 0x46, 0x04, 0x0E, 0x0D, 0x35, 0x37, 0x0F,
+  //Set Image Func
+//  0xE9, 1, 0x00,
+  // Set Brightness to Max
+  ILI9341_WRITE_BRIGHTNESS, 1, 0xFF,
+  // Adjust Control
+//  ILI9341_PUMP_RATIO_CONTROL, 1, 0x20,
+
+  //Exit Sleep
+  ILI9341_SLEEP_OUT, 0x00,
+  // display on
+  ILI9341_DISPLAY_ON, 0,
+  0 // sentinel
+
+};
+#endif
 
 void
 ili9341_init(void)
@@ -259,7 +305,7 @@ ili9341_init(void)
   ili9341_spi_wait_bulk();
 
   const uint8_t *p;
-  for (p = ili9341_init_seq; *p; ) {
+  for (p = ili_init_seq; *p; ) {
 	send_command(p[0], p[1], &p[2]);
 	p += 2 + p[1];
 	delay(5);
@@ -388,7 +434,7 @@ ili9341_set_flip(bool flipX, bool flipY) {
 void
 ili9341_clear_screen(void)
 {
-	ili9341_fill(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, background_color);
+	ili9341_fill(0, 0, LCD_WIDTH, LCD_HEIGHT, background_color);
 }
 
 void
