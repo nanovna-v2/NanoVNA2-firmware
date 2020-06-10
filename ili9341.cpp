@@ -267,12 +267,16 @@ ili9341_init(void)
 }
 
 // Reverses the byte order within each halfword of a word. For example, 0x12345678 becomes 0x34127856.
+#if 0
+#define __REV16(v) (((((uint32_t)(v) & 0xFF000000) >> 8) | (((uint32_t)(v) & 0x00FF0000) << 8) | (((uint32_t)(v) & 0x0000FF00) >> 8) | (((uint32_t)(v) & 0x0000FF) << 8)))
+#else
 static inline uint32_t __REV16(uint32_t value)
 {
   uint32_t result;
   __asm volatile("rev16 %0, %1" : "=r" (result) : "r" (value));
   return result;
 }
+#endif
 
 #if 0
 void ili9341_pixel(int x, int y, uint16_t color)
