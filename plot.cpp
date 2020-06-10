@@ -1488,11 +1488,10 @@ cell_drawchar(uint8_t ch, int x, int y)
 }
 
 void
-cell_drawstring_5x7(char *str, int x, int y, uint16_t fg)
+cell_drawstring(char *str, int x, int y)
 {
 	if (y <= -FONT_GET_HEIGHT || y >= CELLHEIGHT)
 		return;
-	ili9341_set_foreground(fg);
 	while (*str) {
 		if (x >= CELLWIDTH)
 			return;
@@ -1515,11 +1514,12 @@ cell_draw_marker_info(int x0, int y0)
 		for (mk = 0; mk < MARKERS_MAX; mk++) {
 			if (!markers[mk].enabled)
 				continue;
+			ili9341_set_foreground(config.trace_color[t]);
 			int xpos = 1 + (j%2)*(WIDTH/2) + CELLOFFSETX - x0;
 			int ypos = 1 + (j/2)*(FONT_STR_HEIGHT) - y0;
 			strcpy(buf, " M1"); if (mk == active_marker) buf[0] = S_SARROW[0];
 			buf[2] += mk;
-			cell_drawstring_5x7(buf, xpos, ypos, config.trace_color[t]); // invert
+			cell_drawstring(buf, xpos, ypos);
 			xpos += 20;
 			//trace_get_info(t, buf, sizeof buf);
 			int32_t freq = freqAt(markers[mk].index);
@@ -1529,13 +1529,14 @@ cell_draw_marker_info(int x0, int y0)
 			} else {
 				frequency_string_short(buf, sizeof buf, freq, 0);
 			}
-			cell_drawstring_5x7(buf, xpos, ypos, config.trace_color[t]);
+			cell_drawstring(buf, xpos, ypos);
 			xpos += 64;
 			if (uistat.marker_delta && mk != active_marker)
 				trace_get_value_string_delta(t, buf, sizeof buf, measured[trace[t].channel], markers[mk].index, markers[active_marker].index);
 			else
 				trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel], markers[mk].index);
-			cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+			ili9341_set_foreground(0x0000);
+			cell_drawstring(buf, xpos, ypos);
 			j++;
 		}
 
@@ -1546,7 +1547,8 @@ cell_draw_marker_info(int x0, int y0)
 			int ypos = 1 + (j/2)*(FONT_STR_HEIGHT) - y0;
 			strcpy(buf, S_DELTA "1:");
 			buf[1] += previous_marker;
-			cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+			ili9341_set_foreground(0xFFFF);
+			cell_drawstring(buf, xpos, ypos);
 			xpos += 19;
 			if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 				frequency_string(buf, sizeof buf, freqAt(idx) - freqAt(idx0));
@@ -1557,7 +1559,7 @@ cell_draw_marker_info(int x0, int y0)
 				buf[n++] = ' ';
 				string_value_with_prefix(&buf[n], sizeof buf - n, distance_of_index(idx) - distance_of_index(idx0), 'm');
 			}
-			cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+			cell_drawstring(buf, xpos, ypos);
 		}
 	} else {
 		for (t = 0; t < TRACES_MAX; t++) {
@@ -1567,14 +1569,16 @@ cell_draw_marker_info(int x0, int y0)
 			int ypos = 1 + (j/2)*(FONT_STR_HEIGHT) - y0;
 			strcpy(buf, " CH0"); if (t == uistat.current_trace) buf[0] = S_SARROW[0];
 			buf[3] += trace[t].channel;
+			ili9341_set_foreground(config.trace_color[t]);
 			//chsnprintf(buf, sizeof buf, "CH%d", trace[t].channel);
-			cell_drawstring_5x7(buf, xpos, ypos, config.trace_color[t]); // invert
+			cell_drawstring(buf, xpos, ypos); // invert
 			xpos += 20;
 			trace_get_info(t, buf, sizeof buf);
-			cell_drawstring_5x7(buf, xpos, ypos, config.trace_color[t]);
+			cell_drawstring(buf, xpos, ypos);
 			xpos += 64;
 			trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel], idx);
-			cell_drawstring_5x7( buf, xpos, ypos, 0xffff);
+			ili9341_set_foreground(0xFFFF);
+			cell_drawstring(buf, xpos, ypos);
 			j++;
 		}
 
@@ -1584,7 +1588,8 @@ cell_draw_marker_info(int x0, int y0)
 		strcpy(buf, " 1:");if (uistat.lever_mode == LM_MARKER) buf[0] = S_SARROW[0];
 		buf[0] += active_marker;
 		xpos += 5;
-		cell_drawstring_5x7(buf, xpos, ypos, 0xffff); // invert
+		ili9341_set_foreground(0xFFFF);
+		cell_drawstring(buf, xpos, ypos);
 		xpos += 14;
 		if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 			frequency_string(buf, sizeof buf, plot_getFrequencyAt(idx));
@@ -1594,21 +1599,22 @@ cell_draw_marker_info(int x0, int y0)
 			buf[n++] = ' ';
 			string_value_with_prefix(&buf[n], sizeof buf-n, distance_of_index(idx), 'm');
 		}
-		cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+		cell_drawstring(buf, xpos, ypos);
 	}
 	if (electrical_delay != 0) {
 		// draw electrical delay
 		int xpos = 21 + CELLOFFSETX - x0;
 		int ypos = 1 + ((j+1)/2)*(FONT_STR_HEIGHT) - y0;
 		chsnprintf(buf, sizeof buf, "Edelay");
-		cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+		ili9341_set_foreground(0xFFFF);
+		cell_drawstring(buf, xpos, ypos);
 		xpos += 7 * 5;
 		int n = string_value_with_prefix(buf, sizeof buf, electrical_delay * 1e-12, 's');
-		cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+		cell_drawstring(buf, xpos, ypos);
 		xpos += n * 5 + 5;
 		float light_speed_ps = 299792458e-12; //(m/ps)
 		string_value_with_prefix(buf, sizeof buf, electrical_delay * light_speed_ps * velocity_factor, 'm');
-		cell_drawstring_5x7(buf, xpos, ypos, 0xffff);
+		cell_drawstring(buf, xpos, ypos);
 	}
 }
 
@@ -1718,42 +1724,30 @@ draw_frequencies(void)
 void
 draw_cal_status(void)
 {
-	int x = 0;
-	int y = 100;
-	ili9341_set_foreground(0xFFFF);
-	ili9341_set_background(0x0000);
-	ili9341_fill(0, y, 10, 6*FONT_STR_HEIGHT, 0x0000);
-	if (cal_status & CALSTAT_APPLY) {
-		char c[3] = "C0";
-		c[1] += lastsaveid;
-		if (cal_status & CALSTAT_INTERPOLATED)
-			c[0] = 'c';
-		else if (active_props == &current_props)
-			c[1] = '*';
-		ili9341_drawstring(c, x, y);
-		y += FONT_STR_HEIGHT;
-	}
-
-	if (cal_status & CALSTAT_ED) {
-		ili9341_drawstring("D", x, y);
-		y += FONT_STR_HEIGHT;
-	}
-	if (cal_status & CALSTAT_ER) {
-		ili9341_drawstring("R", x, y);
-		y += FONT_STR_HEIGHT;
-	}
-	if (cal_status & CALSTAT_ES) {
-		ili9341_drawstring("S", x, y);
-		y += FONT_STR_HEIGHT;
-	}
-	if (cal_status & CALSTAT_ET) {
-		ili9341_drawstring("T", x, y);
-		y += FONT_STR_HEIGHT;
-	}
-	if (cal_status & CALSTAT_EX) {
-		ili9341_drawstring("X", x, y);
-		y += FONT_STR_HEIGHT;
-	}
+  int x = 0;
+  int y = 100;
+  char c[3];
+  ili9341_set_foreground(0xFFFF);
+  ili9341_set_background(0x0000);
+  ili9341_fill(0, y, OFFSETX, 6*(FONT_STR_HEIGHT), 0x0000);
+  if (cal_status & CALSTAT_APPLY) {
+    c[0] = cal_status & CALSTAT_INTERPOLATED ? 'c' : 'C';
+    c[1] = active_props == &current_props ? '*' : '0' + lastsaveid;
+    c[2] = 0;
+    ili9341_drawstring(c, x, y);
+    y +=FONT_STR_HEIGHT;
+  }
+  int i;
+  static const struct {char text, zero, mask;} calibration_text[]={
+    {'D', 0, CALSTAT_ED},
+    {'R', 0, CALSTAT_ER},
+    {'S', 0, CALSTAT_ES},
+    {'T', 0, CALSTAT_ET},
+    {'X', 0, CALSTAT_EX}
+  };
+  for (i = 0; i < 5; i++, y+=FONT_STR_HEIGHT)
+    if (cal_status & calibration_text[i].mask)
+      ili9341_drawstring(&calibration_text[i].text, x, y);
 }
 
 void
