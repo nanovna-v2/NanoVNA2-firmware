@@ -993,11 +993,14 @@ draw_refpos(int x, int y, int c)
 	}
 }
 
+#ifndef DISPLAY_ST7796
 #define MARKER_WIDTH  7
 #define MARKER_HEIGHT 10
 #define X_MARKER_OFFSET 3
 #define Y_MARKER_OFFSET 10
-static const uint8_t marker_bitmap[]={
+#define MARKER_DRAW_MASK 0x80
+typedef uint8_t m_bitmap_t;
+static const m_bitmap_t marker_bitmap[]={
   // Marker 1
   0b11111110,
   0b11101110,
@@ -1043,19 +1046,84 @@ static const uint8_t marker_bitmap[]={
   0b00111000,
   0b00010000,
 };
-
+#else
+#define MARKER_WIDTH  10
+#define MARKER_HEIGHT 13
+#define X_MARKER_OFFSET 4
+#define Y_MARKER_OFFSET 13
+#define MARKER_DRAW_MASK 0x8000
+typedef uint16_t m_bitmap_t;
+static const m_bitmap_t marker_bitmap[]={
+  // Marker 1
+  0b1111111110000000,
+  0b1111001110000000,
+  0b1110001110000000,
+  0b1101001110000000,
+  0b1111001110000000,
+  0b1111001110000000,
+  0b1111001110000000,
+  0b1111001110000000,
+  0b1111001110000000,
+  0b0110000100000000,
+  0b0011111000000000,
+  0b0001110000000000,
+  0b0000100000000000,
+  // Marker 2
+  0b1111111110000000,
+  0b1110000110000000,
+  0b1100110010000000,
+  0b1100110010000000,
+  0b1111100110000000,
+  0b1111001110000000,
+  0b1110011110000000,
+  0b1100111110000000,
+  0b1100000010000000,
+  0b0111111100000000,
+  0b0011111000000000,
+  0b0001110000000000,
+  0b0000100000000000,
+  // Marker 3
+  0b1111111110000000,
+  0b1100000110000000,
+  0b1001110010000000,
+  0b1001110010000000,
+  0b1111110010000000,
+  0b1111000110000000,
+  0b1111110010000000,
+  0b1001110010000000,
+  0b1001110010000000,
+  0b0100000100000000,
+  0b0011111000000000,
+  0b0001110000000000,
+  0b0000100000000000,
+  // Marker 4
+  0b1111111110000000,
+  0b1111100110000000,
+  0b1111000110000000,
+  0b1110000110000000,
+  0b1100100110000000,
+  0b1001100110000000,
+  0b1001100110000000,
+  0b1000000010000000,
+  0b1111100110000000,
+  0b0111100100000000,
+  0b0011111000000000,
+  0b0001110000000000,
+  0b0000100000000000,
+};
+#endif
 static void
 draw_marker(int x, int y, int c, int ch)
 {
 	int y0 = y, j;
 	for (j = 0; j < MARKER_HEIGHT; j++, y0++) {
 		int x0 = x;
-		uint8_t bits = marker_bitmap[ch * MARKER_HEIGHT + j];
+		m_bitmap_t bits = marker_bitmap[ch * MARKER_HEIGHT + j];
 		bool force_color = false;
 		while (bits) {
-			if (bits & 0x80) force_color = true;
+			if (bits & MARKER_DRAW_MASK) force_color = true;
 			if (x0 >= 0 && x0 < CELLWIDTH && y0 >= 0 && y0 < CELLHEIGHT) {
-				if (bits & 0x80)
+				if (bits & MARKER_DRAW_MASK)
 					ili9341_spi_buffer[y0 * CELLWIDTH + x0] = c;
 				else if (force_color)
 					ili9341_spi_buffer[y0 * CELLWIDTH + x0] = 0x0000;
