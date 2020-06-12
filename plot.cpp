@@ -1588,7 +1588,7 @@ cell_draw_marker_info(int x0, int y0)
 			strcpy(buf, " M1"); if (mk == active_marker) buf[0] = S_SARROW[0];
 			buf[2] += mk;
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 4*FONT_WIDTH + 4;
+			xpos += 3*FONT_WIDTH + 3;
 			//trace_get_info(t, buf, sizeof buf);
 			int32_t freq = freqAt(markers[mk].index);
 			if (uistat.marker_delta && mk != active_marker) {
@@ -1598,12 +1598,12 @@ cell_draw_marker_info(int x0, int y0)
 				frequency_string_short(buf, sizeof buf, freq, 0);
 			}
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 9*FONT_WIDTH + 9;
+			xpos += 11*FONT_WIDTH + 11;
 			if (uistat.marker_delta && mk != active_marker)
 				trace_get_value_string_delta(t, buf, sizeof buf, measured[trace[t].channel], markers[mk].index, markers[active_marker].index);
 			else
 				trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel], markers[mk].index);
-			ili9341_set_foreground(0x0000);
+			ili9341_set_foreground(0xFFFF);
 			cell_drawstring(buf, xpos, ypos);
 			j++;
 		}
@@ -1613,7 +1613,7 @@ cell_draw_marker_info(int x0, int y0)
 			int idx0 = markers[previous_marker].index;
 			int xpos = (WIDTH/2+30) + CELLOFFSETX - x0;
 			int ypos = 1 + (j/2)*(FONT_STR_HEIGHT) - y0;
-			strcpy(buf, S_DELTA "1:");
+			strcpy(buf, S_DELTA "1:"); if (mk == active_marker) buf[0] = S_SARROW[0];
 			buf[1] += previous_marker;
 			ili9341_set_foreground(0xFFFF);
 			cell_drawstring(buf, xpos, ypos);
@@ -1643,7 +1643,7 @@ cell_draw_marker_info(int x0, int y0)
 			xpos += 4*FONT_WIDTH + 4;
 			trace_get_info(t, buf, sizeof buf);
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 11*FONT_WIDTH + 11;
+			xpos += 11*FONT_WIDTH + 5;
 			trace_get_value_string(t, buf, sizeof buf, measured[trace[t].channel], idx);
 			ili9341_set_foreground(0xFFFF);
 			cell_drawstring(buf, xpos, ypos);
