@@ -96,7 +96,7 @@ static volatile int usbTxQueueRPos = 0;
 static constexpr int tim1Period = 25;	// 1MHz / 25 = 40kHz
 
 // periods of a 1MHz clock; how often to call UIHW::checkButtons
-static constexpr int tim2Period = 250;	// 1MHz / 250 = 4kHz
+static constexpr int tim2Period = 50000;	// 1MHz / 50000 = 20Hz
 
 
 // value is in microseconds; increments at 40kHz by TIM1 interrupt
