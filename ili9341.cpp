@@ -88,6 +88,7 @@
 #define ILI9341_BACKLIGHT_CONTROL_8        0xBF
 #define ILI9341_POWER_CONTROL_1            0xC0
 #define ILI9341_POWER_CONTROL_2            0xC1
+#define ILI9341_POWER_CONTROL_3            0xC2
 #define ILI9341_VCOM_CONTROL_1             0xC5
 #define ILI9341_VCOM_CONTROL_2             0xC7
 #define ILI9341_POWERA                     0xCB
@@ -105,6 +106,7 @@
 #define ILI9341_POWER_SEQ                  0xED
 #define ILI9341_3GAMMA_EN                  0xF2
 #define ILI9341_INTERFACE_CONTROL          0xF6
+#define ILI9341_CSCON                      0xF0
 #define ILI9341_PUMP_RATIO_CONTROL         0xF7
 
 //
@@ -180,6 +182,7 @@ static void send_command(uint8_t cmd, int len, const uint8_t *data)
 	}
 	//CS_HIGH;
 }
+
 #ifndef DISPLAY_ST7796
 static const uint8_t ili_init_seq[] = {
   // cmd, len, data...,
@@ -254,7 +257,7 @@ static const uint8_t ili_init_seq[] = {
   // Interface Mode Control
   ILI9341_RGB_INTERFACE_CONTROL, 1, 0x00,
   // Frame Rate
-  ILI9341_FRAME_RATE_CONTROL_1, 1, 0xA,
+  ILI9341_FRAME_RATE_CONTROL_1, 2, 0x70, 0x1F,
   // Display Inversion Control , 2 Dot
   ILI9341_DISPLAY_INVERSION_CONTROL, 1, 0x02,
   // RGB/MCU Interface Control
@@ -262,35 +265,32 @@ static const uint8_t ili_init_seq[] = {
   // EntryMode
   ILI9341_ENTRY_MODE_SET, 1, 0xC6,
   // Power Control 1
-//  ILI9341_POWER_CONTROL_1, 2, 0x17, 0x15,
+  ILI9341_POWER_CONTROL_1, 2, 0x17, 0x15,
   // Power Control 2
   ILI9341_POWER_CONTROL_2, 1, 0x41,
   // VCOM Control
-//  ILI9341_VCOM_CONTROL_1, 2, 0x35, //0x00, 0x4D, 0x90,
-  // VCOM_CONTROL_2
-//  ILI9341_VCOM_CONTROL_2, 1, 0xBE,
+//ILI9341_VCOM_CONTROL_1, 3, 0x00, 0x4D, 0x90,
+  ILI9341_VCOM_CONTROL_1, 3, 0x00, 0x12, 0x80,
   // Memory Access
   ILI9341_MEMORY_ACCESS_CONTROL, 1, 0x28,  // landscape, BGR
 //ILI9341_MEMORY_ACCESS_CONTROL, 1, 0x20,  // landscape, RGB
   // Interface Pixel Format,	16bpp DPI and DBI and
   ILI9341_PIXEL_FORMAT_SET, 1, 0x55,
   // P-Gamma
-//  ILI9341_POSITIVE_GAMMA_CORRECTION, 15, 0x00, 0x03, 0x09, 0x08, 0x16, 0x0A, 0x3F, 0x78, 0x4C, 0x09, 0x0A, 0x08, 0x16, 0x1A, 0x0F,
+  ILI9341_POSITIVE_GAMMA_CORRECTION, 15, 0x00, 0x03, 0x09, 0x08, 0x16, 0x0A, 0x3F, 0x78, 0x4C, 0x09, 0x0A, 0x08, 0x16, 0x1A, 0x0F,
   // N-Gamma
-//  ILI9341_NEGATIVE_GAMMA_CORRECTION, 15, 0x00, 0X16, 0X19, 0x03, 0x0F, 0x05, 0x32, 0x45, 0x46, 0x04, 0x0E, 0x0D, 0x35, 0x37, 0x0F,
+  ILI9341_NEGATIVE_GAMMA_CORRECTION, 15, 0x00, 0X16, 0X19, 0x03, 0x0F, 0x05, 0x32, 0x45, 0x46, 0x04, 0x0E, 0x0D, 0x35, 0x37, 0x0F,
   //Set Image Func
 //  0xE9, 1, 0x00,
   // Set Brightness to Max
   ILI9341_WRITE_BRIGHTNESS, 1, 0xFF,
   // Adjust Control
-//  ILI9341_PUMP_RATIO_CONTROL, 1, 0x20,
-
+  ILI9341_PUMP_RATIO_CONTROL, 4, 0xA9, 0x51, 0x2C, 0x82,
   //Exit Sleep
   ILI9341_SLEEP_OUT, 0x00,
   // display on
   ILI9341_DISPLAY_ON, 0,
   0 // sentinel
-
 };
 #endif
 
