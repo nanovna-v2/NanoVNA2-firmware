@@ -190,8 +190,8 @@ namespace board {
 
 	void lcd_spi_init() {
 		dmaChannelSPI.enable();
-		gpio_set_mode(lcd_clk.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_clk.mask());
-		gpio_set_mode(lcd_mosi.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_mosi.mask());
+		gpio_set_mode(lcd_clk.bank(), GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_clk.mask());
+		gpio_set_mode(lcd_mosi.bank(), GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_mosi.mask());
 		gpio_set_mode(lcd_miso.bank(), GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, lcd_miso.mask());
 
 		rcc_periph_clock_enable(RCC_SPI1);
@@ -225,7 +225,7 @@ namespace board {
 		spi_enable(SPI1);
 	}
 	void lcd_spi_fast() {
-		spi_set_baudrate_prescaler(SPI1, 0b010);
+		spi_set_baudrate_prescaler(SPI1, 0b001);
 	}
 	void lcd_spi_slow() {
 		spi_set_baudrate_prescaler(SPI1, 0b110);
