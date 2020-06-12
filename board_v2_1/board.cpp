@@ -361,7 +361,7 @@ namespace board {
 		// switch back to tx+rx mode
 		spi_set_unidirectional_mode(SPI1);
 		lcd_spi_isDMAInProgress = false;
-		delayMicroseconds(10);
+//		delayMicroseconds(10);
 	}
 	
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits) {

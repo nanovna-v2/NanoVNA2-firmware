@@ -351,15 +351,18 @@ void ili9341_fill(int x, int y, int w, int h, uint16_t color)
 	constexpr int chunkSize = 512;
 	static_assert(chunkSize <= ili9341_bufferSize);
 
-	for(int i=0; i<chunkSize; i++)
+	uint32_t fill = len > chunkSize ? chunkSize : len;
+	for(int i=0; i< fill; i++)
 		ili9341_spi_buffer[i] = color;
 
-	while(len > chunkSize) {
-		ili9341_spi_transfer_bulk(chunkSize);
-		len -= chunkSize;
+	while(len > 0) {
+		uint32_t bulk = len > fill ? fill : len;
+		ili9341_spi_transfer_bulk(bulk);
+		len -= bulk;
 	}
-	while (len-- > 0) 
-	  ssp_senddata16(color);
+	if(ili9341_spi_buffer == ili9341_spi_bufferA)
+		ili9341_spi_buffer = ili9341_spi_bufferB;
+	else ili9341_spi_buffer = ili9341_spi_bufferA;
 }
 
 void ili9341_bulk(int x, int y, int w, int h)
