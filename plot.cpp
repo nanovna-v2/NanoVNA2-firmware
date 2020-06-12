@@ -1330,7 +1330,7 @@ draw_cell(int m, int n)
 			grid_mode |= GRID_RECTANGULAR;
 	}
 
-	PULSE;
+//	PULSE;
 	  // Clear buffer ("0 : height" lines)
 	#if 0
 	  // use memset 350 system ticks for all screen calls
@@ -1384,7 +1384,7 @@ draw_cell(int m, int n)
 				if (smith_grid3(x+x0, y+y0))// smith_grid2(x+x0, y+y0, 0.5))
 					ili9341_spi_buffer[y * CELLWIDTH + x] = c;
 	}
-	PULSE;
+//	PULSE;
 	for (t = 0; t < TRACES_MAX; t++) {
 		if (!trace[t].enabled)
 			continue;
@@ -1407,7 +1407,7 @@ draw_cell(int m, int n)
 		}
 	}
 
-	PULSE;
+//	PULSE;
 	// draw marker symbols on each trace (<10 system ticks for all screen calls)
 #if 1
 	for (i = 0; i < MARKERS_MAX; i++) {
@@ -1431,7 +1431,7 @@ draw_cell(int m, int n)
 	if (n <= (3*FONT_STR_HEIGHT)/CELLHEIGHT)
 		cell_draw_marker_info(x0, y0);
 
-	PULSE;
+//	PULSE;
 
 	// Draw reference position (<10 system ticks for all screen calls)
 	for (t = 0; t < TRACES_MAX; t++) {
