@@ -129,7 +129,7 @@ void
 touch_cal_exec(void)
 {
   int status;
-  uint16_t x1, x2, y1, y2;
+  uint16_t x1, x2, y1, y2, t;
   UIEvent evt;
 
   uiDisableProcessing();
@@ -157,7 +157,11 @@ touch_cal_exec(void)
      if(evt.isTouchPress())
       UIHW::touchPosition(x2, y2);
   } while(!evt.isTouchRelease());
-// TODO: change calibration if display flipped
+  // Need swap data if display flip
+  if(config.ui_options & UI_OPTIONS_FLIP){
+    t=x1;x1=x2;x2=t;
+    t=y1;y1=y2;y2=t;
+  }
   config.touch_cal[0] = x1;
   config.touch_cal[1] = y1;
   config.touch_cal[2] = (x2 - x1) * 16 / LCD_WIDTH;
