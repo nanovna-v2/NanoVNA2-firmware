@@ -137,10 +137,10 @@
 
 
 
-uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
+uint16_t ili9341_spi_buffers[SPI_BUFFER_SIZE * 2];
 
 static uint16_t* const ili9341_spi_bufferA = ili9341_spi_buffers;
-static uint16_t* const ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_bufferSize];
+static uint16_t* const ili9341_spi_bufferB = &ili9341_spi_buffers[SPI_BUFFER_SIZE];
 
 uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 
@@ -349,7 +349,7 @@ void ili9341_fill(int x, int y, int w, int h, uint16_t color)
 	send_command(ILI9341_MEMORY_WRITE, 0, NULL);
 
 	constexpr int chunkSize = 512;
-	static_assert(chunkSize <= ili9341_bufferSize);
+	static_assert(chunkSize <= SPI_BUFFER_SIZE);
 
 	uint32_t fill = len > chunkSize ? chunkSize : len;
 	for(int i=0; i< fill; i++)
