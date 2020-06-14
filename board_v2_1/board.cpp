@@ -77,7 +77,7 @@ namespace board {
 	constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV10 = 0b1010;
 	constexpr uint32_t GD32_RCC_CFGR_ADCPRE_HCLK_DIV20 = 0b1011;
 
-	void rcc_set_adcpre_gd32(uint32_t adcpre) {
+	static void rcc_set_adcpre_gd32(uint32_t adcpre) {
 		uint32_t RCC_CFGR_ADCPRE_MASK = (0b11 << 14) | (1 << 28);
 		uint32_t RCC_CFGR2_ADCPRE_MASK = 1 << 29;
 		uint32_t old = (RCC_CFGR & ~RCC_CFGR_ADCPRE_MASK);
@@ -303,8 +303,8 @@ namespace board {
 
 	void lcd_spi_init() {
 		dmaChannelSPI.enable();
-		gpio_set_mode(lcd_clk.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_clk.mask());
-		gpio_set_mode(lcd_mosi.bank(), GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_mosi.mask());
+		gpio_set_mode(lcd_clk.bank(), GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_clk.mask());
+		gpio_set_mode(lcd_mosi.bank(), GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, lcd_mosi.mask());
 		gpio_set_mode(lcd_miso.bank(), GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, lcd_miso.mask());
 
 		rcc_periph_clock_enable(RCC_SPI1);
@@ -338,7 +338,7 @@ namespace board {
 		spi_enable(SPI1);
 	}
 	void lcd_spi_fast() {
-		spi_set_baudrate_prescaler(SPI1, 0b010);
+		spi_set_baudrate_prescaler(SPI1, 0b001);
 	}
 	void lcd_spi_slow() {
 		spi_set_baudrate_prescaler(SPI1, 0b110);
@@ -361,7 +361,7 @@ namespace board {
 		// switch back to tx+rx mode
 		spi_set_unidirectional_mode(SPI1);
 		lcd_spi_isDMAInProgress = false;
-		delayMicroseconds(10);
+//		delayMicroseconds(10);
 	}
 	
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits) {

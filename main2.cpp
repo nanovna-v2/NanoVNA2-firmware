@@ -96,7 +96,7 @@ static volatile int usbTxQueueRPos = 0;
 static constexpr int tim1Period = 25;	// 1MHz / 25 = 40kHz
 
 // periods of a 1MHz clock; how often to call UIHW::checkButtons
-static constexpr int tim2Period = 250;	// 1MHz / 250 = 4kHz
+static constexpr int tim2Period = 50000;	// 1MHz / 50000 = 20Hz
 
 
 // value is in microseconds; increments at 40kHz by TIM1 interrupt
@@ -341,14 +341,14 @@ static void lcd_and_ui_setup() {
 	};
 	delay(10);
 
-	xpt2046.begin(320, 240);
+	xpt2046.begin(LCD_WIDTH, LCD_HEIGHT);
 	
 	ili9341_init();
-
+	lcd_spi_fast();
 	// show test pattern
 	//ili9341_test(5);
 	// clear screen
-	ili9341_fill(0, 0, 320, 240, 0);
+	 ili9341_clear_screen();
 
 	// tell the plotting code how to calculate frequency in Hz given an index
 	plot_getFrequencyAt = [](int index) {
@@ -1056,23 +1056,31 @@ void debug_plot_markmap() {
 	while(true);
 }
 
-
-int main(void) {
+/* Return true when FPU is available */
+bool cpu_enable_fpu(void) 
+{
 	uint32_t fpuEnable = 0b1111 << 20;
-	bool shouldShowDmesg = false;
-
-#ifndef GD32F3_NOFPU
 	if((SCB_CPACR & fpuEnable) != fpuEnable) {
 		SCB_CPACR |= fpuEnable;
 		if((SCB_CPACR & fpuEnable) != fpuEnable) {
-			// printk1() does not invoke printf() and does not use fpu
+			return false;
+		} 
+	}
+	return true;
+}
 
-			// if you encounter this error, see:
-			// https://www.amobbs.com/thread-5719892-1-1.html
-			printk1("FPU NOT DETECTED!\nCHECK GD32F303 BATCH OR REBUILD WITHOUT FPU\n");
-		} else {
-			printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
-		}
+int main(void) {
+	bool shouldShowDmesg = false;
+
+#ifndef GD32F3_NOFPU
+	if(cpu_enable_fpu()) {
+		printk1("LIBOPENCM3 DID NOT ENABLE FPU!\n CHECK lib/dispatch/vector_chipset.c\n");
+	} else {
+		// printk1() does not invoke printf() and does not use fpu
+
+		// if you encounter this error, see:
+		// https://www.amobbs.com/thread-5719892-1-1.html
+		printk1("FPU NOT DETECTED!\nCHECK GD32F303 BATCH OR REBUILD WITHOUT FPU\n");
 		shouldShowDmesg = true;
 	}
 #endif
