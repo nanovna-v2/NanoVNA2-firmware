@@ -61,8 +61,8 @@ namespace board {
 	// estimated HSE frequency in Hz, set by boardInit()
 	extern uint32_t hseEstimateHz;
 
-	// detected HSE frequency in Hz, rounded to a supported value, set by boardInit()
-	extern uint32_t xtalFreqHz;
+	// All boards use a 24Mhz TCXO. It gives best phase noise with the ADF4350
+	static constexpr uint32_t xtalFreqHz = 24000000; 
 
 	// ADC parameters, set by boardInit()
 	extern uint32_t adc_ratecfg;
