@@ -1470,6 +1470,9 @@ draw_all_cells(bool flush_markmap)
 		for (n = 0; n < (area_height+CELLHEIGHT-1) / CELLHEIGHT; n++) {
 			if ((markmap[0][n] | markmap[1][n]) & (1 << m)) {
 				draw_cell(m, n);
+				plot_tick();
+				if(plot_canceled)
+					return;
 //				ili9341_fill(m*CELLWIDTH+OFFSETX, n*CELLHEIGHT, 2, 2, RGB565(255,0,0));
 			}
 //			else
