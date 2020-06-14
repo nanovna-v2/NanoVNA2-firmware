@@ -312,8 +312,21 @@ static void adc_read(volatile uint16_t*& data, int& len) {
 static void lcd_and_ui_setup() {
 	lcd_spi_init();
 
-	ili9341_conf_cs = ili9341_cs;
+	digitalWrite(ili9341_cs, HIGH);
+	digitalWrite(xpt2046_cs, HIGH);
+	pinMode(ili9341_cs, OUTPUT);
+	pinMode(xpt2046_cs, OUTPUT);
+
+	// setup hooks
 	ili9341_conf_dc = ili9341_dc;
+	ili9341_spi_set_cs = [](bool selected) {
+		lcd_spi_waitDMA();
+		// if the xpt2046 is currently selected, deselect it
+		if(selected && digitalRead(xpt2046_cs) == LOW) {
+			digitalWrite(xpt2046_cs, HIGH);
+		}
+		digitalWrite(ili9341_cs, selected ? LOW : HIGH);
+	};
 	ili9341_spi_transfer = [](uint32_t sdi, int bits) {
 		return lcd_spi_transfer(sdi, bits);
 	};
@@ -325,12 +338,19 @@ static void lcd_and_ui_setup() {
 		lcd_spi_waitDMA();
 	};
 
-	xpt2046.spiTransfer = [](uint32_t sdi, int bits) {
+	xpt2046.spiSetCS = [](bool selected) {
 		// a single SPI master is used for both the ILI9346 display and the
 		// touch controller; if an outstanding background DMA is in progress,
 		// we must wait for it to complete.
 		lcd_spi_waitDMA();
-		digitalWrite(ili9341_cs, HIGH);
+		// if the ili9341 is currently selected, deselect it.
+		if(selected && digitalRead(ili9341_cs) == LOW) {
+			digitalWrite(ili9341_cs, HIGH);
+		}
+		digitalWrite(xpt2046_cs, selected ? LOW : HIGH);
+	};
+	xpt2046.spiTransfer = [](uint32_t sdi, int bits) {
+		myassert(digitalRead(ili9341_cs) == HIGH);
 		
 		lcd_spi_slow();
 		delayMicroseconds(10);

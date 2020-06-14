@@ -129,8 +129,8 @@
 
 #define RESET_ASSERT	;
 #define RESET_NEGATE	;
-#define CS_LOW			digitalWrite(ili9341_conf_cs, LOW)
-#define CS_HIGH			digitalWrite(ili9341_conf_cs, HIGH)
+#define CS_LOW			ili9341_spi_set_cs(true)
+#define CS_HIGH			ili9341_spi_set_cs(false)
 #define DC_CMD			digitalWrite(ili9341_conf_dc, LOW)
 #define DC_DATA			digitalWrite(ili9341_conf_dc, HIGH)
 
@@ -148,8 +148,8 @@ uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 uint16_t foreground_color = 0;
 uint16_t background_color = 0;
 
-Pad ili9341_conf_cs;
 Pad ili9341_conf_dc;
+small_function<void(bool selected)> ili9341_spi_set_cs;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
 small_function<void()> ili9341_spi_wait_bulk;

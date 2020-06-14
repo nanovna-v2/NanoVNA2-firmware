@@ -25,10 +25,12 @@ extern uint16_t ili9341_spi_buffers[ili9341_bufferSize * 2];
 
 // the buffer that ili9341_bulk() transfers from
 extern uint16_t* ili9341_spi_buffer;
-extern Pad ili9341_conf_cs;
 extern Pad ili9341_conf_dc;
 
 // ===== hooks =====
+
+// select or deselect the ili9341 spi slave, called to start/stop a transaction
+extern small_function<void(bool selected)> ili9341_spi_set_cs;
 
 // write sdi onto spi bus while returning read value; does not affect cs pin
 extern small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
