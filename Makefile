@@ -14,6 +14,7 @@ OBJS            += $(MCULIB)/message_log.o $(MCULIB)/printf.o $(MCULIB)/fastwiri
 
 CFLAGS          += -O2 -g
 CPPFLAGS		+= -O2 -g -ffast-math --std=c++17 -fno-exceptions -fno-rtti -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
+CPPFLAGS		+= -Wall -Wno-unused-function
 CPPFLAGS		+=  -ffunction-sections -fdata-sections
 
 # safe g++ flags
