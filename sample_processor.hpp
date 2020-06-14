@@ -53,7 +53,7 @@ public:
 			
 			accumPhase++;
 			samples += nStreams;
-			if(accumPhase >= accumPeriod) {
+			if(int(accumPhase) >= accumPeriod) {
 				emitValue(accumRe, accumIm);
 				for(int streamNum = 0; streamNum < nStreams; streamNum++)
 					accumRe[streamNum] = accumIm[streamNum] = 0;

@@ -331,7 +331,6 @@ static void lcd_and_ui_setup() {
 		return lcd_spi_transfer(sdi, bits);
 	};
 	ili9341_spi_transfer_bulk = [](uint32_t words) {
-		int bytes = words*2;
 		lcd_spi_transfer_bulk((uint8_t*)ili9341_spi_buffer, words*2);
 	};
 	ili9341_spi_wait_bulk = []() {
@@ -987,7 +986,6 @@ static void apply_edelay(int i, complexf& refl, complexf& thru) {
 
 // consume all items in the values fifo and update the "measured" array.
 static bool processDataPoint() {
-	int ret = -1;
 	int rdRPos = usbTxQueueRPos;
 	int rdWPos = usbTxQueueWPos;
 	__sync_synchronize();
@@ -1105,7 +1103,7 @@ int main(void) {
 	}
 #endif
 
-	int i;
+
 	boardInit();
 
 	// set version registers (accessed through usb serial)

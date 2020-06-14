@@ -128,7 +128,6 @@ UIEvent uiWaitEvent() {
 void
 touch_cal_exec(void)
 {
-  int status;
   uint16_t x1, x2, y1, y2, t;
   UIEvent evt;
 
@@ -637,7 +636,6 @@ menu_transform_window_cb(UIEvent evt, int item)
 static void
 menu_transform_cb(UIEvent evt, int item)
 {
-  int status;
   switch (item) {
     case 0:
       if ((domain_mode & DOMAIN_MODE) == DOMAIN_TIME) {
@@ -1368,8 +1366,8 @@ draw_numeric_input(const char *buf)
 			c = KP_PERIOD;
 		else if (c == '-')
 			c = KP_MINUS;
-	    else// if (c >= '0' && c <= '9')
-	    	c = c - '0';
+		else// if (c >= '0' && c <= '9')
+			c = c - '0';
 
 		if (ui_mode == UI_NUMERIC && uistat.digit == 8-i) {
 			fg = RGB565(128,255,128);
@@ -2166,7 +2164,6 @@ return_to_normal:
 static void
 drag_marker(int t, int m)
 {
-  int status;
   /* wait touch release */
   while(true) {
     int touch_x, touch_y;
