@@ -352,7 +352,7 @@ void ili9341_fill(int x, int y, int w, int h, uint16_t color)
 	static_assert(chunkSize <= SPI_BUFFER_SIZE);
 
 	uint32_t fill = len > chunkSize ? chunkSize : len;
-	for(int i=0; i< fill; i++)
+	for(uint32_t i=0; i< fill; i++)
 		ili9341_spi_buffer[i] = color;
 
 	while(len > 0) {
