@@ -13,10 +13,12 @@ OBJS			+= sin_rom.o
 OBJS            += $(MCULIB)/message_log.o $(MCULIB)/printf.o $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 CFLAGS          += -O2 -g
-CPPFLAGS		+= -O2 -g -ffast-math --std=c++17 -fno-exceptions -fno-rtti -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
+CPPFLAGS		+= -O2 -g -ffast-math -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
 CPPFLAGS		+= -Wall -Wno-unused-function
 #CPPFLAGS		+= -DDISPLAY_ST7796
 CPPFLAGS		+=  -ffunction-sections -fdata-sections
+#C++ only flags, CPP is used for both C++ and C files
+CXXFLAGS		+= --std=c++17 -fno-exceptions -fno-rtti
 
 # safe g++ flags
 CPPFLAGS		+= -funsigned-char -fwrapv -fno-delete-null-pointer-checks -fno-strict-aliasing
