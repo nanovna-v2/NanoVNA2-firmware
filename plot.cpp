@@ -867,8 +867,10 @@ mark_cells_from_index(void)
 		int x0 = m0; int x1 = m1; if (x0>x1) SWAP(x0, x1); m0 = m1;
 		int y0 = n0; int y1 = n1; if (y0>y1) SWAP(y0, y1); n0 = n1;
 		for (; y0 <= y1; y0++)
-			for (j = x0; j <= x1; j++)
-				map[y0] |= 1 << j;
+			for (j = x0; j <= x1; j++) {
+				if(y0 >= 0 && y0 < NGRIDY)
+					map[y0] |= 1 << j;
+			}
 		}
 	}
 }
