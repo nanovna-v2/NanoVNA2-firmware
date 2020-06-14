@@ -18,12 +18,9 @@
  * Boston, MA 02110-1301, USA.
  */
 #include "ili9341.hpp"
-#include "Font5x7.h"
+#include "Font.h"
 #include "numfont20x22.h"
-
-// Display width and height definition
-#define ILI9341_WIDTH     320
-#define ILI9341_HEIGHT    240
+#include "plot.hpp"
 
 // Display commands list
 #define ILI9341_NOP                        0x00
@@ -91,6 +88,7 @@
 #define ILI9341_BACKLIGHT_CONTROL_8        0xBF
 #define ILI9341_POWER_CONTROL_1            0xC0
 #define ILI9341_POWER_CONTROL_2            0xC1
+#define ILI9341_POWER_CONTROL_3            0xC2
 #define ILI9341_VCOM_CONTROL_1             0xC5
 #define ILI9341_VCOM_CONTROL_2             0xC7
 #define ILI9341_POWERA                     0xCB
@@ -108,6 +106,7 @@
 #define ILI9341_POWER_SEQ                  0xED
 #define ILI9341_3GAMMA_EN                  0xF2
 #define ILI9341_INTERFACE_CONTROL          0xF6
+#define ILI9341_CSCON                      0xF0
 #define ILI9341_PUMP_RATIO_CONTROL         0xF7
 
 //
@@ -145,6 +144,10 @@ static uint16_t* const ili9341_spi_bufferB = &ili9341_spi_buffers[ili9341_buffer
 
 uint16_t* ili9341_spi_buffer = ili9341_spi_bufferA;
 
+// Default foreground & background colors
+uint16_t foreground_color = 0;
+uint16_t background_color = 0;
+
 Pad ili9341_conf_cs;
 Pad ili9341_conf_dc;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
@@ -170,17 +173,18 @@ static void send_command(uint8_t cmd, int len, const uint8_t *data)
 {
 	CS_LOW;
 	DC_CMD;
-    delayMicroseconds(1);
+//    delayMicroseconds(1);
 	ssp_senddata(cmd);
 	DC_DATA;
-    delayMicroseconds(1);
+//    delayMicroseconds(1);
 	while (len-- > 0) {
 	  ssp_senddata(*data++);
 	}
 	//CS_HIGH;
 }
 
-static const uint8_t ili9341_init_seq[] = {
+#ifndef DISPLAY_ST7796
+static const uint8_t ili_init_seq[] = {
   // cmd, len, data...,
   // SW reset
   ILI9341_SOFTWARE_RESET, 0,
@@ -243,6 +247,52 @@ static const uint8_t ili9341_init_seq[] = {
   ILI9341_DISPLAY_ON, 0,
   0 // sentinel
 };
+#else
+static const uint8_t ili_init_seq[] = {
+  // SW reset
+  ILI9341_SOFTWARE_RESET, 0,
+  // display off
+  ILI9341_DISPLAY_OFF, 0,
+
+  // Interface Mode Control
+  ILI9341_RGB_INTERFACE_CONTROL, 1, 0x00,
+  // Frame Rate
+  ILI9341_FRAME_RATE_CONTROL_1, 2, 0x70, 0x1F,
+  // Display Inversion Control , 2 Dot
+  ILI9341_DISPLAY_INVERSION_CONTROL, 1, 0x02,
+  // RGB/MCU Interface Control
+  ILI9341_DISPLAY_FUNCTION_CONTROL, 3, 0x02, 0x02, 0x3B,
+  // EntryMode
+  ILI9341_ENTRY_MODE_SET, 1, 0xC6,
+  // Power Control 1
+  ILI9341_POWER_CONTROL_1, 2, 0x17, 0x15,
+  // Power Control 2
+  ILI9341_POWER_CONTROL_2, 1, 0x41,
+  // VCOM Control
+//ILI9341_VCOM_CONTROL_1, 3, 0x00, 0x4D, 0x90,
+  ILI9341_VCOM_CONTROL_1, 3, 0x00, 0x12, 0x80,
+  // Memory Access
+  ILI9341_MEMORY_ACCESS_CONTROL, 1, 0x28,  // landscape, BGR
+//ILI9341_MEMORY_ACCESS_CONTROL, 1, 0x20,  // landscape, RGB
+  // Interface Pixel Format,	16bpp DPI and DBI and
+  ILI9341_PIXEL_FORMAT_SET, 1, 0x55,
+  // P-Gamma
+  ILI9341_POSITIVE_GAMMA_CORRECTION, 15, 0x00, 0x03, 0x09, 0x08, 0x16, 0x0A, 0x3F, 0x78, 0x4C, 0x09, 0x0A, 0x08, 0x16, 0x1A, 0x0F,
+  // N-Gamma
+  ILI9341_NEGATIVE_GAMMA_CORRECTION, 15, 0x00, 0X16, 0X19, 0x03, 0x0F, 0x05, 0x32, 0x45, 0x46, 0x04, 0x0E, 0x0D, 0x35, 0x37, 0x0F,
+  //Set Image Func
+//  0xE9, 1, 0x00,
+  // Set Brightness to Max
+  ILI9341_WRITE_BRIGHTNESS, 1, 0xFF,
+  // Adjust Control
+  ILI9341_PUMP_RATIO_CONTROL, 4, 0xA9, 0x51, 0x2C, 0x82,
+  //Exit Sleep
+  ILI9341_SLEEP_OUT, 0x00,
+  // display on
+  ILI9341_DISPLAY_ON, 0,
+  0 // sentinel
+};
+#endif
 
 void
 ili9341_init(void)
@@ -255,19 +305,24 @@ ili9341_init(void)
   ili9341_spi_wait_bulk();
 
   const uint8_t *p;
-  for (p = ili9341_init_seq; *p; ) {
+  for (p = ili_init_seq; *p; ) {
 	send_command(p[0], p[1], &p[2]);
 	p += 2 + p[1];
 	delay(5);
   }
 }
 
-static inline uint32_t __REV16(uint32_t rev)
+// Reverses the byte order within each halfword of a word. For example, 0x12345678 becomes 0x34127856.
+#if 0
+#define __REV16(v) (((((uint32_t)(v) & 0xFF000000) >> 8) | (((uint32_t)(v) & 0x00FF0000) << 8) | (((uint32_t)(v) & 0x0000FF00) >> 8) | (((uint32_t)(v) & 0x0000FF) << 8)))
+#else
+static inline uint32_t __REV16(uint32_t value)
 {
-	uint32_t a = __builtin_bswap16(rev >> 16);
-	uint32_t b = __builtin_bswap16(rev & 0xFFFF);
-	return (a << 16) | (b);
+  uint32_t result;
+  __asm volatile("rev16 %0, %1" : "=r" (result) : "r" (value));
+  return result;
 }
+#endif
 
 #if 0
 void ili9341_pixel(int x, int y, uint16_t color)
@@ -296,15 +351,18 @@ void ili9341_fill(int x, int y, int w, int h, uint16_t color)
 	constexpr int chunkSize = 512;
 	static_assert(chunkSize <= ili9341_bufferSize);
 
-	for(int i=0; i<chunkSize; i++)
+	uint32_t fill = len > chunkSize ? chunkSize : len;
+	for(int i=0; i< fill; i++)
 		ili9341_spi_buffer[i] = color;
 
-	while(len > chunkSize) {
-		ili9341_spi_transfer_bulk(chunkSize);
-		len -= chunkSize;
+	while(len > 0) {
+		uint32_t bulk = len > fill ? fill : len;
+		ili9341_spi_transfer_bulk(bulk);
+		len -= bulk;
 	}
-	while (len-- > 0) 
-	  ssp_senddata16(color);
+	if(ili9341_spi_buffer == ili9341_spi_bufferA)
+		ili9341_spi_buffer = ili9341_spi_bufferB;
+	else ili9341_spi_buffer = ili9341_spi_bufferA;
 }
 
 void ili9341_bulk(int x, int y, int w, int h)
@@ -375,93 +433,124 @@ ili9341_set_flip(bool flipX, bool flipY) {
 	send_command(ILI9341_MEMORY_ACCESS_CONTROL, 1, &memAcc);
 }
 
-
+//********************************************************************
+void
+ili9341_clear_screen(void)
+{
+	ili9341_fill(0, 0, LCD_WIDTH, LCD_HEIGHT, background_color);
+}
 
 void
-ili9341_drawchar_5x7(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg)
+ili9341_set_foreground(uint16_t fg)
+{
+  foreground_color = fg;
+}
+
+void
+ili9341_set_background(uint16_t bg)
+{
+  background_color = bg;
+}
+
+void
+blit8BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+                         const uint8_t *bitmap)
 {
   uint16_t *buf = ili9341_spi_buffer;
-  uint8_t bits;
-  int c, r;
-  for(c = 0; c < 7; c++) {
-	bits = x5x7_bits[(ch * 7) + c];
-	for (r = 0; r < 5; r++) {
-	  *buf++ = (0x80 & bits) ? fg : bg;
-	  bits <<= 1;
-	}
+  for (uint16_t c = 0; c < height; c++) {
+    uint8_t bits = *bitmap++;
+    for (uint16_t r = 0; r < width; r++) {
+      *buf++ = (0x80 & bits) ? foreground_color : background_color;
+      bits <<= 1;
+    }
   }
-  ili9341_bulk(x, y, 5, 7);
+  ili9341_bulk(x, y, width, height);
 }
 
 void
-ili9341_drawstring_5x7_inv(const char *str, int x, int y, uint16_t fg, uint16_t bg, bool invert)
+blit16BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+                                 const uint16_t *bitmap)
 {
-  if (invert)
-    ili9341_drawstring_5x7(str, x, y, bg, fg);
-  else
-    ili9341_drawstring_5x7(str, x, y, fg, bg);
+  uint16_t *buf = ili9341_spi_buffer;
+  for (uint16_t c = 0; c < height; c++) {
+    uint16_t bits = *bitmap++;
+    for (uint16_t r = 0; r < width; r++) {
+      *buf++ = (0x8000 & bits) ? foreground_color : background_color;
+      bits <<= 1;
+    }
+  }
+  ili9341_bulk(x, y, width, height);
 }
 
 void
-ili9341_drawstring_5x7(const char *str, int x, int y, uint16_t fg, uint16_t bg)
+ili9341_drawchar(uint8_t ch, int x, int y)
+{
+  blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
+}
+
+void
+ili9341_drawstring(const char *str, int x, int y)
 {
   while (*str) {
-	ili9341_drawchar_5x7(*str, x, y, fg, bg);
-	x += 5;
-	str++;
+    uint8_t ch = *str++;
+    const uint8_t *char_buf = FONT_GET_DATA(ch);
+    uint16_t w = FONT_GET_WIDTH(ch);
+    blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
+    x += w;
   }
 }
 
-
 void
-ili9341_drawstring_5x7(const char *str, int len, int x, int y, uint16_t fg, uint16_t bg)
+ili9341_drawstring(const char *str, int len, int x, int y)
 {
-  const char* end = str + len;
-  while (str < end) {
-	ili9341_drawchar_5x7(*str, x, y, fg, bg);
-	x += 5;
-	str++;
-  }
+	const char* end = str + len;
+	while (str < end) {
+		uint8_t ch = *str++;
+		const uint8_t *char_buf = FONT_GET_DATA(ch);
+		uint16_t w = FONT_GET_WIDTH(ch);
+		blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
+		x += w;
+	}
 }
 
-void
-ili9341_drawchar_size(uint8_t ch, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
+int
+ili9341_drawchar_size(uint8_t ch, int x, int y, uint8_t size)
 {
   uint16_t *buf = ili9341_spi_buffer;
-  uint8_t bits;
-  int c, r;
-  for(c = 0; c < 7*size; c++) {
-	bits = x5x7_bits[(ch * 7) + (c / size)];
-	for (r = 0; r < 5*size; r++) {
-	  *buf++ = (0x80 & bits) ? fg : bg;
-	  if (r % size == (size-1)) {
-		  bits <<= 1;
-	  }
-	}
+  const uint8_t *char_buf = FONT_GET_DATA(ch);
+  uint16_t w = FONT_GET_WIDTH(ch);
+  for (int c = 0; c < FONT_GET_HEIGHT; c++, char_buf++) {
+    for (int i = 0; i < size; i++) {
+      uint8_t bits = *char_buf;
+      for (int r = 0; r < w; r++, bits <<= 1)
+        for (int j = 0; j < size; j++)
+          *buf++ = (0x80 & bits) ? foreground_color : background_color;
+    }
   }
-  ili9341_bulk(x, y, 5*size, 7*size);
+  ili9341_bulk(x, y, w * size, FONT_GET_HEIGHT * size);
+  return w*size;
 }
+//********************************************************************
 
 void
-ili9341_drawstring_size(const char *str, int x, int y, uint16_t fg, uint16_t bg, uint8_t size)
+ili9341_drawstring_size(const char *str, int x, int y, uint8_t size)
 {
   int origX = x;
-  while (*str) {
-	if((*str) == '\n') {
+  while (*str){
+    uint8_t c =*str++;
+    if(c == '\n'){
         x = origX;
-        y += 7 * size;
-    } else {
-        ili9341_drawchar_size(*str, x, y, fg, bg, size);
-        x += 5 * size;
+        y += FONT_STR_HEIGHT * size;
+    	continue;
     }
-    str++;
+    x += ili9341_drawchar_size(c, x, y, size);
   }
 }
 
 #define SWAP(x,y) do { int z=x; x = y; y = z; } while(0)
 
 void
-ili9341_line(int x0, int y0, int x1, int y1, int fg)
+ili9341_line(int x0, int y0, int x1, int y1)
 {
   if (x0 > x1) {
 	SWAP(x0, x1);
@@ -487,38 +576,19 @@ ili9341_line(int x0, int y0, int x1, int y1, int fg)
 	  }
 	}
 	if (dy > 0)
-	  ili9341_fill(x0, y0, dx, dy, fg);
+	  ili9341_fill(x0, y0, dx, dy, foreground_color);
 	else
-	  ili9341_fill(x0, y0+dy, dx, -dy, fg);
+	  ili9341_fill(x0, y0+dy, dx, -dy, foreground_color);
 	x0 += dx;
 	y0 += dy;
   }
 }
 
 
-const font_t NF20x22 = { 20, 22, 1, 3*22, (const uint8_t *)numfont20x22 };
-
 void
-ili9341_drawfont(uint8_t ch, const font_t *font, int x, int y, uint16_t fg, uint16_t bg)
+ili9341_drawfont(uint8_t ch, int x, int y)
 {
-	uint16_t *buf = ili9341_spi_buffer;
-	const uint8_t *bitmap = &font->bitmap[font->slide * ch];
-	int c, r;
-
-	for (c = 0; c < font->height; c++) {
-		uint8_t bits = *bitmap++;
-		uint8_t m = 0x80;
-		for (r = 0; r < font->width; r++) {
-			*buf++ = (bits & m) ? fg : bg;
-			m >>= 1;
-
-			if (m == 0) {
-				bits = *bitmap++;
-				m = 0x80;
-			}
-		}
-	}
-	ili9341_bulk(x, y, font->width, font->height);
+	blit16BitWidthBitmap(x, y, NUM_FONT_GET_WIDTH, NUM_FONT_GET_HEIGHT, NUM_FONT_GET_DATA(ch));
 }
 
 #if 0
