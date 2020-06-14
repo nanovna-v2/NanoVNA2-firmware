@@ -18,13 +18,12 @@ inline static void swap(uint16_t &a, uint16_t &b) {
 	b = tmp;
 }
 
-XPT2046::XPT2046 (Pad cs_pin, Pad irq_pin) 
-: _cs_pin(cs_pin), _irq_pin(irq_pin) {
+XPT2046::XPT2046 (Pad irq_pin)
+	: _irq_pin(irq_pin) {
 }
 
 void XPT2046::begin(uint16_t width, uint16_t height) {
-	digitalWrite(_cs_pin, 1);
-	pinMode(_cs_pin, OUTPUT);
+	spiSetCS(false);
 	pinMode(_irq_pin, INPUT_PULLUP);
 
 	delay(1);
@@ -80,7 +79,7 @@ void XPT2046::getRaw (uint16_t &vi, uint16_t &vj, adc_ref_t mode, uint8_t max_sa
 
 	uint8_t ctrl_lo = ((mode == MODE_DFR) ? CTRL_LO_DFR : CTRL_LO_SER);
 	
-	digitalWrite(_cs_pin, LOW);
+	spiSetCS(true);
 	spiTransfer(CTRL_HI_X | ctrl_lo, 8);  // Send first control byte
 	vi = _readLoop(CTRL_HI_X | ctrl_lo, max_samples);
 	vj = _readLoop(CTRL_HI_Y | ctrl_lo, max_samples);
@@ -93,7 +92,7 @@ void XPT2046::getRaw (uint16_t &vi, uint16_t &vj, adc_ref_t mode, uint8_t max_sa
 	}
 	spiTransfer(0, 16);  // Flush last read, just to be sure
 	
-	digitalWrite(_cs_pin, HIGH);
+	spiSetCS(false);
 }
 
 void XPT2046::getPosition (uint16_t &x, uint16_t &y, adc_ref_t mode, uint8_t max_samples) const {
@@ -137,10 +136,10 @@ void XPT2046::getPosition (uint16_t &x, uint16_t &y, adc_ref_t mode, uint8_t max
 }
 
 void XPT2046::powerDown() const {
-	digitalWrite(_cs_pin, LOW);
+	spiSetCS(true);
 	// Issue a throw-away read, with power-down enabled (PD{1,0} == 0b00)
 	// Otherwise, ADC is disabled
 	spiTransfer(CTRL_HI_Y | CTRL_LO_SER, 8);
 	spiTransfer(0, 16);  // Flush, just to be sure
-	digitalWrite(_cs_pin, HIGH);
+	spiSetCS(false);
 }

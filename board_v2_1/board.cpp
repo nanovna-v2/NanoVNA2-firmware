@@ -53,7 +53,7 @@ namespace board {
 	ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_tx(adf4350_sendWord_t {adf4350_tx_spi});
 	ADF4350::ADF4350Driver<adf4350_sendWord_t> adf4350_rx(adf4350_sendWord_t {adf4350_rx_spi});
 
-	XPT2046 xpt2046(xpt2046_cs, xpt2046_irq);
+	XPT2046 xpt2046(xpt2046_irq);
 
 	// same as rcc_set_usbpre, but with extended divider range:
 	// 0: divide by 1.5

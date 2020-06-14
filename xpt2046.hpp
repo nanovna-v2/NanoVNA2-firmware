@@ -29,10 +29,11 @@ public:
 
 
 	// hooks
+	small_function<void(bool selected)> spiSetCS;
 	small_function<uint32_t(uint32_t data, int bits)> spiTransfer;
 
 
-	XPT2046 (mculib::Pad cs_pin, mculib::Pad irq_pin);
+	XPT2046 (mculib::Pad irq_pin);
 
 	void begin(uint16_t width, uint16_t height);  // width and height with no rotation!
 	void setRotation(rotation_t rot) { _rot = rot; }
@@ -58,7 +59,7 @@ private:
 
 	uint16_t _width, _height;
 	rotation_t _rot;
-	mculib::Pad _cs_pin, _irq_pin;
+	mculib::Pad _irq_pin;
 
 	int32_t _cal_dx, _cal_dy, _cal_dvi, _cal_dvj;
 	uint16_t _cal_vi1, _cal_vj1;
