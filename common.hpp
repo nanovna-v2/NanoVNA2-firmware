@@ -102,7 +102,7 @@ typedef int64_t freqHz_t;
 #define REDRAW_FREQUENCY  (1<<1)
 #define REDRAW_CAL_STATUS (1<<2)
 #define REDRAW_MARKER     (1<<3)
-
+#define REDRAW_AREA       (1<<4)
 
 
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;

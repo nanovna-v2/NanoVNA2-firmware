@@ -827,7 +827,7 @@ menu_marker_search_cb(UIEvent evt, int item)
   if (active_marker == -1)
     return;
 
-  request_to_redraw_marker(active_marker, TRUE);
+  request_to_redraw_marker(active_marker);
   switch (item) {
   case 0: /* maximum */
   case 1: /* minimum */
@@ -854,7 +854,7 @@ menu_marker_search_cb(UIEvent evt, int item)
     draw_menu();
     break;
   }
-  redraw_marker(active_marker, TRUE);
+  redraw_marker(active_marker);
   uistat.lever_mode = LM_SEARCH;
 }
 
@@ -872,7 +872,7 @@ static void
 menu_marker_smith_cb(UIEvent evt, int item)
 {
   marker_smith_format = item;
-  redraw_marker(active_marker, TRUE);
+  redraw_marker(active_marker);
   draw_menu();
 }
 
@@ -919,7 +919,7 @@ menu_marker_sel_cb(UIEvent evt, int item)
   } else if (item == 5) { /* marker delta */
     uistat.marker_delta = !uistat.marker_delta;
   }
-  request_to_redraw_marker(active_marker, TRUE);
+  request_to_redraw_marker(active_marker);
   draw_menu();
   uistat.lever_mode = LM_MARKER;
 }
@@ -1750,7 +1750,7 @@ static void
 lever_move_marker(UIEvent evt)
 {
   if (active_marker >= 0 && markers[active_marker].enabled) {
-    request_to_redraw_marker(active_marker, TRUE);
+    request_to_redraw_marker(active_marker);
     auto& am = markers[active_marker];
     int step = evt.isTick() ? 3 : 1;
     if (evt.isJogLeft()) {
@@ -1764,7 +1764,7 @@ lever_move_marker(UIEvent evt)
         am.index = current_props._sweep_points - 1;
     }
     am.frequency = frequencyAt(am.index);
-    request_to_redraw_marker(active_marker, TRUE);
+    request_to_redraw_marker(active_marker);
   }
 }
 
@@ -1772,7 +1772,7 @@ static void
 lever_search_marker(UIEvent evt)
 {
   if (active_marker >= 0) {
-    request_to_redraw_marker(active_marker, TRUE);
+    request_to_redraw_marker(active_marker);
     if (evt.isJogLeft()) {
       int i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
       if (i != -1)
@@ -1782,7 +1782,7 @@ lever_search_marker(UIEvent evt)
       if (i != -1)
         markers[active_marker].index = i;
     }
-    redraw_marker(active_marker, TRUE);
+    redraw_marker(active_marker);
   }
 }
 
@@ -1854,7 +1854,7 @@ ui_process_normal(UIEvent evt)
   }
   if(evt.isJogEnd()) {
     if (active_marker >= 0)
-      request_to_redraw_marker(active_marker, TRUE);
+      request_to_redraw_marker(active_marker);
   }
   if(evt.isTouchPress()) {
     if (touch_pickup_marker()) {
@@ -2176,7 +2176,7 @@ drag_marker(int t, int m)
     if (index >= 0) {
       markers[m].index = index;
       markers[m].frequency = frequencyAt(index);
-      redraw_marker(m, TRUE);
+      redraw_marker(m);
     }
   }
 }
@@ -2212,7 +2212,7 @@ touch_pickup_marker(void)
         if (active_marker != m) {
           previous_marker = active_marker;
           active_marker = m;
-          request_to_redraw_marker(active_marker, TRUE);
+          request_to_redraw_marker(active_marker);
         }
         // select trace
         uistat.current_trace = t;
