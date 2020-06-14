@@ -9,7 +9,7 @@
 
 // The following are the application callback functions that the
 // UI code will call to perform actions.
-
+extern bool cpu_enable_fpu(void);
 namespace UIActions {
 
 	void cal_collect(int type);

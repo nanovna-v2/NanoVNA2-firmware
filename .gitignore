@@ -1,5 +1,5 @@
 generated.*
-binary.*
+/binary.*
 gitversion.hpp
 *.rej
 *.orig

@@ -8,13 +8,14 @@ DEVICE          = gd32f303cc_nofpu
 
 
 OBJS			+= main2.o $(BOARDNAME)/board.o vna_measurement.o xpt2046.o uihw.o common.o synthesizers.o gitversion.hpp
-OBJS			+= globals.o ui.o flash.o plot.o ili9341.o Font5x7.o numfont20x22.o fft.o command_parser.o stream_fifo.o
+OBJS			+= globals.o ui.o flash.o plot.o ili9341.o Font5x7.o Font7x13b.o numfont20x22.o fft.o command_parser.o stream_fifo.o
 OBJS			+= sin_rom.o
 OBJS            += $(MCULIB)/message_log.o $(MCULIB)/printf.o $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 CFLAGS          += -O2 -g
 CPPFLAGS		+= -O2 -g -ffast-math --std=c++17 -fno-exceptions -fno-rtti -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
 CPPFLAGS		+= -Wall -Wno-unused-function
+#CPPFLAGS		+= -DDISPLAY_ST7796
 CPPFLAGS		+=  -ffunction-sections -fdata-sections
 
 # safe g++ flags
