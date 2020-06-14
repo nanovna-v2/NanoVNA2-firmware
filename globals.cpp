@@ -11,11 +11,15 @@ int16_t lastsaveid = 0;
 config_t config = {
   .magic =             CONFIG_MAGIC,
   .dac_value =         1922,
-  .grid_color =        0x1084,
-  .menu_normal_color = 0xffff,
-  .menu_active_color = 0x7777,
+  .grid_color =        RGB565(128,128,128),
+  .menu_normal_color = RGB565(255,255,255),
+  .menu_active_color = RGB565(180,255,180),
   .trace_color =       { RGB565(255,255,0), RGB565(0,160,255), RGB565(0,255,0), RGB565(255,0,200) },
-  .touch_cal =         { 1950, 1900, -90, -120 },  //{ 620, 600, 160, 190 },
+#ifndef DISPLAY_ST7796
+  .touch_cal =         { 1950, 1900, -90, -120 },  //{ 620, 600, 160, 190 }, // 2.8 display module
+#else
+  .touch_cal =         { 1977, 1945, -61, -91 },   // 4' display module
+#endif
   .default_loadcal =   0,
   .harmonic_freq_threshold = 300000000,
   .ui_options =        0,

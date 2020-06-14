@@ -96,7 +96,7 @@ static volatile int usbTxQueueRPos = 0;
 static constexpr int tim1Period = 25;	// 1MHz / 25 = 40kHz
 
 // periods of a 1MHz clock; how often to call UIHW::checkButtons
-static constexpr int tim2Period = 250;	// 1MHz / 250 = 4kHz
+static constexpr int tim2Period = 50000;	// 1MHz / 50000 = 20Hz
 
 
 // value is in microseconds; increments at 40kHz by TIM1 interrupt
@@ -341,14 +341,14 @@ static void lcd_and_ui_setup() {
 	};
 	delay(10);
 
-	xpt2046.begin(320, 240);
+	xpt2046.begin(LCD_WIDTH, LCD_HEIGHT);
 	
 	ili9341_init();
-
+	lcd_spi_fast();
 	// show test pattern
 	//ili9341_test(5);
 	// clear screen
-	ili9341_fill(0, 0, 320, 240, 0);
+	 ili9341_clear_screen();
 
 	// tell the plotting code how to calculate frequency in Hz given an index
 	plot_getFrequencyAt = [](int index) {
