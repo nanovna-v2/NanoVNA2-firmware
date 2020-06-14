@@ -937,8 +937,8 @@ search_index_range_x(int x1, int x2, uint32_t *index, int *i0, int *i1)
 		i = (head + tail) / 2;
 		idx_x = CELL_X(index[i]);
 		if (idx_x >= x2) { // index after cell
-		if (tail == i)
-			return false;
+			if (tail == i)
+				return false;
 			tail = i;
 		}
 		else if (idx_x < x1) {    // index before cell
