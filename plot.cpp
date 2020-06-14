@@ -1340,7 +1340,7 @@ draw_cell(int m, int n)
 	#if 0
 	  // use memset 350 system ticks for all screen calls
 	  // as understand it use 8 bit set, slow down on 32 bit systems
-	  memset(spi_buffer, DEFAULT_BG_COLOR, (h*CELLWIDTH)*sizeof(uint16_t));
+	  memset(spi_buffer, bg, (h*CELLWIDTH)*sizeof(uint16_t));
 	#else
 	  // use direct set  35 system ticks for all screen calls
 	#if CELLWIDTH%8 != 0
@@ -1350,10 +1350,10 @@ draw_cell(int m, int n)
 	int count = h*CELLWIDTH / (16/sizeof(uint16_t));
 	uint32_t *p = (uint32_t *)ili9341_spi_buffer;
 	while (count--) {
-		p[0] = 0x0000 | (0x0000 << 16);
-		p[1] = 0x0000 | (0x0000 << 16);
-		p[2] = 0x0000 | (0x0000 << 16);
-		p[3] = 0x0000 | (0x0000 << 16);
+		p[0] = bg | (bg << 16);
+		p[1] = bg | (bg << 16);
+		p[2] = bg | (bg << 16);
+		p[3] = bg | (bg << 16);
 		p += 4;
 	}
 	#endif
@@ -1684,7 +1684,7 @@ cell_draw_marker_info(int x0, int y0)
 		xpos += 7*FONT_WIDTH + 7;
 		int n = string_value_with_prefix(buf, sizeof buf, electrical_delay * 1e-12, 's');
 		cell_drawstring(buf, xpos, ypos);
-		xpos += 5*FONT_WIDTH + 5;
+		xpos += n*FONT_WIDTH + n;
 		float light_speed_ps = 299792458e-12; //(m/ps)
 		string_value_with_prefix(buf, sizeof buf, electrical_delay * light_speed_ps * velocity_factor, 'm');
 		cell_drawstring(buf, xpos, ypos);
