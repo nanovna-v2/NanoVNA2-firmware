@@ -827,7 +827,6 @@ menu_marker_search_cb(UIEvent evt, int item)
   if (active_marker == -1)
     return;
 
-  request_to_redraw_marker(active_marker);
   switch (item) {
   case 0: /* maximum */
   case 1: /* minimum */
@@ -1749,7 +1748,6 @@ static void
 lever_move_marker(UIEvent evt)
 {
   if (active_marker >= 0 && markers[active_marker].enabled) {
-    request_to_redraw_marker(active_marker);
     auto& am = markers[active_marker];
     int step = evt.isTick() ? 3 : 1;
     if (evt.isJogLeft()) {
@@ -1771,7 +1769,6 @@ static void
 lever_search_marker(UIEvent evt)
 {
   if (active_marker >= 0) {
-    request_to_redraw_marker(active_marker);
     if (evt.isJogLeft()) {
       int i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
       if (i != -1)
