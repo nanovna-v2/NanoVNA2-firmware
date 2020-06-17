@@ -30,7 +30,7 @@ public:
 	uint32_t nWaitSynth = 30;
 
 	// how many periods to average over
-	uint32_t nPeriods = 14;
+	uint32_t nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 
 	// every ecalIntervalPoints we will measure one frequency point for ecal
 	uint32_t ecalIntervalPoints = 8;
