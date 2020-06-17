@@ -141,6 +141,8 @@ namespace board {
 	static constexpr int RFSW_RECV_REFL = 0;
 	static constexpr int RFSW_RECV_PORT2 = 1;
 
+	static constexpr int RFSW_BBGAIN_MAX = 3;
+
 	// gain is an integer from 0 to 3, 0 being lowest gain
 	static inline RFSWState RFSW_BBGAIN_GAIN(int gain) {
 		switch(gain) {
