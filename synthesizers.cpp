@@ -10,7 +10,7 @@ namespace synthesizers {
 		using namespace Si5351;
 
 		si5351.SetFieldsToDefault();	//initialize the structure with default "safe" values
-		
+
 		// hook up i2c
 		uint8_t devAddr = 0xC0;
 		si5351.ReadRegister = [devAddr](uint8_t addr) -> uint8_t {
@@ -34,7 +34,7 @@ namespace synthesizers {
 		si5351.PLL[rPLL].PLL_Multiplier_Integer = 32*128;				//multiply the clock frequency by 32, this gets us 800 MHz clock
 		si5351.PLL[rPLL].PLL_Multiplier_Numerator = 1*8;
 		si5351.PLL[rPLL].PLL_Multiplier_Denominator = xtalFreqHz / 1000;
-		
+
 		si5351.PLL[tPLL].PLL_Clock_Source = PLL_Clock_Source_XTAL;
 		si5351.PLL[tPLL].PLL_Multiplier_Integer = 32*128;
 		si5351.PLL[tPLL].PLL_Multiplier_Numerator = 2*8;
@@ -60,7 +60,7 @@ namespace synthesizers {
 		si5351.CLK[tPort].CLK_R_Div = CLK_R_Div1; // divide by 1; 100MHz
 		si5351.CLK[tPort].CLK_Enable = ON;	//turn on the output
 		si5351.CLK[tPort].CLK_I_Drv = CLK_I_Drv_2mA;
-		
+
 		return si5351.Init() == 0;
 	}
 	static uint32_t gcd(uint32_t x, uint32_t y) {
@@ -79,6 +79,7 @@ namespace synthesizers {
 
 		// choose the same pll frequency and rdiv settings for both ports.
 		// PLL should be configured between 600 and 900 MHz
+		// Pick a multiple of 24Mhz. (The Xtal freq)
 		uint32_t pllFreqHz = 888000000;
 		uint32_t mult = pllFreqHz/xtalFreqHz;
 		uint32_t N = mult * 128;
@@ -87,20 +88,20 @@ namespace synthesizers {
 
 		int divInputFreqHz = pllFreqHz;
 
-		if(rxFreqHz < 500000) {
+		if(rxFreqHz < 500000) { /* Below 500Khz */
 			rDiv = CLK_R_Div128;
 			divInputFreqHz /= 128;
-		} else if(rxFreqHz < 1000000) {
+		} else if(rxFreqHz < 1000000) { /* Between 500hz and 1 Mhz */
 			rDiv = CLK_R_Div4;
 			divInputFreqHz /= 4;
-		} else if(rxFreqHz >= 100000000) {
+		} else if(rxFreqHz >= 100000000) { /* Above 100Mhz */
 			// div by 6 mode
 			int xtalFreqKHz = xtalFreqHz / 1000;
 			for(int i=0; i<2; i++) {
 				uint32_t freqHz = (i == 0) ? rxFreqHz : txFreqHz;
 				int pll = (i == 0) ? si5351_rxPLL : si5351_txPLL;
 				int port = (i == 0) ? si5351_rxPort : si5351_txPort;
-				
+
 				// set msdiv to 6
 				if(si5351.MS[port].MS_Divider_Integer != 6
 						|| si5351.MS[port].MS_Divider_Numerator != 0) {
@@ -110,12 +111,12 @@ namespace synthesizers {
 					si5351.MS[port].MS_Clock_Source = (i == 1) ? MS_Clock_Source_PLLB : MS_Clock_Source_PLLA;
 					si5351.MSConfig((MSChannel) port);
 				}
-				
+
 				if(si5351.CLK[port].CLK_R_Div != rDiv) {
 					si5351.CLK[port].CLK_R_Div = rDiv;
 					si5351.CLKConfig((CLKChannel) port);
 				}
-				
+
 				// calculate pll settings
 				uint32_t mult = uint32_t(uint64_t(freqHz)*6*128/1000);
 				uint32_t N = mult/xtalFreqKHz;
@@ -124,11 +125,11 @@ namespace synthesizers {
 				si5351.PLL[pll].PLL_Multiplier_Integer = N;
 				si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
 				si5351.PLL[pll].PLL_Multiplier_Denominator = xtalFreqKHz;
-				
+
 				si5351.PLLConfig((PLLChannel) pll);
 			}
 			si5351.PLLReset2();
-			
+
 			return 2;
 		}
 
@@ -146,7 +147,7 @@ namespace synthesizers {
 		for(int i=0; i<2; i++) {
 			uint32_t freqHz = (i == 0) ? rxFreqHz : txFreqHz;
 			int port = (i == 0) ? si5351_rxPort : si5351_txPort;
-			
+
 			int32_t div = divInputFreqHz / freqHz; // range: 8 ~ 1800
 			int32_t num = divInputFreqHz % freqHz;
 			int32_t denom = freqHz;
@@ -161,8 +162,8 @@ namespace synthesizers {
 			// f = divInputFreqHz / (div + num/denom)
 			// = divInputFreqHz / ((div*denom + num) / denom)
 			// = divInputFreqHz * denom / (div*denom + num)
-			uint32_t f = uint32_t(uint64_t(divInputFreqHz) * denom / (uint64_t(div)*denom + num));
-			
+			//uint32_t f = uint32_t(uint64_t(divInputFreqHz) * denom / (uint64_t(div)*denom + num));
+
 			si5351.MS[port].MS_Divider_Integer = div;
 			si5351.MS[port].MS_Divider_Numerator = num;
 			si5351.MS[port].MS_Divider_Denominator = denom;

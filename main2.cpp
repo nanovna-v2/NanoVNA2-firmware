@@ -145,18 +145,18 @@ static void startTimer(uint32_t timerDevice, int period) {
 	timer_set_prescaler(timerDevice, cpu_mhz-1);
 	timer_set_repetition_counter(timerDevice, 0);
 	timer_continuous_mode(timerDevice);
-	
+
 	// this doesn't really set the period, but the "autoreload value"; actual period is this plus 1.
 	// this should be fixed in libopencm3.
-	
+
 	timer_set_period(timerDevice, period - 1);
 
 	timer_enable_preload(timerDevice);
 	timer_enable_preload_complementry_enable_bits(timerDevice);
 	timer_enable_break_main_output(timerDevice);
-	
+
 	timer_enable_irq(timerDevice, TIM_DIER_UIE);
-	
+
 	TIM_EGR(timerDevice) = TIM_EGR_UG;
 	timer_set_counter(timerDevice, 0);
 	timer_enable_counter(timerDevice);
@@ -224,6 +224,17 @@ static void adf4350_update(freqHz_t freqHz) {
 	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
 }
 
+/* Powerdown both devices */
+static void adf4350_powerdown(void) {
+	adf4350_tx.sendPowerDown();
+	adf4350_rx.sendPowerDown();
+}
+
+static void adf4350_powerup(void) {
+	adf4350_tx.sendPowerUp();
+	adf4350_rx.sendPowerUp();
+}
+
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
@@ -257,13 +268,13 @@ static void setFrequency(freqHz_t freqHz) {
 	updateIFrequency(freqHz);
 	if(freqHz > 2500000000)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
-	else if(freqHz > 140000000)
+	else if(freqHz > FREQUENCY_CHANGE_OVER)
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
 	else
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
 
 	// use adf4350 for f > 140MHz
-	if(freqHz > 140000000) {
+	if(is_freq_for_adf4350(freqHz)) {
 		adf4350_update(freqHz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
@@ -297,7 +308,7 @@ static void adc_read(volatile uint16_t*& data, int& len) {
 	uint32_t cIndex = dmaADC.position();
 	uint32_t bufWords = dmaADC.bufferSizeBytes / 2;
 	cIndex &= (bufWords-1);
-	
+
 	data = ((volatile uint16_t*) dmaADC.buffer) + lastIndex;
 	if(cIndex >= lastIndex) {
 		len = cIndex - lastIndex;
@@ -342,6 +353,7 @@ static void lcd_and_ui_setup() {
 		// touch controller; if an outstanding background DMA is in progress,
 		// we must wait for it to complete.
 		lcd_spi_waitDMA();
+
 		// if the ili9341 is currently selected, deselect it.
 		if(selected && digitalRead(ili9341_cs) == LOW) {
 			digitalWrite(ili9341_cs, HIGH);
@@ -350,7 +362,9 @@ static void lcd_and_ui_setup() {
 	};
 	xpt2046.spiTransfer = [](uint32_t sdi, int bits) {
 		myassert(digitalRead(ili9341_cs) == HIGH);
-		
+
+		digitalWrite(ili9341_cs, HIGH);
+
 		lcd_spi_slow();
 		delayMicroseconds(10);
 		uint32_t ret = lcd_spi_transfer(sdi, bits);
@@ -361,7 +375,7 @@ static void lcd_and_ui_setup() {
 	delay(10);
 
 	xpt2046.begin(LCD_WIDTH, LCD_HEIGHT);
-	
+
 	ili9341_init();
 	lcd_spi_fast();
 	// show test pattern
@@ -833,6 +847,16 @@ static void setVNASweepToUI() {
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 	ecalState = ECAL_STATE_MEASURING;
 	update_grid();
+	if(!is_freq_for_adf4350(stop)) {
+		/* ADF4350 can be powered down */
+		adf4350_powerdown();
+	}
+	else {
+		adf4350_powerup();
+	}
+	if(is_freq_for_adf4350(start)) {
+		/* Si5351 not needed, power it down? */
+	}
 }
 
 static void measurement_setup() {
@@ -871,7 +895,7 @@ static void usb_transmit_rawSamples() {
 	for(int i=0; i<len; i++)
 		tmpBuf[i] = int8_t(buf[i] >> 4) - 128;
 	serial.print((char*)tmpBuf, len);
-	
+
 	cnt += len;
 
 	rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
@@ -996,7 +1020,7 @@ static bool processDataPoint() {
 		int freqIndex = usbDP.freqIndex;
 		auto refl = value[0]/value[1];
 		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;
-		
+
 		refl = ecalApplyReflection(refl, freqIndex);
 		if(current_props._cal_status & CALSTAT_APPLY) {
 			// apply thru leakage correction
@@ -1075,14 +1099,14 @@ void debug_plot_markmap() {
 }
 
 /* Return true when FPU is available */
-bool cpu_enable_fpu(void) 
+bool cpu_enable_fpu(void)
 {
 	uint32_t fpuEnable = 0b1111 << 20;
 	if((SCB_CPACR & fpuEnable) != fpuEnable) {
 		SCB_CPACR |= fpuEnable;
 		if((SCB_CPACR & fpuEnable) != fpuEnable) {
 			return false;
-		} 
+		}
 	}
 	return true;
 }
@@ -1129,7 +1153,7 @@ int main(void) {
 	digitalWrite(USB0_DP, LOW);
 
 	digitalWrite(led, HIGH);
-	
+
 	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
 	rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 	rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
@@ -1205,7 +1229,7 @@ int main(void) {
 	redraw_frame();
 
 	bool testSG = false;
-	
+
 	if(testSG) {
 		while(1) {
 			uint16_t tmp = 1;
@@ -1214,7 +1238,7 @@ int main(void) {
 		return 0;
 	}
 
-	
+
 	bool lastUSBDataMode = false;
 	while(true) {
 		// process any outstanding commands from usb
@@ -1229,7 +1253,7 @@ int main(void) {
 				setVNASweepToUSB();
 			}
 			lastUSBDataMode = usbDataMode;
-			
+
 			// process ui events, but skip processing data points
 			UIActions::application_doSingleEvent();
 			continue;
@@ -1395,17 +1419,17 @@ namespace UIActions {
 			case ST_START:
 				clampFrequency(frequency);
 				freq_mode_startstop();
-				current_props._frequency0 = frequency;
-				if(current_props._frequency1 < current_props._frequency0) {
-					current_props._frequency1 = current_props._frequency0;
+				frequency0 = frequency;
+				if(frequency1 < frequency0) {
+					frequency1 = frequency0;
 				}
 				break;
 			case ST_STOP:
 				clampFrequency(frequency);
 				freq_mode_startstop();
-				current_props._frequency1 = frequency;
-				if(current_props._frequency1 < current_props._frequency0) {
-					current_props._frequency0 = current_props._frequency1;
+				frequency1 = frequency;
+				if(frequency1 < frequency0) {
+					frequency0 = frequency1;
 				}
 				break;
 			case ST_CENTER:
@@ -1447,14 +1471,16 @@ namespace UIActions {
 			}
 			case ST_CW:
 				clampFrequency(frequency);
-				current_props._frequency0 = frequency;
-				current_props._frequency1 = 0;
+				frequency0 = frequency;
+				frequency1 = 0;
 				break;
 			default: return;
 		}
 		setVNASweepToUI();
 		current_props._cal_status = 0;
 		draw_cal_status();
+
+
 	}
 	void set_sweep_points(int points) {
 		if(points < SWEEP_POINTS_MIN)
@@ -1561,7 +1587,7 @@ namespace UIActions {
 	{
 		return electrical_delay;
 	}
-	
+
 	int caldata_save(int id) {
 		ecalIgnoreValues = 1000000;
 		int ret = flash_caldata_save(id);
