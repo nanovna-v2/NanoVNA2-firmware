@@ -60,6 +60,7 @@ void VNAMeasurement::sweepAdvance() {
 
 void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	auto currPoint = sweepCurrPoint;
+	/* If -1 then we restart */
 	if(currPoint == -1) {
 		freqHz_t start = sweepStartHz;
 		freqHz_t stop = start + sweepStepHz*sweepPoints;
@@ -70,6 +71,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		periodCounterSynth *= 2;
 		return;
 	}
+	/* If periodCounterSynth not elapsed, decrement and wait for it */
 	if(periodCounterSynth > 0) {
 		// still waiting for synthesizer
 		periodCounterSynth--;
@@ -103,62 +105,67 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	}
 	periodCounterSwitch++;
 
-	if(measurementPhase == VNAMeasurementPhases::REFERENCE
-		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
-		currFwd = currDP;
-		setMeasurementPhase(VNAMeasurementPhases::REFL);
-	} else if(measurementPhase == VNAMeasurementPhases::REFL
-		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
-		currRefl = currDP;
-		setMeasurementPhase(VNAMeasurementPhases::THRU);
-		gainChanged(currGain);
-	} else if(measurementPhase == VNAMeasurementPhases::THRU
-		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
-		currThru = currDP;
-
-		float mag = abs(to_complexf(currThru));
-		float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
-		if(mag < fullScale * 0.15 && currGain < gainMax && !gainChangeOccurred) {
-			// signal level too low; increase gain and retry
-			currGain++;
+	/* If switch time not elapsed, wait some more */
+	if(periodCounterSwitch < (nWaitSwitch + nPeriods)) {
+		return;
+	}
+	/* TODO skip ECAL if we are doing CW */
+	switch(measurementPhase) {
+		case VNAMeasurementPhases::REFERENCE:
+			currFwd = currDP;
+			setMeasurementPhase(VNAMeasurementPhases::REFL);
+			break;
+		case VNAMeasurementPhases::REFL:
+			currRefl = currDP;
+			setMeasurementPhase(VNAMeasurementPhases::THRU);
 			gainChanged(currGain);
-			gainChangeOccurred = true;
-			periodCounterSwitch = 0;
-			return;
-		}
+			break;
+		case VNAMeasurementPhases::THRU:
+			currThru = currDP;
 
-		if(ecalCounter == 0) {
+			float mag = abs(to_complexf(currThru));
+			float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
+			if(mag < fullScale * 0.15 && currGain < gainMax && !gainChangeOccurred) {
+				// signal level too low; increase gain and retry
+				currGain++;
+				gainChanged(currGain);
+				gainChangeOccurred = true;
+				periodCounterSwitch = 0;
+				return;
+			}
+
+			if(ecalCounter == 0 && sweepStepHz > 0) {
 #ifdef ECAL_PARTIAL
+				setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
+#else
+				setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
+#endif
+			} else {
+				setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+				doEmitValue(false);
+			}
+			ecalCounter++;
+			if(ecalCounter >= ecalIntervalPoints)
+				ecalCounter = 0;
+			break;
+		case VNAMeasurementPhases::ECALTHRU:
+			ecal[2] = to_complexf(currDP);
 			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
-#else
-			setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
-#endif
-		} else {
-			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-			doEmitValue(false);
-		}
-		ecalCounter++;
-		if(ecalCounter >= ecalIntervalPoints)
-			ecalCounter = 0;
-	} else if(measurementPhase == VNAMeasurementPhases::ECALTHRU
-		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
-
-		ecal[2] = to_complexf(currDP);
-		setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
-	} else if(measurementPhase == VNAMeasurementPhases::ECALLOAD
-		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
-		ecal[0] = to_complexf(currDP);
+			break;
+		case VNAMeasurementPhases::ECALLOAD:
+			ecal[0] = to_complexf(currDP);
 #ifdef ECAL_PARTIAL
-		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-		doEmitValue(true);
+			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+			doEmitValue(true);
 #else
-		setMeasurementPhase(VNAMeasurementPhases::ECALSHORT);
+			setMeasurementPhase(VNAMeasurementPhases::ECALSHORT);
+			break;
 #endif
-	} else if(measurementPhase == VNAMeasurementPhases::ECALSHORT
-		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
-		ecal[1] = to_complexf(currDP);
-		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-		doEmitValue(true);
+		case VNAMeasurementPhases::ECALSHORT:
+			ecal[1] = to_complexf(currDP);
+			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+			doEmitValue(true);
+			break;
 	}
 }
 void VNAMeasurement::doEmitValue(bool ecal) {
