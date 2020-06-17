@@ -847,16 +847,6 @@ static void setVNASweepToUI() {
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 	ecalState = ECAL_STATE_MEASURING;
 	update_grid();
-	if(!is_freq_for_adf4350(stop)) {
-		/* ADF4350 can be powered down */
-		adf4350_powerdown();
-	}
-	else {
-		adf4350_powerup();
-	}
-	if(is_freq_for_adf4350(start)) {
-		/* Si5351 not needed, power it down? */
-	}
 }
 
 static void measurement_setup() {
@@ -868,6 +858,18 @@ static void measurement_setup() {
 	};
 	vnaMeasurement.frequencyChanged = [](freqHz_t freqHz) {
 		setFrequency(freqHz);
+	};
+	vnaMeasurement.sweepSetupChanged = [](freqHz_t start, freqHz_t stop) {
+		if(!is_freq_for_adf4350(stop)) {
+			/* ADF4350 can be powered down */
+			adf4350_powerdown();
+		}
+		else {
+			adf4350_powerup();
+		}
+		if(is_freq_for_adf4350(start)) {
+			/* Si5351 not needed, power it down? */
+		}
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 	vnaMeasurement.init();
