@@ -67,7 +67,7 @@ extern small_function<void()> plot_tick;
 void plot_init(void);
 
 // mark a cell for redraw. x: 0 to 15; y: 0 to 7
-void mark_map(int x, int y);
+//void mark_map(int x, int y);
 
 // cancel ongoing draw operations further up the stack
 void plot_cancel();
@@ -77,8 +77,8 @@ void redraw_frame(void);
 //void redraw_all(void);
 void request_to_draw_cells_behind_menu(void);
 void request_to_draw_cells_behind_numeric_input(void);
-void request_to_redraw_marker(int marker, int update_info);
-void redraw_marker(int marker, int update_info);
+void request_to_redraw_marker(int marker);
+void redraw_marker(int marker);
 void trace_get_info(int t, char *buf, int len);
 float groupdelay_from_array(int i, complexf array[SWEEP_POINTS_MAX]);
 void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX]);

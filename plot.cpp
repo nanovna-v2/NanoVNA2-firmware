@@ -24,10 +24,6 @@ void markmap_all_markers(void);
 
 uint16_t redraw_request = 0;
 
-/* indicate dirty cells */
-uint16_t markmap[2][8];
-uint16_t current_mappage = 0;
-
 int32_t fgrid = 50000000;
 int16_t grid_offset;
 int16_t grid_width;
@@ -51,21 +47,34 @@ static inline freqHz_t freqAt(int i) {
 #define GRID_POLAR       (1<<3)
 
 
-#define CELLWIDTH 32
-#define CELLHEIGHT 32
-
-/*
- * CELL_X0[27:31] cell position
- * CELL_Y0[22:26]
- * CELL_N[10:21] original order
- * CELL_X[5:9] position in the cell
- * CELL_Y[0:4]
- */
-uint32_t trace_index[TRACES_MAX][SWEEP_POINTS_MAX];
+// Depends from spi_buffer size, CELLWIDTH*CELLHEIGHT*sizeof(pixel) <= sizeof(spi_buffer)
+#define CELLWIDTH  (32)
+#define CELLHEIGHT (32)
+// Check buffer size
+#if CELLWIDTH*CELLHEIGHT > SPI_BUFFER_SIZE
+#error "Too small spi_buffer size SPI_BUFFER_SIZE < CELLWIDTH*CELLHEIGH"
+#endif
 
 #define INDEX(x, y) ((((uint32_t)x)<<16)|(((uint32_t)y)))
 #define CELL_X(i)  (int)(((i)>>16))
 #define CELL_Y(i)  (int)(((i)&0xFFFF))
+
+// indicate dirty cells (not redraw if cell data not changed)
+#define MAX_MARKMAP_X    ((LCD_WIDTH+CELLWIDTH-1)/CELLWIDTH)
+#define MAX_MARKMAP_Y    ((LCD_HEIGHT+CELLHEIGHT-1)/CELLHEIGHT)
+// Define markmap mask size
+#if MAX_MARKMAP_X <= 8
+typedef uint8_t map_t;
+#elif MAX_MARKMAP_X <= 16
+typedef uint16_t map_t;
+#elif MAX_MARKMAP_X <= 32
+typedef uint32_t map_t;
+#endif
+
+map_t   markmap[2][MAX_MARKMAP_Y];
+uint16_t current_mappage = 0;
+
+uint32_t trace_index[TRACES_MAX][SWEEP_POINTS_MAX];
 
 //#define float2int(v) ((int)(v))
 static int
@@ -795,30 +804,17 @@ static float distance_of_index(int idx) {
 }
 
 
-void
+static inline void
 mark_map(int x, int y)
 {
-	if (y >= 0 && y < 8 && x >= 0 && x < 16)
-		markmap[current_mappage][y] |= 1<<x;
-}
-
-static inline int
-is_mapmarked(int x, int y)
-{
-	uint16_t bit = 1<<x;
-	return (markmap[0][y] & bit) || (markmap[1][y] & bit);
-}
-
-static inline void
-markmap_upperarea(void)
-{
-	markmap[current_mappage][0] |= 0xffff;
+	if (y >= 0 && y < MAX_MARKMAP_Y && x >= 0 && x < MAX_MARKMAP_X)
+		markmap[current_mappage][y] |= 1 << x;
 }
 
 static inline void
 swap_markmap(void)
 {
-	current_mappage = 1 - current_mappage;
+	current_mappage^= 1;
 }
 
 static inline void
@@ -846,12 +842,19 @@ invalidate_rect(int x0, int y0, int x1, int y1)
 			mark_map(x, y);
 }
 
+static inline void
+markmap_upperarea(void)
+{
+	// Hardcoded, Text info from upper area
+	invalidate_rect(0, 0, AREA_WIDTH_NORMAL, 3*FONT_STR_HEIGHT);
+}
+
 static void
 mark_cells_from_index(void)
 {
 	int t, i, j;
 	/* mark cells between each neighber points */
-	uint16_t *map = &markmap[current_mappage][0];
+	map_t *map = &markmap[current_mappage][0];
 	for (t = 0; t < TRACES_MAX; t++) {
 		if (!trace[t].enabled)
 			continue;
@@ -868,7 +871,7 @@ mark_cells_from_index(void)
 		int y0 = n0; int y1 = n1; if (y0>y1) SWAP(y0, y1); n0 = n1;
 		for (; y0 <= y1; y0++)
 			for (j = x0; j <= x1; j++) {
-				if(y0 >= 0 && y0 < NGRIDY)
+				if(y0 >= 0 && y0 < MAX_MARKMAP_Y)
 					map[y0] |= 1 << j;
 			}
 		}
@@ -1337,7 +1340,7 @@ draw_cell(int m, int n)
 	#if 0
 	  // use memset 350 system ticks for all screen calls
 	  // as understand it use 8 bit set, slow down on 32 bit systems
-	  memset(spi_buffer, DEFAULT_BG_COLOR, (h*CELLWIDTH)*sizeof(uint16_t));
+	  memset(spi_buffer, bg, (h*CELLWIDTH)*sizeof(uint16_t));
 	#else
 	  // use direct set  35 system ticks for all screen calls
 	#if CELLWIDTH%8 != 0
@@ -1347,10 +1350,10 @@ draw_cell(int m, int n)
 	int count = h*CELLWIDTH / (16/sizeof(uint16_t));
 	uint32_t *p = (uint32_t *)ili9341_spi_buffer;
 	while (count--) {
-		p[0] = 0x0000 | (0x0000 << 16);
-		p[1] = 0x0000 | (0x0000 << 16);
-		p[2] = 0x0000 | (0x0000 << 16);
-		p[3] = 0x0000 | (0x0000 << 16);
+		p[0] = bg | (bg << 16);
+		p[1] = bg | (bg << 16);
+		p[2] = bg | (bg << 16);
+		p[3] = bg | (bg << 16);
 		p += 4;
 	}
 	#endif
@@ -1490,7 +1493,9 @@ void
 draw_all(bool flush)
 {
 	plot_canceled = false;
-	if (redraw_request & REDRAW_CELLS)
+	if (redraw_request & REDRAW_MARKER)
+		markmap_upperarea();
+	if (redraw_request & (REDRAW_CELLS | REDRAW_MARKER))
 		draw_all_cells(flush);
 	if (redraw_request & REDRAW_FREQUENCY)
 		draw_frequencies();
@@ -1498,24 +1503,19 @@ draw_all(bool flush)
 		draw_cal_status();
 	redraw_request = 0;
 }
-
 void
-request_to_redraw_marker(int marker, int update_info)
+request_to_redraw_marker(int marker)
 {
+	if (marker < 0)
+		return;
 	// mark map on new position of marker
-	redraw_request |= REDRAW_CELLS;
+	redraw_request |= REDRAW_MARKER;
 	markmap_marker(marker);
-
-	// mark cells on marker info
-	if (update_info)
-		markmap[current_mappage][0] = 0xffff;
 }
-
-
 void
-redraw_marker(int marker, int update_info)
+redraw_marker(int marker)
 {
-	request_to_redraw_marker(marker, update_info);
+	request_to_redraw_marker(marker);
 	draw_all_cells(true);
 }
 
@@ -1684,7 +1684,7 @@ cell_draw_marker_info(int x0, int y0)
 		xpos += 7*FONT_WIDTH + 7;
 		int n = string_value_with_prefix(buf, sizeof buf, electrical_delay * 1e-12, 's');
 		cell_drawstring(buf, xpos, ypos);
-		xpos += 5*FONT_WIDTH + 5;
+		xpos += n*FONT_WIDTH + n;
 		float light_speed_ps = 299792458e-12; //(m/ps)
 		string_value_with_prefix(buf, sizeof buf, electrical_delay * light_speed_ps * velocity_factor, 'm');
 		cell_drawstring(buf, xpos, ypos);
