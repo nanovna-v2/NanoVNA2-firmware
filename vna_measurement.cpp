@@ -1,7 +1,7 @@
 #include "vna_measurement.hpp"
 
 VNAMeasurement::VNAMeasurement(): sampleProcessor(_emitValue_t {this}) {
-	
+
 }
 
 void VNAMeasurement::init() {
@@ -59,6 +59,9 @@ void VNAMeasurement::sweepAdvance() {
 void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	auto currPoint = sweepCurrPoint;
 	if(currPoint == -1) {
+		freqHz_t start = sweepStartHz;
+		freqHz_t stop = start + sweepStepHz*sweepPoints;
+		sweepSetupChanged(start, stop);
 		dpCounterSynth = 0;
 		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 		sweepAdvance();
