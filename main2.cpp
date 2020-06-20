@@ -1400,6 +1400,7 @@ extern "C" {
 namespace UIActions {
 
 	void cal_collect(int type) {
+		current_props._cal_status &= ~(1 << type);
 		collectMeasurementCB = [type]() {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
