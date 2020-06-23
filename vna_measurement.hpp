@@ -35,6 +35,12 @@ public:
 	// every ecalIntervalPoints we will measure one frequency point for ecal
 	uint32_t ecalIntervalPoints = 8;
 
+	// AGC parameters; VNAMeasurement will detect ADC clip events and inform the
+	// host when baseband/rf gain needs to be changed.
+	int gainMin = 0, gainMax = 3;
+
+	uint32_t adcFullScale = 30000;
+
 	// automatically reset before each measurement; indicates whether the current
 	// S11 data point is corrupted when emitDataPoint() is called.
 	bool clipFlag = false;
@@ -55,8 +61,14 @@ public:
 	// called to change synthesizer frequency
 	small_function<void(freqHz_t freqHz)> frequencyChanged;
 
-	// called when sweep setup change is process in measurement 'thread'
+	// called when sweep setup change is processed in measurement 'thread'
 	small_function<void(freqHz_t start, freqHz_t stop)> sweepSetupChanged;
+
+	// called to change overall system gain; gain is a user defined value
+	// and VNAMeasurement will only increment or decrement it if ADC
+	// clips occur or signal value is too low.
+	// the gain applies to THRU measurements only.
+	small_function<void(int gain)> gainChanged;
 
 	VNAMeasurement();
 
@@ -95,6 +107,10 @@ public:
 
 	// number of frequency points since start of sweep
 	volatile int sweepCurrPoint = 0;
+
+	uint32_t currGain = 0;
+	bool gainChangeOccurred = false;
+
 
 	// current data point variables
 	complexi currDP, currFwd, currRefl, currThru;
