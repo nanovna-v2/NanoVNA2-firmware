@@ -48,6 +48,7 @@
 #include "command_parser.hpp"
 #include "stream_fifo.hpp"
 #include "sin_rom.hpp"
+#include "gain_cal.hpp"
 
 #ifdef HAS_SELF_TEST
 #include "self_test.hpp"
@@ -83,6 +84,8 @@ static StreamFIFO cmdInputFIFO;
 static uint8_t cmdInputBuffer[128];
 
 
+static float gainTable[RFSW_BBGAIN_MAX+1];
+
 struct usbDataPoint {
 	VNAObservation value;
 	int freqIndex;
@@ -106,6 +109,9 @@ static FIFO<small_function<void()>, 8> eventQueue;
 
 static volatile bool usbDataMode = false;
 
+static freqHz_t currFreqHz = 0;		// current hardware tx frequency
+static int currThruGain = 0;		// gain setting used for this thru measurement
+
 // if nonzero, any ecal data in the next ecalIgnoreValues data points will be ignored.
 // this variable is decremented every time a data point arrives, if nonzero.
 static volatile int ecalIgnoreValues = 0;
@@ -115,6 +121,7 @@ static int collectMeasurementState = 0;
 static small_function<void()> collectMeasurementCB;
 
 static void adc_process();
+static int measurementGetDefaultGain(freqHz_t freqHz);
 
 
 #define myassert(x) if(!(x)) do { errorBlink(3); } while(1)
@@ -265,13 +272,9 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 
 // set the measurement frequency including setting the tx and rx synthesizers
 static void setFrequency(freqHz_t freqHz) {
+	currFreqHz = freqHz;
 	updateIFrequency(freqHz);
-	if(freqHz > 2500000000)
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(2));
-	else if(freqHz > FREQUENCY_CHANGE_OVER)
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(1));
-	else
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
+	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 
 	// use adf4350 for f > 140MHz
 	if(is_freq_for_adf4350(freqHz)) {
@@ -708,8 +711,17 @@ static void cmdInit() {
 	};
 }
 
+static int measurementGetDefaultGain(freqHz_t freqHz) {
+	if(freqHz > 2500000000)
+		return 2;
+	else if(freqHz > FREQUENCY_CHANGE_OVER)
+		return 1;
+	else
+		return 0;
+}
 // callback called by VNAMeasurement to change rf switch positions.
 static void measurementPhaseChanged(VNAMeasurementPhases ph) {
+	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -742,6 +754,8 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal) {
 	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
+
+	v[2] *= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
 
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
@@ -853,6 +867,10 @@ static void measurement_setup() {
 	vnaMeasurement.phaseChanged = [](VNAMeasurementPhases ph) {
 		measurementPhaseChanged(ph);
 	};
+	vnaMeasurement.gainChanged = [](int gain) {
+		currThruGain = gain;
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(currThruGain));
+	};
 	vnaMeasurement.emitDataPoint = [](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
 		measurementEmitDataPoint(freqIndex, freqHz, v, ecal);
 	};
@@ -872,9 +890,9 @@ static void measurement_setup() {
 		}
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+	vnaMeasurement.gainMin = 0;
+	vnaMeasurement.gainMax = RFSW_BBGAIN_MAX;
 	vnaMeasurement.init();
-
-	setVNASweepToUI();
 }
 
 static void adc_process() {
@@ -1222,11 +1240,19 @@ int main(void) {
 
 	adf4350_setup();
 
+	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
+
+	for(int i=0; i<=RFSW_BBGAIN_MAX; i++) {
+		printk("BBGAIN %d: %.2f dB\n", i, log10f(gainTable[i])*20.f);
+	}
+
 #ifdef HAS_SELF_TEST
 	if(SelfTest::shouldEnterSelfTest()) {
 		SelfTest::performSelfTest(vnaMeasurement);
 	}
 #endif
+
+	setVNASweepToUI();
 
 	redraw_frame();
 
@@ -1376,6 +1402,7 @@ extern "C" {
 namespace UIActions {
 
 	void cal_collect(int type) {
+		current_props._cal_status &= ~(1 << type);
 		collectMeasurementCB = [type]() {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;

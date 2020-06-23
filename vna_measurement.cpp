@@ -52,8 +52,10 @@ void VNAMeasurement::sweepAdvance() {
 	if(ecalCounterOffset >= ecalIntervalPoints)
 		ecalCounterOffset = 0;
 	ecalCounter = ecalCounterOffset;
-	if(sweepCurrPoint == 0)
+	if(sweepCurrPoint == 0) {
 		periodCounterSynth *= 2;
+		currGain = gainMax;
+	}
 }
 
 void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
@@ -69,12 +71,30 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		return;
 	}
 	if(periodCounterSynth > 0) {
+		// still waiting for synthesizer
 		periodCounterSynth--;
 		periodCounterSwitch = 0;
+		gainChangeOccurred = false;
 		return;
 	}
 	if(periodCounterSwitch >= nWaitSwitch) {
 		currDP += complexi{valRe, valIm};
+
+		if(measurementPhase == VNAMeasurementPhases::THRU) {
+			if(sampleProcessor.clipFlag) {
+				// ADC clip occurred during a measurement period
+				if(currGain > gainMin) {
+					// decrease gain and redo measurement
+					currGain--;
+					gainChanged(currGain);
+					periodCounterSwitch = 0;
+					sampleProcessor.clipFlag = false;
+					gainChangeOccurred = true;
+					return;
+				}
+			}
+		}
+
 		if(measurementPhase == VNAMeasurementPhases::THRU)
 			clipFlag2 |= sampleProcessor.clipFlag;
 		else clipFlag |= sampleProcessor.clipFlag;
@@ -91,9 +111,21 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		currRefl = currDP;
 		setMeasurementPhase(VNAMeasurementPhases::THRU);
+		gainChanged(currGain);
 	} else if(measurementPhase == VNAMeasurementPhases::THRU
 		&& periodCounterSwitch >= (nWaitSwitch + nPeriods)) {
 		currThru = currDP;
+
+		float mag = abs(to_complexf(currThru));
+		float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
+		if(mag < fullScale * 0.15 && currGain < gainMax && !gainChangeOccurred) {
+			// signal level too low; increase gain and retry
+			currGain++;
+			gainChanged(currGain);
+			gainChangeOccurred = true;
+			periodCounterSwitch = 0;
+			return;
+		}
 
 		if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
