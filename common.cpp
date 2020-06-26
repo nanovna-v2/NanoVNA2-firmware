@@ -41,7 +41,7 @@ float my_atof(const char *p)
     neg = TRUE;
   if (*p == '-' || *p == '+')
     p++;
-  float x = atoi(p);
+  float x = atoll(p);
   while (isdigit((int)*p))
     p++;
   if (*p == '.') {
