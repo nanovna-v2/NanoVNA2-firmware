@@ -61,6 +61,9 @@ public:
 	// called to change synthesizer frequency
 	small_function<void(freqHz_t freqHz)> frequencyChanged;
 
+	// called when sweep setup change is processed in measurement 'thread'
+	small_function<void(freqHz_t start, freqHz_t stop)> sweepSetupChanged;
+
 	// called to change overall system gain; gain is a user defined value
 	// and VNAMeasurement will only increment or decrement it if ADC
 	// clips occur or signal value is too low.
@@ -82,7 +85,7 @@ public:
 		VNAMeasurement* m;
 		void operator()(int32_t* valRe, int32_t* valIm);
 	};
-	
+
 	SampleProcessor<_emitValue_t> sampleProcessor;
 
 public:
@@ -118,7 +121,7 @@ public:
 	int sweepDataPointsPerFreq = 1;
 
 	uint64_t currFreq;
-	
+
 	complexf ecal[ECAL_CHANNELS];
 
 
