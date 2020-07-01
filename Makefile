@@ -6,11 +6,37 @@ OPENCM3_DIR    ?= /persist/libopencm3
 BOARDNAME		= board_v2_2
 DEVICE          = gd32f303cc_nofpu
 
+OBJS			+= $(BOARDNAME)/board.o \
+	Font5x7.o \
+	Font7x13b.o \
+	command_parser.o \
+	common.o \
+	fft.o \
+	flash.o \
+	gain_cal.o \
+	gitversion.hpp \
+	globals.o \
+	ili9341.o \
+	main2.o \
+	numfont20x22.o \
+	plot.o \
+	sin_rom.o \
+	stream_fifo.o \
+	synthesizers.o \
+	ui.o \
+	uihw.o \
+	vna_measurement.o \
+	xpt2046.o \
+	$(NULL)
 
-OBJS			+= main2.o $(BOARDNAME)/board.o vna_measurement.o xpt2046.o uihw.o common.o synthesizers.o gitversion.hpp
-OBJS			+= globals.o ui.o flash.o plot.o ili9341.o Font5x7.o Font7x13b.o numfont20x22.o fft.o command_parser.o stream_fifo.o
-OBJS			+= sin_rom.o gain_cal.o
-OBJS            += $(MCULIB)/message_log.o $(MCULIB)/printf.o $(MCULIB)/fastwiring.o $(MCULIB)/si5351.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
+OBJS	+= \
+	$(MCULIB)/dma_adc.o \
+	$(MCULIB)/dma_driver.o \
+	$(MCULIB)/fastwiring.o \
+	$(MCULIB)/message_log.o \
+	$(MCULIB)/printf.o \
+	$(MCULIB)/si5351.o \
+	$(MCULIB)/usbserial.o
 
 CFLAGS          += -O2 -g
 CPPFLAGS		+= -O2 -g -ffast-math -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
