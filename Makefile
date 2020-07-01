@@ -1,7 +1,6 @@
 # paths to libraries
-MCULIB         ?= mculib
-OPENCM3_DIR    ?= libopencm3
-DFU_PORT       ?= /dev/ttyACM0
+MCULIB         ?= /persist/mculib
+OPENCM3_DIR    ?= /persist/libopencm3
 
 # device config
 BOARDNAME       = board_v2_2
