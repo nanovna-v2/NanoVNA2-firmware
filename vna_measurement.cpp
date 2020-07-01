@@ -109,7 +109,8 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 	if(periodCounterSwitch < (nWaitSwitch + nPeriods)) {
 		return;
 	}
-	/* TODO skip ECAL if we are doing CW */
+
+	// Loop through measurement fases
 	switch(measurementPhase) {
 		case VNAMeasurementPhases::REFERENCE:
 			currFwd = currDP;
@@ -134,24 +135,28 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 				return;
 			}
 
-			if(ecalCounter == 0 && sweepStepHz > 0) {
+			// If zero sweep, do skip ecall
+			if(sweepStepHz > 0 && ecalEnabled) {
+				ecalCounter++;
+				if(ecalCounter >= ecalIntervalPoints)
+					ecalCounter = 0;
+				if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
-				setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
+					setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 #else
-				setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
+					setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
 #endif
-			} else {
-				setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-				doEmitValue(false);
+					return;
+				}
 			}
-			ecalCounter++;
-			if(ecalCounter >= ecalIntervalPoints)
-				ecalCounter = 0;
+			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+			doEmitValue(false);
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
 			ecal[2] = to_complexf(currDP);
 			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 			break;
+
 		case VNAMeasurementPhases::ECALLOAD:
 			ecal[0] = to_complexf(currDP);
 #ifdef ECAL_PARTIAL
@@ -168,6 +173,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 			break;
 	}
 }
+
 void VNAMeasurement::doEmitValue(bool ecal) {
 	// emit new data point
 	VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};

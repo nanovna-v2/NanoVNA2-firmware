@@ -55,10 +55,10 @@ enum {
   KM_START, KM_STOP, KM_CENTER, KM_SPAN, KM_POINTS, KM_CW, KM_SCALE, KM_REFPOS, KM_EDELAY, KM_VELOCITY_FACTOR, KM_SCALEDELAY
 };
 
-uint8_t ui_mode = UI_NORMAL;
-uint8_t keypad_mode;
-int8_t selection = 0;
-bool ui_disabled = false;
+static uint8_t ui_mode = UI_NORMAL;
+static uint8_t keypad_mode;
+static int8_t selection = 0;
+static bool ui_disabled = false;
 
 typedef struct {
   uint8_t type;
@@ -68,7 +68,7 @@ typedef struct {
 } menuitem_t;
 
 
-int awd_count;
+static int awd_count;
 //int touch_x, touch_y;
 
 #define NUMINPUT_LEN 10
@@ -745,6 +745,19 @@ menu_stimulus_cb(UIEvent evt, int item)
   }
 }
 
+static bool ecal_enabled = true;
+
+static void
+menu_ecal(UIEvent evt, int item) {
+  ecal_enabled = !ecal_enabled;
+}
+
+static void
+menu_stimulus_cw(UIEvent evt, int item) {
+  menu_stimulus_cb(evt, 5); /* Faking 5 is ugly and probably breaks */
+}
+
+
 static void
 menu_top_cb(UIEvent evt, int item)
 {
@@ -922,7 +935,7 @@ menu_marker_sel_cb(UIEvent evt, int item)
   uistat.lever_mode = LM_MARKER;
 }
 
-const menuitem_t menu_calop[] = {
+static const menuitem_t menu_calop[] = {
   { MT_CALLBACK, "OPEN", menu_calop_cb },
   { MT_CALLBACK, "SHORT", menu_calop_cb },
   { MT_CALLBACK, "LOAD", menu_calop_cb },
@@ -942,7 +955,7 @@ const menuitem_t menu_save[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_cal[] = {
+static const menuitem_t menu_cal[] = {
   { MT_SUBMENU, "CALIBRATE", NULL, menu_calop },
   { MT_SUBMENU, "SAVE", NULL, menu_save },
   { MT_CALLBACK, "RESET", menu_cal2_cb },
@@ -951,7 +964,7 @@ const menuitem_t menu_cal[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_trace[] = {
+static const menuitem_t menu_trace[] = {
   { MT_CALLBACK, "TRACE 0", menu_trace_cb },
   { MT_CALLBACK, "TRACE 1", menu_trace_cb },
   { MT_CALLBACK, "TRACE 2", menu_trace_cb },
@@ -960,7 +973,7 @@ const menuitem_t menu_trace[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_format2[] = {
+static const menuitem_t menu_format2[] = {
   { MT_CALLBACK, "POLAR", menu_format2_cb },
   { MT_CALLBACK, "LINEAR", menu_format2_cb },
   { MT_CALLBACK, "REAL", menu_format2_cb },
@@ -971,7 +984,7 @@ const menuitem_t menu_format2[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_format[] = {
+static const menuitem_t menu_format[] = {
   { MT_CALLBACK, "LOGMAG", menu_format_cb },
   { MT_CALLBACK, "PHASE", menu_format_cb },
   { MT_CALLBACK, "DELAY", menu_format_cb },
@@ -984,7 +997,7 @@ const menuitem_t menu_format[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_scale[] = {
+static const menuitem_t menu_scale[] = {
   { MT_CALLBACK, "SCALE/DIV", menu_scale_cb },
   { MT_CALLBACK, "\2REFERENCE\0POSITION", menu_scale_cb },
   { MT_CALLBACK, "\2ELECTRICAL\0DELAY", menu_scale_cb },
@@ -993,14 +1006,14 @@ const menuitem_t menu_scale[] = {
 };
 
 
-const menuitem_t menu_channel[] = {
+static const menuitem_t menu_channel[] = {
   { MT_CALLBACK, "\2CH0\0REFLECT", menu_channel_cb },
   { MT_CALLBACK, "\2CH1\0THROUGH", menu_channel_cb },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_transform_window[] = {
+static const menuitem_t menu_transform_window[] = {
   { MT_CALLBACK, "MINIMUM", menu_transform_window_cb },
   { MT_CALLBACK, "NORMAL", menu_transform_window_cb },
   { MT_CALLBACK, "MAXIMUM", menu_transform_window_cb },
@@ -1008,7 +1021,7 @@ const menuitem_t menu_transform_window[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_transform[] = {
+static const menuitem_t menu_transform[] = {
   { MT_CALLBACK, "\2TRANSFORM\0ON", menu_transform_cb },
   { MT_CALLBACK, "\2LOW PASS\0IMPULSE", menu_transform_cb },
   { MT_CALLBACK, "\2LOW PASS\0STEP", menu_transform_cb },
@@ -1019,7 +1032,7 @@ const menuitem_t menu_transform[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_display[] = {
+static const menuitem_t menu_display[] = {
   { MT_SUBMENU, "TRACE", NULL, menu_trace },
   { MT_SUBMENU, "FORMAT", NULL, menu_format },
   { MT_SUBMENU, "SCALE", NULL, menu_scale },
@@ -1030,18 +1043,25 @@ const menuitem_t menu_display[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_stimulus[] = {
+static const menuitem_t menu_cw[] = {
+  { MT_CALLBACK, "FREQ ", menu_stimulus_cw },
+  { MT_CALLBACK, "ECAL", menu_ecal }, /* Enable/Disable ECAL */
+  { MT_CANCEL, S_LARROW" BACK", NULL },
+  { MT_NONE, NULL, NULL } // sentinel
+};
+
+static const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, "START", menu_stimulus_cb },
   { MT_CALLBACK, "STOP", menu_stimulus_cb },
   { MT_CALLBACK, "CENTER", menu_stimulus_cb },
   { MT_CALLBACK, "SPAN", menu_stimulus_cb },
   { MT_CALLBACK, "\2SWEEP\0POINTS", menu_stimulus_cb },
-  { MT_CALLBACK, "CW FREQ", menu_stimulus_cb },
+  { MT_SUBMENU, "CW FREQ", NULL, menu_cw },
   { MT_CANCEL, S_LARROW" BACK", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_marker_sel[] = {
+static const menuitem_t menu_marker_sel[] = {
   { MT_CALLBACK, "MARKER 1", menu_marker_sel_cb },
   { MT_CALLBACK, "MARKER 2", menu_marker_sel_cb },
   { MT_CALLBACK, "MARKER 3", menu_marker_sel_cb },
@@ -1052,7 +1072,7 @@ const menuitem_t menu_marker_sel[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_marker_ops[] = {
+static const menuitem_t menu_marker_ops[] = {
   { MT_CALLBACK, S_RARROW"START", menu_marker_op_cb },
   { MT_CALLBACK, S_RARROW"STOP", menu_marker_op_cb },
   { MT_CALLBACK, S_RARROW"CENTER", menu_marker_op_cb },
@@ -1062,7 +1082,7 @@ const menuitem_t menu_marker_ops[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_marker_search[] = {
+static const menuitem_t menu_marker_search[] = {
   //{ MT_CALLBACK, "OFF", menu_marker_search_cb },
   { MT_CALLBACK, "MAXIMUM", menu_marker_search_cb },
   { MT_CALLBACK, "MINIMUM", menu_marker_search_cb },
@@ -1073,7 +1093,7 @@ const menuitem_t menu_marker_search[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_marker_smith[] = {
+static const menuitem_t menu_marker_smith[] = {
   { MT_CALLBACK, "LIN", menu_marker_smith_cb },
   { MT_CALLBACK, "LOG", menu_marker_smith_cb },
   { MT_CALLBACK, "Re+Im", menu_marker_smith_cb },
@@ -1083,7 +1103,7 @@ const menuitem_t menu_marker_smith[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_marker[] = {
+static const menuitem_t menu_marker[] = {
   { MT_SUBMENU, "\2SELECT\0MARKER", NULL, menu_marker_sel },
   { MT_SUBMENU, "SEARCH", NULL, menu_marker_search },
   { MT_SUBMENU, "OPERATIONS", NULL, menu_marker_ops },
@@ -1092,7 +1112,7 @@ const menuitem_t menu_marker[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_recall[] = {
+static const menuitem_t menu_recall[] = {
   { MT_CALLBACK, "RECALL 0", menu_recall_cb },
   { MT_CALLBACK, "RECALL 1", menu_recall_cb },
   { MT_CALLBACK, "RECALL 2", menu_recall_cb },
@@ -1102,13 +1122,13 @@ const menuitem_t menu_recall[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_dfu[] = {
+static const menuitem_t menu_dfu[] = {
   { MT_CALLBACK, "\2RESET AND\0ENTER DFU", menu_dfu_cb },
   { MT_CANCEL, S_LARROW"CANCEL", NULL },
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_config[] = {
+static const menuitem_t menu_config[] = {
   { MT_CALLBACK, "TOUCH CAL", menu_config_cb },
   { MT_CALLBACK, "TOUCH TEST", menu_config_cb },
   { MT_CALLBACK, "SAVE", menu_config_cb },
@@ -1119,7 +1139,7 @@ const menuitem_t menu_config[] = {
   { MT_NONE, NULL, NULL } // sentinel
 };
 
-const menuitem_t menu_top[] = {
+static const menuitem_t menu_top[] = {
   { MT_SUBMENU, "DISPLAY", NULL, menu_display },
   { MT_SUBMENU, "MARKER", NULL, menu_marker },
   { MT_SUBMENU, "STIMULUS", NULL, menu_stimulus },
@@ -1131,7 +1151,7 @@ const menuitem_t menu_top[] = {
 };
 
 #define MENU_STACK_DEPTH_MAX 4
-uint8_t menu_current_level = 0;
+static uint8_t menu_current_level = 0;
 const menuitem_t *menu_stack[4] = {
   menu_top, NULL, NULL, NULL
 };
@@ -1314,11 +1334,11 @@ static const keypads_t * const keypads_mode_tbl[] = {
   keypads_time // scale of delay
 };
 
-const char * const keypad_mode_label[] = {
+static const char * const keypad_mode_label[] = {
   "START", "STOP", "CENTER", "SPAN", "POINTS", "CW FREQ", "SCALE", "REFPOS", "EDELAY", "VELOCITY%", "DELAY"
 };
 
-void
+static void
 draw_keypad(void)
 {
   ili9341_set_foreground(0x0000);
@@ -1461,6 +1481,12 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
       if ((item == 0 && (domain_mode & TD_WINDOW) == TD_WINDOW_MINIMUM)
        || (item == 1 && (domain_mode & TD_WINDOW) == TD_WINDOW_NORMAL)
        || (item == 2 && (domain_mode & TD_WINDOW) == TD_WINDOW_MAXIMUM)
+       ) {
+        *bg = 0x0000;
+        *fg = 0xffff;
+      }
+  } else if (menu == menu_cw) {
+      if ((item == 1 && ecal_enabled )
        ) {
         *bg = 0x0000;
         *fg = 0xffff;
