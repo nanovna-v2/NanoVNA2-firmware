@@ -124,15 +124,17 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		case VNAMeasurementPhases::THRU:
 			currThru = currDP;
 
-			float mag = abs(to_complexf(currThru));
-			float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
-			if(mag < fullScale * 0.15 && currGain < gainMax && !gainChangeOccurred) {
-				// signal level too low; increase gain and retry
-				currGain++;
-				gainChanged(currGain);
-				gainChangeOccurred = true;
-				periodCounterSwitch = 0;
-				return;
+			if(currGain < gainMax && !gainChangeOccurred) {
+				float mag = abs(to_complexf(currThru));
+				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
+				if(mag < fullScale * 0.15) {
+					// signal level too low; increase gain and retry
+					currGain++;
+					gainChanged(currGain);
+					gainChangeOccurred = true;
+					periodCounterSwitch = 0;
+					return;
+				}
 			}
 
 			// If zero sweep, do skip ecall
