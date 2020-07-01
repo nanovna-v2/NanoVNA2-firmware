@@ -3,3 +3,6 @@ generated.*
 gitversion.hpp
 *.rej
 *.orig
+*.*~
+tags
+cscope.out
