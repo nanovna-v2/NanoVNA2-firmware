@@ -7,7 +7,7 @@
 #include <mculib/softi2c.hpp>
 #include <mculib/softspi.hpp>
 #include <mculib/adf4350.hpp>
-#include <mculib/dma_adc.hpp>
+#include <mculib/dma_dual_adc.hpp>
 
 #include <array>
 #include <stdint.h>
@@ -49,13 +49,13 @@ namespace board {
 
 	extern DMADriver dma;
 	extern DMAChannel dmaChannelADC;
-	extern DMAADC dmaADC;
+	extern DMADualADC dmaADC;
 
 
 	// synthesizers
 	struct spiDelay_t {
 		void operator()() {
-			_delay_8t(1);
+			_delay_8t(2);
 		}
 	};
 

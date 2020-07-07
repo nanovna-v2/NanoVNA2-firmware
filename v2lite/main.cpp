@@ -48,7 +48,7 @@ void* __dso_handle = (void*) &__dso_handle;
 bool outputRawSamples = false;
 int cpu_mhz = 24;
 uint32_t adf4350_freqStep = 10000;
-uint32_t lo_freq = 100000;
+uint32_t lo_freq = 250000;
 
 USBSerial serial;
 
@@ -169,12 +169,15 @@ void setFrequency(freqHz_t freq) {
 }
 
 void adc_setup() {
-	static uint8_t channel_array[16] = {6,7};
+	static uint8_t channel_array0[16] = {6};
+	static uint8_t channel_array1[16] = {7};
 	dmaADC.buffer = adcBuffer;
 	dmaADC.bufferSizeBytes = sizeof(adcBuffer);
-	dmaADC.init(channel_array, 2);
+	dmaADC.init(channel_array0, channel_array1, 1);
 
-	adc_set_sample_time_on_all_channels(dmaADC.adcDevice, adc_ratecfg);
+	adc_set_sample_time_on_all_channels(ADC1, adc_ratecfg);
+	adc_set_sample_time_on_all_channels(ADC2, adc_ratecfg);
+	
 	dmaADC.start();
 }
 
@@ -182,7 +185,7 @@ void adc_setup() {
 // the number of words consumed is always an integer multiple of modulus.
 void adc_read(volatile uint16_t*& data, int& len, int modulus=1) {
 	static uint32_t lastIndex = 0;
-	uint32_t cIndex = dmaADC.position();
+	uint32_t cIndex = dmaADC.position()*2;
 	uint32_t bufWords = dmaADC.bufferSizeBytes / 2;
 	cIndex &= (bufWords-1);
 	cIndex = (cIndex / modulus) * modulus;
@@ -267,6 +270,58 @@ static void measurementEmitDataPoint(int freqIndex, uint64_t freqHz, VNAObservat
 }
 
 
+/*
+optimized sample processor for the use case:
+* 2 interleaved channels (reference and reflection)
+* IF frequency of fSample/4
+*/
+struct MySampleProcessor {
+	VNAMeasurementNoSwitch<2>* outputValuesTo = nullptr;
+	int samplesPerValue = 8;
+	int phase = 0;
+	
+	
+	int32_t v0re = 0, v0im = 0, v1re = 0, v1im = 0;
+
+	// len must be a multiple of 8!!!
+	void process(uint16_t* samples, int len) {
+		uint16_t* ptr = samples;
+		uint16_t* end = samples + len;
+		while(ptr < end) {
+			// there is a DC bias of +2048 in these values, but they cancel out
+			// after the downconversion.
+			int16_t sample0 = int16_t(ptr[0]);
+			int16_t sample1 = int16_t(ptr[1]);
+			int16_t sample2 = int16_t(ptr[2]);
+			int16_t sample3 = int16_t(ptr[3]);
+			int16_t sample4 = int16_t(ptr[4]);
+			int16_t sample5 = int16_t(ptr[5]);
+			int16_t sample6 = int16_t(ptr[6]);
+			int16_t sample7 = int16_t(ptr[7]);
+
+			v0re += sample0;
+			v1re += sample1;
+			v0im += sample2;
+			v1im += sample3;
+			v0re -= sample4;
+			v1re -= sample5;
+			v0im -= sample6;
+			v1im -= sample7;
+
+			phase += 4;
+			ptr += 8;
+			if(phase >= samplesPerValue) {
+				int32_t accumRe[2] = {v0re, v1re};
+				int32_t accumIm[2] = {v0im, v1im};
+				outputValuesTo->processValue(accumRe, accumIm);
+				phase = 0;
+				v0re = v0im = v1re = v1im = 0;
+			}
+		}
+	}
+};
+
+MySampleProcessor mySampleProcessor;
 
 void measurement_setup() {
 	vnaMeasurement.emitDataPoint = [](int freqIndex, uint64_t freqHz, const VNAObservation& v) {
@@ -276,19 +331,19 @@ void measurement_setup() {
 		setFrequency(freqHz);
 	};
 	vnaMeasurement.init();
-	vnaMeasurement.setCorrelationTable(sinROM6x2, 12);
+	mySampleProcessor.outputValuesTo = &vnaMeasurement;
 }
+
 
 void adc_process() {
 	if(!outputRawSamples) {
 		volatile uint16_t* buf;
 		int len;
-		//for(int i=0; i<2; i++) {
-			adc_read(buf, len, HWCHANNELS);
-			vnaMeasurement.sampleProcessor.clipFlag = false;
-			vnaMeasurement.processSamples((uint16_t*)buf, len / HWCHANNELS);
-			digitalWrite(led, vnaMeasurement.sampleProcessor.clipFlag?1:0);
-		//}
+		adc_read(buf, len, 8);
+		bool clipFlag = false;
+
+		mySampleProcessor.process((uint16_t*)buf, len);
+		digitalWrite(led, clipFlag?1:0);
 	}
 }
 
@@ -406,6 +461,7 @@ int main(void) {
 	adf4350_setup();
 	
 	vnaMeasurement.setSweep(500000000, 0, 1);
+	setFrequency(500000000);
 
 	while(true) {
 		if(outputRawSamples)
