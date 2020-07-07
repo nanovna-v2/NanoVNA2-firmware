@@ -27,13 +27,9 @@ public:
 	// called to change synthesizer frequency
 	small_function<void(uint64_t freqHz)> frequencyChanged;
 
-	VNAMeasurementNoSwitch(): sampleProcessor(_emitValue_t {this}) {}
+	VNAMeasurementNoSwitch() {}
 
-	void init() { sampleProcessor.init(); }
-	void setCorrelationTable(const int16_t* table, int length) {
-		sampleProcessor.setCorrelationTable(table, length);
-	}
-	void processSamples(uint16_t* buf, int len) { sampleProcessor.process(buf, len); }
+	void init() {  }
 
 	// if points is 1, sets frequency to startFreqHz and disables sweep
 	void setSweep(uint64_t startFreqHz, uint64_t stepFreqHz, int points, int dataPointsPerFreq=1) {
@@ -48,14 +44,6 @@ public:
 		dpCounterSynth = 0;
 		frequencyChanged(startFreqHz);
 	}
-
-
-	struct _emitValue_t {
-		VNAMeasurementNoSwitch* m;
-		void operator()(int32_t* valRe, int32_t* valIm);
-	};
-	
-	SampleProcessor<_emitValue_t, nChannels> sampleProcessor;
 
 public:
 	// state variables
@@ -93,7 +81,8 @@ public:
 
 		periodCounterSynth = nWaitSynth;
 	}
-	void sampleProcessor_emitValue(int32_t* valRe, int32_t* valIm) {
+	// call this function when a new value is available
+	void processValue(int32_t* valRe, int32_t* valIm) {
 		if(periodCounterSynth > 0) {
 			periodCounterSynth--;
 			return;
@@ -126,10 +115,4 @@ public:
 		return {(float) value.real(), (float) value.imag()};
 	}
 };
-
-
-template<int nChannels>
-void VNAMeasurementNoSwitch<nChannels>::_emitValue_t::operator()(int32_t* valRe, int32_t* valIm) {
-	m->sampleProcessor_emitValue(valRe, valIm);
-}
 

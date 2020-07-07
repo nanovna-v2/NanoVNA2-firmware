@@ -30,7 +30,7 @@ namespace board {
 
 	DMADriver dma(DMA1);
 	DMAChannel dmaChannelADC(dma, 1);
-	DMAADC dmaADC(dmaChannelADC, ADC1);
+	DMADualADC dmaADC(dmaChannelADC, ADC1, ADC2);
 
 
 	spiDelay_t spiDelay;
@@ -74,6 +74,60 @@ namespace board {
 		RCC_CFGR2 = old2 | ((adcpre & 0b1000) << (29 - 3));
 	}
 
+	void rcc_clock_setup_in_hse_24mhz_out_120mhz(void) {
+		 /* Enable internal high-speed oscillator. */
+		 rcc_osc_on(RCC_HSI);
+		 rcc_wait_for_osc_ready(RCC_HSI);
+
+		 /* Select HSI as SYSCLK source. */
+		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
+
+		 /* Enable external high-speed oscillator. */
+		 rcc_osc_on(RCC_HSE);
+		 rcc_wait_for_osc_ready(RCC_HSE);
+		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSECLK);
+
+		 /*
+		  * Set prescalers for AHB, ADC, ABP1, ABP2.
+		  * Do this before touching the PLL (TODO: why?).
+		  */
+		 rcc_set_hpre(RCC_CFGR_HPRE_SYSCLK_NODIV);					// Set. 120MHz Max. 120MHz
+		 rcc_set_adcpre_gd32(GD32_RCC_CFGR_ADCPRE_PCLK2_DIV6);		// Set. 20MHz Max. 40MHz
+		 rcc_set_ppre1(RCC_CFGR_PPRE1_HCLK_DIV2);					// Set. 60MHz Max. 60MHz
+		 rcc_set_ppre2(RCC_CFGR_PPRE2_HCLK_NODIV);					// Set. 120MHz Max. 120MHz
+		 rcc_set_usbpre_gd32(2);									// 120MHz / 2.5 = 48MHz
+
+		 /*
+		  * Sysclk runs with 120MHz -> 0 waitstates.
+		  */
+		 flash_set_ws(FLASH_ACR_LATENCY_0WS);
+
+		 /*
+		  * Set the PLL multiplication factor. (x5) 24 * 5 = 120Mhz
+		  */
+		 rcc_set_pll_multiplication_factor(RCC_CFGR_PLLMUL_PLL_CLK_MUL5);
+
+		 /* Select HSE as PLL source. */
+		 rcc_set_pll_source(RCC_CFGR_PLLSRC_HSE_CLK);
+
+		 /*
+		  * External frequency undivided before entering PLL
+		  * (only valid/needed for HSE).
+		  */
+		 rcc_set_pllxtpre(RCC_CFGR_PLLXTPRE_HSE_CLK);
+
+		 /* Enable PLL oscillator and wait for it to stabilize. */
+		 rcc_osc_on(RCC_PLL);
+		 rcc_wait_for_osc_ready(RCC_PLL);
+
+		 /* Select PLL as SYSCLK source. */
+		 rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_PLLCLK);
+
+		 /* Set the peripheral clock frequencies used */
+		 rcc_ahb_frequency = 120000000;
+		 rcc_apb1_frequency = 60000000;
+		 rcc_apb2_frequency = 120000000;
+	}
 	void rcc_clock_setup_in_hse_24mhz_out_96mhz(void)
 	{
 		 /* Enable internal high-speed oscillator. */
@@ -190,10 +244,11 @@ namespace board {
 
 
 	void boardInit() {
-		rcc_clock_setup_in_hse_24mhz_out_96mhz();
+		rcc_clock_setup_in_hse_24mhz_out_120mhz();
+		//rcc_clock_setup_in_hse_24mhz_out_96mhz();
 		//rcc_clock_setup_in_hse_24mhz_out_72mhz();
 		//rcc_clock_setup_in_hsi_out_48mhz();
-		cpu_mhz = 72;
+		cpu_mhz = 120;
 		
 		// enable basic peripherals
 		rcc_periph_clock_enable(RCC_GPIOA);
@@ -218,9 +273,9 @@ namespace board {
 		adf4350_rx_spi.init();
 
 		adc_ratecfg = ADC_SMPR_SMP_7DOT5CYC;
-		adc_srate = 24000000/(7.5+12.5)/2;
-		adc_period_cycles = (7.5+12.5)*2;
-		adc_clk = 24000000;
+		adc_srate = 20000000/(7.5+12.5);
+		adc_period_cycles = (7.5+12.5);
+		adc_clk = 20000000;
 	}
 
 
