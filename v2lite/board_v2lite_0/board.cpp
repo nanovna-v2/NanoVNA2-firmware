@@ -92,7 +92,7 @@ namespace board {
 		  * Do this before touching the PLL (TODO: why?).
 		  */
 		 rcc_set_hpre(RCC_CFGR_HPRE_SYSCLK_NODIV);					// Set. 120MHz Max. 120MHz
-		 rcc_set_adcpre_gd32(GD32_RCC_CFGR_ADCPRE_PCLK2_DIV6);		// Set. 20MHz Max. 40MHz
+		 rcc_set_adcpre_gd32(GD32_RCC_CFGR_ADCPRE_HCLK_DIV5);		// Set. 24MHz Max. 40MHz
 		 rcc_set_ppre1(RCC_CFGR_PPRE1_HCLK_DIV2);					// Set. 60MHz Max. 60MHz
 		 rcc_set_ppre2(RCC_CFGR_PPRE2_HCLK_NODIV);					// Set. 120MHz Max. 120MHz
 		 rcc_set_usbpre_gd32(2);									// 120MHz / 2.5 = 48MHz
@@ -273,9 +273,9 @@ namespace board {
 		adf4350_rx_spi.init();
 
 		adc_ratecfg = ADC_SMPR_SMP_7DOT5CYC;
-		adc_srate = 20000000/(7.5+12.5);
+		adc_srate = 24000000/(7.5+12.5);
 		adc_period_cycles = (7.5+12.5);
-		adc_clk = 20000000;
+		adc_clk = 24000000;
 	}
 
 
