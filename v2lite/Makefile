@@ -2,7 +2,7 @@ MCULIB ?= 		/persist/mculib
 DEVICE          = stm32f103cc
 OPENCM3_DIR     = /persist/libopencm3
 BOARDNAME		= board_v2lite_0
-OBJS			+= main.o $(BOARDNAME)/board.o common.o sin_rom.o
+OBJS			+= main.o $(BOARDNAME)/board.o common.o sin_rom.o stream_fifo.o command_parser.o
 OBJS            += $(MCULIB)/fastwiring.o $(MCULIB)/dma_adc.o $(MCULIB)/dma_driver.o $(MCULIB)/usbserial.o
 
 VPATH += ../
