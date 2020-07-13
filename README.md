@@ -7,7 +7,7 @@ Below is information for building the firmware on Linux.
 ## Installing the compiler
 On any recent Debian based installation:
 ``` 
-apt install arm-gcc-none-eabi python3-serial
+apt install gcc-arm-none-eabi python3-serial
 ```
 
 ## Getting all source code
