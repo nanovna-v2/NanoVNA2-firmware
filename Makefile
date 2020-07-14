@@ -1,33 +1,34 @@
 # paths to libraries
 MCULIB         ?= /persist/mculib
 OPENCM3_DIR    ?= /persist/libopencm3
+DFU_PORT       ?= /dev/ttyACM0
 
 # device config
 BOARDNAME		= board_v2_2
 DEVICE          = gd32f303cc_nofpu
 
 OBJS			+= $(BOARDNAME)/board.o \
-	Font5x7.o \
-	Font7x13b.o \
-	command_parser.o \
-	common.o \
-	fft.o \
-	flash.o \
-	gain_cal.o \
-	gitversion.hpp \
-	globals.o \
-	ili9341.o \
-	main2.o \
-	numfont20x22.o \
-	plot.o \
-	sin_rom.o \
-	stream_fifo.o \
-	synthesizers.o \
-	ui.o \
-	uihw.o \
-	vna_measurement.o \
-	xpt2046.o \
-	$(NULL)
+    Font5x7.o \
+    Font7x13b.o \
+    command_parser.o \
+    common.o \
+    fft.o \
+    flash.o \
+    gain_cal.o \
+    gitversion.hpp \
+    globals.o \
+    ili9341.o \
+    main2.o \
+    numfont20x22.o \
+    plot.o \
+    sin_rom.o \
+    stream_fifo.o \
+    synthesizers.o \
+    ui.o \
+    uihw.o \
+    vna_measurement.o \
+    xpt2046.o \
+    $(NULL)
 
 OBJS	+= \
 	$(MCULIB)/dma_adc.o \
@@ -73,6 +74,8 @@ clean:
 flash: binary.hex
 	./st-flash --reset --format ihex write binary.hex
 
+dfu: binary.bin
+	python3 dfu.py --file $< --serial $(DFU_PORT)
 
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
 include $(OPENCM3_DIR)/mk/gcc-rules.mk
