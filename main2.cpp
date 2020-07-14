@@ -70,12 +70,12 @@ static bool outputRawSamples = false;
 int cpu_mhz = 8; /* The CPU boots on internal (HSI) 8Mhz */
 
 
-static int lo_freq = 12000; // IF frequency, Hz
-static int adf4350_freqStep = 12000; // adf4350 resolution, Hz
+static uint16_t lo_freq = 12000; // IF frequency, Hz
+static uint16_t adf4350_freqStep = 12000; // adf4350 resolution, Hz
 
 static USBSerial serial;
 
-static const int adcBufSize=1024;	// must be power of 2
+static constexpr size_t adcBufSize=1024;	// must be power of 2
 static volatile uint16_t adcBuffer[adcBufSize];
 
 static VNAMeasurement vnaMeasurement;
