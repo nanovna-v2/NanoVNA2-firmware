@@ -46,26 +46,12 @@ On a Debian based system, you can use:
 sudo apt install python3-serial
 ```
 
-## Getting all source code
-The code is spread out over 3 repositories:
-```
-git clone https://github.com/nanovna/libopencm3-gd32f3.git
-git clone https://github.com/gabriel-tenma-white/mculib.git
-git clone https://github.com/nanovna/NanoVNA-V2-firmware.git
-```
-The libopencm3 is not build automatically and must be build before building the project.
-This is a one time step.
-Build the libopencm3:
-```
-cd libopencm3-gd32f3
-make
-cd ..
-```
+## Getting the source code
 
-Set these 2 environment variables so they point to the directories that where created during the git checkout:
+The code is spread out over 3 repositories, 2 of which are submodules of the main NanoVNA-V2-firmware one:
 ```
-export MCULIB=$PWD/mculib
-export OPENCM3_DIR=$PWD/libopencm3-gd32f3
+git clone --recursive https://github.com/nanovna/NanoVNA-V2-firmware.git
+cd NanoVNA-V2-firmware
 ```
 
 ## Building

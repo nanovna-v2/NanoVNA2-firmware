@@ -1,0 +1,6 @@
+[submodule "mculib"]
+	path = mculib
+	url = https://github.com/gabriel-tenma-white/mculib.git
+[submodule "libopencm3"]
+	path = libopencm3
+	url = https://github.com/nanovna/libopencm3-gd32f3.git
