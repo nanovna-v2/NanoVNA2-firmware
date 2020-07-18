@@ -22,7 +22,7 @@ using namespace mculib;
 #define DEFAULT_LOW_BAT_COLOR       RGB565(255,  0,  0)
 #define DEFAULT_SPEC_INPUT_COLOR    RGB565(128,255,128);
 #define DEFAULT_RISE_EDGE_COLOR     RGB565(255,255,255);
-#define DEFAULT_FALLEN_EDGE_COLOR   RGB565(128,128,128);
+#define DEFAULT_FALLEN_EDGE_COLOR   RGB565(160,160,160);
 
 typedef struct {
 	uint16_t width;
