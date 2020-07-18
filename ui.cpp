@@ -407,7 +407,7 @@ enum {
   MT_CLOSE
 };
 
-static void menu_move_back(void);
+static void menu_move_back(bool leave_ui);
 
 
 static UI_FUNCTION_ADV_CALLBACK(menu_calop_acb)
@@ -440,7 +440,7 @@ static UI_FUNCTION_CALLBACK(menu_caldone_cb)
   (void)data;
   cal_done();
   draw_cal_status();
-  menu_move_back();
+  menu_move_back(false);
   menu_push_submenu(menu_save);
 }
 
@@ -468,8 +468,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_cal2_acb)
 static UI_FUNCTION_CALLBACK(menu_recall_cb)
 {
   if (caldata_recall(data) == 0) {
-    menu_move_back();
-    ui_mode_normal();
+//    menu_move_back(true);
     draw_cal_status();
   } else {
     show_dmesg();
@@ -515,8 +514,7 @@ static UI_FUNCTION_CALLBACK(menu_config_save_cb)
   (void)item;
   (void)data;
   config_save();
-  menu_move_back();
-  ui_mode_normal();
+  menu_move_back(true);
 }
 
 static UI_FUNCTION_CALLBACK(menu_dfu_cb)
@@ -530,8 +528,7 @@ static UI_FUNCTION_CALLBACK(menu_save_cb)
 {
   (void)item;
   if (caldata_save(data) == 0) {
-    menu_move_back();
-    ui_mode_normal();
+    menu_move_back(true);
     draw_cal_status();
   } else {
     show_dmesg();
@@ -598,12 +595,16 @@ static UI_FUNCTION_ADV_CALLBACK(menu_format_acb)
   //redraw_all();
 }
 
-static UI_FUNCTION_CALLBACK(menu_channel_cb)
+static UI_FUNCTION_ADV_CALLBACK(menu_channel_acb)
 {
   (void)item;
+  if (b){
+    if (uistat.current_trace >=0 && trace[uistat.current_trace].channel == data)
+      b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
   set_trace_channel(uistat.current_trace, data);
-  menu_move_back();
-  ui_mode_normal();
+  menu_move_back(true);
 }
 
 static UI_FUNCTION_ADV_CALLBACK(menu_transform_window_acb)
@@ -648,10 +649,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_display_acb)
     b->icon = config.ui_options & UI_OPTIONS_FLIP ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
     return;
   }
-  if(config.ui_options & UI_OPTIONS_FLIP)
-    config.ui_options &= ~UI_OPTIONS_FLIP;
-  else
-    config.ui_options |= UI_OPTIONS_FLIP;
+  config.ui_options^= UI_OPTIONS_FLIP;
   if(config.ui_options & UI_OPTIONS_FLIP)
     ili9341_set_flip(true, true);
 
@@ -692,31 +690,6 @@ static UI_FUNCTION_CALLBACK(menu_keyboard_cb)
   }
 }
 
-#if 0
-static void
-menu_stimulus_cb(UIEvent evt, int item)
-{
-  switch (item) {
-  case 0: /* START */
-  case 1: /* STOP */
-  case 2: /* CENTER */
-  case 3: /* SPAN */
-  case 4: /* SWEEP POINTS */
-  case 5: /* CW */
-  {
-    if(item != 4)
-      uistat.lever_mode = item == 3 ? LM_SPAN : LM_CENTER;
-    if (evt.isLeverLongPress()) {
-      ui_mode_numeric(item);
-    } else {
-      ui_mode_keypad(item);
-    }
-    break;
-  }
-  }
-}
-#endif
-
 static UI_FUNCTION_ADV_CALLBACK(menu_pause_acb)
 {
   (void)item;
@@ -726,8 +699,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_pause_acb)
     return;
   }
   toggle_sweep();
-  //menu_move_back();
-  //ui_mode_normal();
+  //menu_move_back(true);
   draw_menu();
 }
 
@@ -823,7 +795,7 @@ static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
     break;
   }
   redraw_marker(active_marker);
-  uistat.lever_mode = LM_SEARCH;
+//  uistat.lever_mode = LM_SEARCH;
 }
 
 void ui_marker_track() {
@@ -909,7 +881,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_marker_sel_acb)
   }
   request_to_redraw_marker(active_marker);
   draw_menu();
-  uistat.lever_mode = LM_MARKER;
+//  uistat.lever_mode = LM_MARKER;
 }
 
 static const menuitem_t menu_calop[] = {
@@ -991,8 +963,8 @@ const menuitem_t menu_scale[] = {
 
 
 const menuitem_t menu_channel[] = {
-  { MT_CALLBACK, 0, "CH0\nREFLECT", (const void *)menu_channel_cb },
-  { MT_CALLBACK, 1, "CH1\nTHROUGH", (const void *)menu_channel_cb },
+  { MT_ADV_CALLBACK, 0, "CH0\nREFLECT", (const void *)menu_channel_acb },
+  { MT_ADV_CALLBACK, 1, "CH1\nTHROUGH", (const void *)menu_channel_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -1150,14 +1122,18 @@ ensure_selection(void)
     selection = i-1;
 }
 
-static void menu_move_back(void)
+static void
+menu_move_back(bool leave_ui)
 {
   if (menu_current_level == 0)
     return;
   menu_current_level--;
   ensure_selection();
   erase_menu_buttons();
-  draw_menu();
+  if (leave_ui)
+    ui_mode_normal();
+  else
+    draw_menu();
 }
 
 static void menu_push_submenu(const menuitem_t *submenu)
@@ -1195,7 +1171,7 @@ void menu_invoke(UIEvent evt, int item)
     break;
 
   case MT_CANCEL:
-    menu_move_back();
+    menu_move_back(false);
     break;
 
   case MT_CALLBACK: {
