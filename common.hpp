@@ -119,7 +119,7 @@ constexpr int MEASUREMENT_ECAL_INTERVAL = 5;
 // TODO: name all enums and refer to them by name
 
 enum {
-  TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_OFF
+  TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_Q, TRC_OFF
 };
 
 enum SweepParameter {
@@ -249,7 +249,8 @@ static const struct {
   { "REAL",   4,  0.25 },
   { "IMAG",   4,  0.25 },
   { "R",      0, 100 },
-  { "X",      4, 100 }
+  { "X",      4, 100 },
+  { "Q",      0, 10.0 }
 };
 
 static const char * const trc_channel_name[] = {

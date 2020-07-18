@@ -7,6 +7,7 @@
 #include "Font.h"
 #include <board.hpp>
 #include <mculib/printf.hpp>
+#include "ui.hpp"
 
 #define TRUE true
 #define FALSE false
@@ -456,6 +457,15 @@ float reactance(complexf v) {
 	return zi;
 }
 
+static float
+qualityfactor(complexf v)
+{
+  float re = v.real(), im = v.imag();
+  float i = 2*im;
+  float r = (1+re)*(1-re) - im*im;
+  return fabs(i / r);
+}
+
 void
 cartesian_scale(float re, float im, int *xp, int *yp, float scale)
 {
@@ -521,6 +531,10 @@ trace_into_index(int x, int t, int i, complexf array[SWEEP_POINTS_MAX])
 	case TRC_X:
 		v = refpos - reactance(coeff) * scale;
 		break;
+	case TRC_Q:
+		v = refpos - qualityfactor(coeff) * scale;
+		break;
+
 	case TRC_SMITH:
 	//case TRC_ADMIT:
 	case TRC_POLAR:
@@ -708,6 +722,9 @@ trace_get_value_string(int t, char *buf, int len, complexf array[SWEEP_POINTS_MA
 	case TRC_X:
 		gamma2reactance(buf, len, coeff);
 		break;
+	case TRC_Q:
+		chsnprintf(buf, len, "%.2f", qualityfactor(coeff));
+		break;
 	//case TRC_ADMIT:
 	case TRC_POLAR:
 		chsnprintf(buf, len, "%.2f %.2fj", coeff.real(), coeff.imag());
@@ -760,6 +777,9 @@ trace_get_value_string_delta(int t, char *buf, int len, complexf array[SWEEP_POI
 		break;
 	case TRC_X:
 		gamma2reactance(buf, len, coeff);
+		break;
+	case TRC_Q:
+		chsnprintf(buf, len, S_DELTA "%.2f", qualityfactor(coeff) - qualityfactor(coeff_ref));
 		break;
 	//case TRC_ADMIT:
 	case TRC_POLAR:
@@ -1522,19 +1542,18 @@ redraw_marker(int marker)
 void
 request_to_draw_cells_behind_menu(void)
 {
-	// Values Hardcoded from ui.c
-	invalidate_rect(LCD_WIDTH-70, 0, LCD_WIDTH-1, LCD_HEIGHT-1);
-	redraw_request |= REDRAW_CELLS;
+  // Values Hardcoded from ui.c
+  invalidate_rect(LCD_WIDTH-MENU_BUTTON_WIDTH-OFFSETX, 0, LCD_WIDTH-OFFSETX, LCD_HEIGHT-1);
+  redraw_request |= REDRAW_CELLS;
 }
 
 void
 request_to_draw_cells_behind_numeric_input(void)
 {
-	// Values Hardcoded from ui.c
-	invalidate_rect(0, LCD_HEIGHT-32, LCD_WIDTH-1, LCD_HEIGHT-1);
-	redraw_request |= REDRAW_CELLS;
+  // Values Hardcoded from ui.c
+  invalidate_rect(0, LCD_HEIGHT-NUM_INPUT_HEIGHT, LCD_WIDTH-1, LCD_HEIGHT-1);
+  redraw_request |= REDRAW_CELLS;
 }
-
 
 static int
 cell_drawchar(uint8_t ch, int x, int y)

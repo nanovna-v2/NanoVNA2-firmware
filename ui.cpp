@@ -584,42 +584,19 @@ static UI_FUNCTION_ADV_CALLBACK(menu_trace_acb)
   draw_menu();
 }
 
-static UI_FUNCTION_CALLBACK(menu_format_cb)
+static UI_FUNCTION_ADV_CALLBACK(menu_format_acb)
 {
   (void)item;
+  if (b){
+    if (uistat.current_trace >=0 && trace[uistat.current_trace].type == data)
+      b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
   set_trace_type(uistat.current_trace, data);
   request_to_redraw_grid();
   ui_mode_normal();
   //redraw_all();
 }
-/*
-static void
-menu_format2_cb(UIEvent evt, int item)
-{
-  switch (item) {
-  case 0:
-    set_trace_type(uistat.current_trace, TRC_POLAR);
-    break;
-  case 1:
-    set_trace_type(uistat.current_trace, TRC_LINEAR);
-    break;
-  case 2:
-    set_trace_type(uistat.current_trace, TRC_REAL);
-    break;
-  case 3:
-    set_trace_type(uistat.current_trace, TRC_IMAG);
-    break;
-  case 4:
-    set_trace_type(uistat.current_trace, TRC_R);
-    break;
-  case 5:
-    set_trace_type(uistat.current_trace, TRC_X);
-    break;
-  }
-
-  request_to_redraw_grid();
-  ui_mode_normal();
-}*/
 
 static UI_FUNCTION_CALLBACK(menu_channel_cb)
 {
@@ -650,7 +627,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_transform_acb)
     return;
   }
   domain_mode ^= DOMAIN_TIME;
-  uistat.lever_mode = LM_MARKER;
+//  uistat.lever_mode = LM_MARKER;
   ui_mode_normal();
 }
 
@@ -903,7 +880,6 @@ active_marker_select(UIEvent evt, int item)
 static UI_FUNCTION_ADV_CALLBACK(menu_marker_sel_acb)
 {
   (void)data;
-  int t;
   if (b){
     if (item < 4 && markers[item].enabled) b->icon = BUTTON_ICON_CHECK;
     else if (item == 5) b->icon = uistat.marker_delta ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
@@ -981,23 +957,23 @@ const menuitem_t menu_trace[] = {
 };
 
 const menuitem_t menu_format2[] = {
-  { MT_CALLBACK, TRC_POLAR, "POLAR", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_LINEAR, "LINEAR", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_REAL, "REAL", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_IMAG, "IMAG", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_R, "RESISTANCE", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_X, "REACTANCE", (const void *)menu_format_cb },
-//  { MT_CALLBACK, TRC_Q, "Q FACTOR", menu_format_cb },
+  { MT_ADV_CALLBACK, TRC_POLAR, "POLAR", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_LINEAR, "LINEAR", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_REAL, "REAL", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_IMAG, "IMAG", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_R, "RESISTANCE", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_X, "REACTANCE", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_Q, "Q FACTOR", (const void *)menu_format_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
 
 const menuitem_t menu_format[] = {
-  { MT_CALLBACK, TRC_LOGMAG, "LOGMAG", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_PHASE, "PHASE", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_DELAY, "DELAY", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_SMITH, "SMITH", (const void *)menu_format_cb },
-  { MT_CALLBACK, TRC_SWR, "SWR", (const void *)menu_format_cb },
+  { MT_ADV_CALLBACK, TRC_LOGMAG, "LOGMAG", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_PHASE, "PHASE", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_DELAY, "DELAY", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_SMITH, "SMITH", (const void *)menu_format_acb },
+  { MT_ADV_CALLBACK, TRC_SWR, "SWR", (const void *)menu_format_acb },
   { MT_SUBMENU, 0, S_RARROW" MORE", (const void *)menu_format2 },
   //{ MT_CALLBACK, TRC_LINEAR, "LINEAR", (const void *)menu_format_cb },
   //{ MT_CALLBACK, TRC_SWR, "SWR", (const void *)menu_format_cb },

@@ -5,14 +5,14 @@
 
 #ifndef DISPLAY_ST7796
 // Maximum menu buttons count
-#define MENU_BUTTON_MAX     7
+#define MENU_BUTTON_MAX         8
 // Menu buttons size
-#define MENU_BUTTON_WIDTH  68
-#define MENU_BUTTON_HEIGHT 30
+#define MENU_BUTTON_WIDTH      68
+#define MENU_BUTTON_HEIGHT     26
 #define MENU_BUTTON_BORDER      1
 #define KEYBOARD_BUTTON_BORDER  2
 // Height of numerical input field (at bottom)
-#define NUM_INPUT_HEIGHT   30
+#define NUM_INPUT_HEIGHT       32
 
 // On screen keyboard button size
 #if 1
@@ -30,14 +30,14 @@
 #endif
 #else
 // Maximum menu buttons count
-#define MENU_BUTTON_MAX     7
+#define MENU_BUTTON_MAX         8
 // Menu buttons size
-#define MENU_BUTTON_WIDTH  80
-#define MENU_BUTTON_HEIGHT 38
+#define MENU_BUTTON_WIDTH      84
+#define MENU_BUTTON_HEIGHT     36
 #define MENU_BUTTON_BORDER      1
 #define KEYBOARD_BUTTON_BORDER  2
 // Height of numerical input field (at bottom)
-#define NUM_INPUT_HEIGHT   30
+#define NUM_INPUT_HEIGHT   32
 
 #if 1
 #define KP_WIDTH                  ((LCD_WIDTH - MENU_BUTTON_WIDTH) / 4) // numeric keypad button width
