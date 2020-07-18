@@ -1310,7 +1310,7 @@ draw_cell(int m, int n)
 	if(plot_checkerBoard)
 		shade |= (((m + n) % 2) == 0);
 
-	int bg = shade ? RGB565(40,40,40) : 0;
+	uint16_t bg = shade ? RGB565(40,40,40) : DEFAULT_BG_COLOR;
 
 	// Clip cell by area
 	if (x0 + w > area_width)
@@ -1751,10 +1751,10 @@ void
 draw_frequencies(void)
 {
 	char buf[24];
-	ili9341_set_foreground(0xFFFF);
-	ili9341_set_background(0x0000);
+	ili9341_set_foreground(DEFAULT_FG_COLOR);
+	ili9341_set_background(DEFAULT_BG_COLOR);
 
-	ili9341_fill(0, FREQUENCIES_YPOS, LCD_WIDTH, FONT_GET_HEIGHT, 0x0000);
+	ili9341_fill(0, FREQUENCIES_YPOS, LCD_WIDTH, FONT_GET_HEIGHT, DEFAULT_BG_COLOR);
 	// draw sweep points
 	chsnprintf(buf, sizeof(buf), "%3d P", (int)sweep_points);
 	ili9341_drawstring(buf, FREQUENCIES_XPOS3, FREQUENCIES_YPOS);
@@ -1800,9 +1800,9 @@ draw_cal_status(void)
   int x = 0;
   int y = 100;
   char c[3];
-  ili9341_set_foreground(0xFFFF);
-  ili9341_set_background(0x0000);
-  ili9341_fill(0, y, OFFSETX, 6*(FONT_STR_HEIGHT), 0x0000);
+  ili9341_set_foreground(DEFAULT_FG_COLOR);
+  ili9341_set_background(DEFAULT_BG_COLOR);
+  ili9341_fill(0, y, OFFSETX, 6*(FONT_STR_HEIGHT), DEFAULT_BG_COLOR);
   if (cal_status & CALSTAT_APPLY) {
     c[0] = cal_status & CALSTAT_INTERPOLATED ? 'c' : 'C';
     c[1] = active_props == &current_props ? '*' : '0' + lastsaveid;
@@ -1831,7 +1831,7 @@ draw_battery_status(void)
 		int i, c;
 		uint16_t *buf = ili9341_spi_buffer;
 		uint8_t vbati = vbat2bati(vbat);
-		uint16_t col = vbati == 0 ? RGB565(0, 255, 0) : RGB565(0, 0, 240);
+		uint16_t col = vbati == 0 ?  DEFAULT_LOW_BAT_COLOR : DEFAULT_NORMAL_BAT_COLOR;
 		memset(ili9341_spi_buffer, 0, w * h * 2);
 
 		// battery head
@@ -1903,7 +1903,7 @@ request_to_redraw_grid(void)
 void
 redraw_frame(void)
 {
-	ili9341_set_background(0x0000);
+	ili9341_set_background(DEFAULT_BG_COLOR);
 	ili9341_clear_screen();
 	draw_frequencies();
 	draw_cal_status();

@@ -11,10 +11,10 @@ int16_t lastsaveid = 0;
 config_t config = {
   .magic =             CONFIG_MAGIC,
   .dac_value =         1922,
-  .grid_color =        RGB565(128,128,128),
-  .menu_normal_color = RGB565(255,255,255),
-  .menu_active_color = RGB565(180,255,180),
-  .trace_color =       { RGB565(255,255,0), RGB565(0,160,255), RGB565(0,255,0), RGB565(255,0,200) },
+  .grid_color =        DEFAULT_GRID_COLOR,
+  .menu_normal_color = DEFAULT_MENU_COLOR,
+  .menu_active_color = DEFAULT_MENU_ACTIVE_COLOR,
+  .trace_color =       { DEFAULT_TRACE_1_COLOR, DEFAULT_TRACE_2_COLOR, DEFAULT_TRACE_3_COLOR, DEFAULT_TRACE_4_COLOR },
 #ifndef DISPLAY_ST7796
   .touch_cal =         { 1950, 1900, -90, -120 },  //{ 620, 600, 160, 190 }, // 2.8 display module
 #else

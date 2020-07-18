@@ -8,6 +8,22 @@ using namespace mculib;
 
 #define RGB565(r,g,b)     byteReverse16( (((r)<<8)&0b1111100000000000) | (((g)<<3)&0b0000011111100000) | (((b)>>3)&0b0000000000011111) )
 
+#define DEFAULT_FG_COLOR            RGB565(255,255,255)
+#define DEFAULT_BG_COLOR            RGB565(  0,  0,  0)
+#define DEFAULT_GRID_COLOR          RGB565(128,128,128)
+#define DEFAULT_MENU_COLOR          RGB565(230,230,230)
+#define DEFAULT_MENU_TEXT_COLOR     RGB565(  0,  0,  0)
+#define DEFAULT_MENU_ACTIVE_COLOR   RGB565(210,210,210)
+#define DEFAULT_TRACE_1_COLOR       RGB565(255,255,  0)
+#define DEFAULT_TRACE_2_COLOR       RGB565(  0,255,255)
+#define DEFAULT_TRACE_3_COLOR       RGB565(  0,255,  0)
+#define DEFAULT_TRACE_4_COLOR       RGB565(255,  0,255)
+#define DEFAULT_NORMAL_BAT_COLOR    RGB565( 31,227,  0)
+#define DEFAULT_LOW_BAT_COLOR       RGB565(255,  0,  0)
+#define DEFAULT_SPEC_INPUT_COLOR    RGB565(128,255,128);
+#define DEFAULT_RISE_EDGE_COLOR     RGB565(255,255,255);
+#define DEFAULT_FALLEN_EDGE_COLOR   RGB565(128,128,128);
+
 typedef struct {
 	uint16_t width;
 	uint16_t height;
@@ -53,6 +69,8 @@ void ili9341_set_flip(bool flipX, bool flipY);
 void ili9341_clear_screen(void);
 void ili9341_set_foreground(uint16_t fg);
 void ili9341_set_background(uint16_t bg);
+void blit8BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint8_t *bitmap);
+void blit16BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *bitmap);
 void ili9341_line(int, int, int, int);
 void ili9341_fill(int x, int y, int w, int h, uint16_t color);
 void ili9341_drawstring(const char *str, int x, int y);
