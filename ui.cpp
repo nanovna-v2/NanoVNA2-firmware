@@ -559,7 +559,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_trace_acb)
     if (trace[data].enabled){
       b->bg = config.trace_color[data];
       if (data == selection) b->fg = ~config.trace_color[data];
-      b->icon = BUTTON_ICON_CHECK;
+      if (uistat.current_trace == data) b->icon = BUTTON_ICON_CHECK;
     }
     return;
   }
@@ -1005,7 +1005,8 @@ const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, KM_CENTER, "CENTER", (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_SPAN, "SPAN",  (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_CW, "CW FREQ", (const void *)menu_keyboard_cb },
-  { MT_ADV_CALLBACK, 0, "PAUSE\nSWEEP", (const void *)menu_pause_acb },
+  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+//  { MT_ADV_CALLBACK, 0, "PAUSE\nSWEEP", (const void *)menu_pause_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
