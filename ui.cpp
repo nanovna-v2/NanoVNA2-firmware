@@ -745,11 +745,9 @@ menu_stimulus_cb(UIEvent evt, int item)
   }
 }
 
-static bool ecal_enabled = true;
-
 static void
 menu_ecal(UIEvent evt, int item) {
-  ecal_enabled = !ecal_enabled;
+  vnaMeasurement.ecalEnabled = !vnaMeasurement.ecalEnabled;
 }
 
 static void
@@ -1486,8 +1484,7 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
         *fg = 0xffff;
       }
   } else if (menu == menu_cw) {
-      if ((item == 1 && ecal_enabled )
-       ) {
+      if ((item == 1 && vnaMeasurement.ecalEnabled)) {
         *bg = 0x0000;
         *fg = 0xffff;
       }
