@@ -1831,13 +1831,12 @@ draw_cal_status(void)
   }
   int i;
   static const struct {char text, zero, mask;} calibration_text[]={
-    {'D', 0, CALSTAT_ED},
-    {'R', 0, CALSTAT_ER},
-    {'S', 0, CALSTAT_ES},
-    {'T', 0, CALSTAT_ET},
-    {'X', 0, CALSTAT_EX}
+    {'S', 0, CALSTAT_SHORT},
+    {'O', 0, CALSTAT_OPEN},
+    {'L', 0, CALSTAT_LOAD},
+    {'T', 0, CALSTAT_THRU},
   };
-  for (i = 0; i < 5; i++, y+=FONT_STR_HEIGHT)
+  for (i = 0; i < 4; i++, y+=FONT_STR_HEIGHT)
     if (cal_status & calibration_text[i].mask)
       ili9341_drawstring(&calibration_text[i].text, x, y);
 }

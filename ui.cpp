@@ -423,12 +423,13 @@ static UI_FUNCTION_ADV_CALLBACK(menu_calop_acb)
   cal_collect(data);
 //  selection = item+1;
   ui_disabled = true;
-  draw_cal_status();
-  draw_menu();
+//  draw_cal_status();
+//  draw_menu();
 }
 
 void ui_cal_collected() {
   ui_disabled = false;
+  draw_cal_status();
   draw_menu();
 }
 
