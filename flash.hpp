@@ -7,7 +7,7 @@
  */
 
 
-constexpr int SAVEAREA_MAX = 5;
+#define SAVEAREA_MAX  5
 
 // allocated bytes per save area. must be a multiple of the flash page size (2048)
 constexpr uint32_t SAVEAREA_BYTES = 10240;
