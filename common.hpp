@@ -111,9 +111,7 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
 static volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
 
-constexpr int MEASUREMENT_NPERIODS_NORMAL = 14;
-constexpr int MEASUREMENT_NPERIODS_CALIBRATING = 30;
-constexpr int MEASUREMENT_ECAL_INTERVAL = 5;
+
 
 
 // TODO: name all enums and refer to them by name

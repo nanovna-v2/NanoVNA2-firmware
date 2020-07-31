@@ -24,7 +24,7 @@ public:
 	typedef complex<int32_t> complexi;
 
 	// how many periods to wait after changing rf switches
-	static constexpr uint32_t nWaitSwitch = 1;
+	uint32_t nWaitSwitch = 1;
 
 	// how many periods to wait after changing synthesizer frequency
 	uint32_t nWaitSynth = 30;
@@ -127,6 +127,6 @@ public:
 
 	void setMeasurementPhase(VNAMeasurementPhases ph);
 	void sweepAdvance();
-	void sampleProcessor_emitValue(int32_t valRe, int32_t valIm);
+	void sampleProcessor_emitValue(int32_t valRe, int32_t valIm, bool clipped);
 	void doEmitValue(bool ecal);
 };
