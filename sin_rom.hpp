@@ -18,3 +18,6 @@ extern const int16_t sinROM6x2[24];
 
 // period = 3; 4 periods
 extern const int16_t sinROM3x4[24];
+
+// period = 4; 3 periods
+extern const int16_t sinROM4x3[24];

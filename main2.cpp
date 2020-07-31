@@ -215,8 +215,10 @@ static int si5351_update(uint32_t freqHz) {
 
 
 static void adf4350_setup() {
+	adf4350_rx.cpCurrent = 6;
+	adf4350_tx.cpCurrent = 6;
 	adf4350_rx.N = 120;
-	adf4350_rx.rfPower = 0b00;
+	adf4350_rx.rfPower = (BOARD_REVISION >= 3 ? 0b10 : 0b00);
 	adf4350_rx.sendConfig();
 	adf4350_rx.sendN();
 
@@ -244,6 +246,13 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
+	if(BOARD_REVISION >= 3) {
+		lo_freq = 150000;
+		adf4350_freqStep = 10000;
+		vnaMeasurement.setCorrelationTable(sinROM4x3, 12);
+		vnaMeasurement.adcFullScale = 800 * 48;
+		return;
+	}
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -271,7 +280,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 }
 
 // set the measurement frequency including setting the tx and rx synthesizers
-static void setFrequency(freqHz_t freqHz) {
+void setFrequency(freqHz_t freqHz) {
 	currFreqHz = freqHz;
 	updateIFrequency(freqHz);
 	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
@@ -281,17 +290,12 @@ static void setFrequency(freqHz_t freqHz) {
 		adf4350_update(freqHz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
-		vnaMeasurement.nWaitSynth = 10;
+		vnaMeasurement.nWaitSynth = calculateSynthWait(false, 0);
 	} else {
 		int ret = si5351_update(freqHz);
 		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
-		if(ret == 0)
-			vnaMeasurement.nWaitSynth = 18;
-		if(ret == 1)
-			vnaMeasurement.nWaitSynth = 60;
-		if(ret == 2)
-			vnaMeasurement.nWaitSynth = 60;
+		vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
 	}
 }
 
@@ -306,11 +310,12 @@ static void adc_setup() {
 }
 
 // read and consume data from the adc ring buffer
-static void adc_read(volatile uint16_t*& data, int& len) {
+void adc_read(volatile uint16_t*& data, int& len, int modulus=1) {
 	static uint32_t lastIndex = 0;
 	uint32_t cIndex = dmaADC.position();
 	uint32_t bufWords = dmaADC.bufferSizeBytes / 2;
 	cIndex &= (bufWords-1);
+	cIndex = (cIndex / modulus) * modulus;
 
 	data = ((volatile uint16_t*) dmaADC.buffer) + lastIndex;
 	if(cIndex >= lastIndex) {
@@ -318,6 +323,7 @@ static void adc_read(volatile uint16_t*& data, int& len) {
 	} else {
 		len = bufWords - lastIndex;
 	}
+	len = (len/modulus) * modulus;
 	lastIndex += len;
 	if(lastIndex >= bufWords) lastIndex = 0;
 }
@@ -751,6 +757,7 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	}
 }
 
+
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal) {
 	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
@@ -904,6 +911,9 @@ static void adc_process() {
 			vnaMeasurement.processSamples((uint16_t*)buf, len);
 		}
 	}
+}
+void insertSamples(int32_t valRe, int32_t valIm, bool c) {
+	vnaMeasurement.sampleProcessor_emitValue(valRe, valIm, c);
 }
 
 static int cnt = 0;
@@ -1389,6 +1399,12 @@ extern "C" {
 		errorBlink(6);
 		while(1);
 	}
+	__attribute__((section(".start"), used))
+	const void* exportedSymbols[] = {(void*)0xdeadbabe, (void*)insertSamples,
+		(void*)&vnaMeasurement.sampleProcessor, (void*) adc_read,
+		(void*)calculateSynthWait, (void*)&MEASUREMENT_NPERIODS_NORMAL,
+		(void*)&MEASUREMENT_NPERIODS_CALIBRATING, (void*)&MEASUREMENT_ECAL_INTERVAL,
+		(void*)&vnaMeasurement.nWaitSwitch};
 	__attribute__((used))
 	void __assert_fail(const char *__assertion, const char *__file,
                unsigned int __line, const char *__function) {
