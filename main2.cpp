@@ -1015,7 +1015,7 @@ static void transform_domain() {
 			}
 		}
 
-		fft512_inverse((float(*)[2])tmp);
+		fft_inverse((float(*)[2])tmp);
 		memcpy(measured[ch], tmp, sizeof(measured[0]));
 		for (int i = 0; i < points; i++) {
 			measured[ch][i] /= (float)FFT_SIZE;
