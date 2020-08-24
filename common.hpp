@@ -52,7 +52,7 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define USB_POINTS_MAX 1024
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
-#define FFT_SIZE 512
+#define FFT_SIZE 256
 #define ECAL_PARTIAL
 
 #ifdef ECAL_PARTIAL
