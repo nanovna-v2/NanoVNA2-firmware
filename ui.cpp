@@ -263,13 +263,20 @@ show_version(void)
 {
   int x = 5, y = 5;
   const char *fpu;
+  uint32_t* deviceID = (uint32_t*)0x1FFFF7E8;
+  char snStr[64];
+	chsnprintf(snStr, sizeof(snStr), "SN: %08x-%08x-%08x\n", deviceID[0], deviceID[1], deviceID[2]);
+
   ili9341_set_foreground(DEFAULT_FG_COLOR);
   ili9341_set_background(DEFAULT_BG_COLOR);
   uiDisableProcessing();
   ili9341_clear_screen();
 
   ili9341_drawstring_size(BOARD_NAME, x, y, 3);
-  y += 3*FONT_GET_HEIGHT;
+  y += 3*FONT_GET_HEIGHT + 6;
+  ili9341_drawstring_size(snStr, x, y, 2);
+  y += 2*FONT_GET_HEIGHT;
+
   int step = FONT_STR_HEIGHT + 3;
   ili9341_drawstring("Software copyright @edy555 et al", x, y += step);
   ili9341_drawstring("Hardware designed by OwOComm", x, y += step);
@@ -279,11 +286,8 @@ show_version(void)
   ili9341_drawstring("Version: " GITVERSION, x, y += step);
   ili9341_drawstring("Build Time: " __DATE__ " - " __TIME__, x, y += step);
   y += 5;
-  ili9341_drawstring("Kernel: " CH_KERNEL_VERSION, x, y += step);
   ili9341_drawstring("Compiler: " PORT_COMPILER_NAME, x, y += step);
-  ili9341_drawstring("Architecture: " PORT_ARCHITECTURE_NAME " Core Variant: " PORT_CORE_VARIANT_NAME, x, y += step);
   ili9341_drawstring("Port Info: " PORT_INFO, x, y += step);
-  ili9341_drawstring("Platform: " PLATFORM_NAME, x, y += step);
   ili9341_drawstring("Board: " BOARD_NAME, x, y += step);
   if(cpu_enable_fpu())
 	  fpu = "Has FPU: yes";
@@ -469,7 +473,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_cal2_acb)
 static UI_FUNCTION_CALLBACK(menu_recall_cb)
 {
   if (caldata_recall(data) == 0) {
-//    menu_move_back(true);
+    menu_move_back(true);
     draw_cal_status();
   } else {
     show_dmesg();
