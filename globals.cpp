@@ -39,9 +39,9 @@ complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX] alignas(8);
 volatile EcalStates ecalState = ECAL_STATE_MEASURING;
 
 __attribute__((used))
-volatile int MEASUREMENT_NPERIODS_NORMAL = 80;
+volatile int MEASUREMENT_NPERIODS_NORMAL = 160;
 __attribute__((used))
-volatile int MEASUREMENT_NPERIODS_CALIBRATING = 140;
+volatile int MEASUREMENT_NPERIODS_CALIBRATING = 260;
 __attribute__((used))
 volatile int MEASUREMENT_ECAL_INTERVAL = 10;
 

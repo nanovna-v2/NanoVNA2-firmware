@@ -31,6 +31,7 @@ public:
 
 	// how many periods to average over
 	uint32_t nPeriods = 14;
+	uint32_t nPeriodsMultiplier = 1;
 
 	// every ecalIntervalPoints we will measure one frequency point for ecal
 	uint32_t ecalIntervalPoints = 8;
