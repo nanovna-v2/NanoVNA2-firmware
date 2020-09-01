@@ -3,13 +3,13 @@ from math import *
 from scipy import signal
 
 # sine period in samples
-N = 25
+N = 100
 
 # integration period
-accumPeriod = 50
+accumPeriod = 200
 
 # window decay length
-windowN = 25
+windowN = 100
 
 scale = (2**15 - 1)
 

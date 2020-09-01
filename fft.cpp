@@ -25,6 +25,11 @@
 
 #include <math.h>
 #include <stdint.h>
+#include "common.hpp"
+
+// Use table increase transform speed, increase code size on ~700 bytes
+// Use compact table, increase code size on ~200 bytes, and not decrease speed
+#define FFT_USE_SIN_COS_TABLE
 
 static uint16_t reverse_bits(uint16_t x, int n) {
 	uint16_t result = 0;
@@ -32,22 +37,63 @@ static uint16_t reverse_bits(uint16_t x, int n) {
 		result = (result << 1) | (x & 1U);
 	return result;
 }
-
-static const float sin_table[] = {
+#ifdef FFT_USE_SIN_COS_TABLE
+#if FFT_SIZE == 256
+static const float sin_table_256[] = {
 	/*
 	 * float has about 7.2 digits of precision
-		#include <stdio.h>
-		#include <math.h>
-		#include <stdint.h>
-
-		int FFT_SIZE = 512;
-
-		int main() {
-			for (int i = 0; i < FFT_SIZE - (FFT_SIZE / 4); i++) {
-				printf("% .8f,%c", sin(2 * M_PI * i / FFT_SIZE), i % 8 == 7 ? '\n' : ' ');
-			}
+		for (uint8_t i = 0; i < FFT_SIZE - (FFT_SIZE / 4); i++) {
+			printf("% .8f,%c", sin(2 * M_PI * i / FFT_SIZE), i % 8 == 7 ? '\n' : ' ');
 		}
 	*/
+	 // for FFT_SIZE = 256
+	 0.00000000,  0.02454123,  0.04906767,  0.07356456,  0.09801714,  0.12241068,  0.14673047,  0.17096189,
+	 0.19509032,  0.21910124,  0.24298018,  0.26671276,  0.29028468,  0.31368174,  0.33688985,  0.35989504,
+	 0.38268343,  0.40524131,  0.42755509,  0.44961133,  0.47139674,  0.49289819,  0.51410274,  0.53499762,
+	 0.55557023,  0.57580819,  0.59569930,  0.61523159,  0.63439328,  0.65317284,  0.67155895,  0.68954054,
+	 0.70710678,  0.72424708,  0.74095113,  0.75720885,  0.77301045,  0.78834643,  0.80320753,  0.81758481,
+	 0.83146961,  0.84485357,  0.85772861,  0.87008699,  0.88192126,  0.89322430,  0.90398929,  0.91420976,
+	 0.92387953,  0.93299280,  0.94154407,  0.94952818,  0.95694034,  0.96377607,  0.97003125,  0.97570213,
+	 0.98078528,  0.98527764,  0.98917651,  0.99247953,  0.99518473,  0.99729046,  0.99879546,  0.99969882,
+	 1.00000000,/*  0.99969882,  0.99879546,  0.99729046,  0.99518473,  0.99247953,  0.98917651,  0.98527764,
+	 0.98078528,  0.97570213,  0.97003125,  0.96377607,  0.95694034,  0.94952818,  0.94154407,  0.93299280,
+	 0.92387953,  0.91420976,  0.90398929,  0.89322430,  0.88192126,  0.87008699,  0.85772861,  0.84485357,
+	 0.83146961,  0.81758481,  0.80320753,  0.78834643,  0.77301045,  0.75720885,  0.74095113,  0.72424708,
+	 0.70710678,  0.68954054,  0.67155895,  0.65317284,  0.63439328,  0.61523159,  0.59569930,  0.57580819,
+	 0.55557023,  0.53499762,  0.51410274,  0.49289819,  0.47139674,  0.44961133,  0.42755509,  0.40524131,
+	 0.38268343,  0.35989504,  0.33688985,  0.31368174,  0.29028468,  0.26671276,  0.24298018,  0.21910124,
+	 0.19509032,  0.17096189,  0.14673047,  0.12241068,  0.09801714,  0.07356456,  0.04906767,  0.02454123,
+	 0.00000000, -0.02454123, -0.04906767, -0.07356456, -0.09801714, -0.12241068, -0.14673047, -0.17096189,
+	-0.19509032, -0.21910124, -0.24298018, -0.26671276, -0.29028468, -0.31368174, -0.33688985, -0.35989504,
+	-0.38268343, -0.40524131, -0.42755509, -0.44961133, -0.47139674, -0.49289819, -0.51410274, -0.53499762,
+	-0.55557023, -0.57580819, -0.59569930, -0.61523159, -0.63439328, -0.65317284, -0.67155895, -0.68954054,
+	-0.70710678, -0.72424708, -0.74095113, -0.75720885, -0.77301045, -0.78834643, -0.80320753, -0.81758481,
+	-0.83146961, -0.84485357, -0.85772861, -0.87008699, -0.88192126, -0.89322430, -0.90398929, -0.91420976,
+	-0.92387953, -0.93299280, -0.94154407, -0.94952818, -0.95694034, -0.96377607, -0.97003125, -0.97570213,
+	-0.98078528, -0.98527764, -0.98917651, -0.99247953, -0.99518473, -0.99729046, -0.99879546, -0.99969882,*/
+};
+// FFT_SIZE = 2^N
+#define FFT_N     8
+// full size table:
+//   sin = sin_table[i   ]
+//   cos = sin_table[i+64]
+//#define SIN(i) sin_table_256[(i)]
+//#define COS(i) sin_table_256[(i)+64]
+
+// for size use only 0-64 indexes
+//   sin = i > 64 ? sin_table[128-i] : sin_table[   i];
+//   cos = i > 64 ?-sin_table[ i-64] : sin_table[64-i];
+#define SIN(i) ((i) > 64 ? sin_table_256[128-(i)] : sin_table_256[   (i)])
+#define COS(i) ((i) > 64 ?-sin_table_256[ (i)-64] : sin_table_256[64-(i)])
+#elif FFT_SIZE == 512
+static const float sin_table_512[] = {
+	/*
+	 * float has about 7.2 digits of precision
+		for (int i = 0; i < FFT_SIZE - (FFT_SIZE / 4); i++) {
+			printf("% .8f,%c", sin(2 * M_PI * i / FFT_SIZE), i % 8 == 7 ? '\n' : ' ');
+		}
+	*/
+	 // For FFT_SIZE = 512
 	 0.00000000,  0.01227154,  0.02454123,  0.03680722,  0.04906767,  0.06132074,  0.07356456,  0.08579731,
 	 0.09801714,  0.11022221,  0.12241068,  0.13458071,  0.14673047,  0.15885814,  0.17096189,  0.18303989,
 	 0.19509032,  0.20711138,  0.21910124,  0.23105811,  0.24298018,  0.25486566,  0.26671276,  0.27851969,
@@ -64,7 +110,7 @@ static const float sin_table[] = {
 	 0.95694034,  0.96043052,  0.96377607,  0.96697647,  0.97003125,  0.97293995,  0.97570213,  0.97831737,
 	 0.98078528,  0.98310549,  0.98527764,  0.98730142,  0.98917651,  0.99090264,  0.99247953,  0.99390697,
 	 0.99518473,  0.99631261,  0.99729046,  0.99811811,  0.99879546,  0.99932238,  0.99969882,  0.99992470,
-	 1.00000000,  0.99992470,  0.99969882,  0.99932238,  0.99879546,  0.99811811,  0.99729046,  0.99631261,
+	 1.00000000,/*  0.99992470,  0.99969882,  0.99932238,  0.99879546,  0.99811811,  0.99729046,  0.99631261,
 	 0.99518473,  0.99390697,  0.99247953,  0.99090264,  0.98917651,  0.98730142,  0.98527764,  0.98310549,
 	 0.98078528,  0.97831737,  0.97570213,  0.97293995,  0.97003125,  0.96697647,  0.96377607,  0.96043052,
 	 0.95694034,  0.95330604,  0.94952818,  0.94560733,  0.94154407,  0.93733901,  0.93299280,  0.92850608,
@@ -95,22 +141,40 @@ static const float sin_table[] = {
 	-0.92387953, -0.92850608, -0.93299280, -0.93733901, -0.94154407, -0.94560733, -0.94952818, -0.95330604,
 	-0.95694034, -0.96043052, -0.96377607, -0.96697647, -0.97003125, -0.97293995, -0.97570213, -0.97831737,
 	-0.98078528, -0.98310549, -0.98527764, -0.98730142, -0.98917651, -0.99090264, -0.99247953, -0.99390697,
-	-0.99518473, -0.99631261, -0.99729046, -0.99811811, -0.99879546, -0.99932238, -0.99969882, -0.99992470
+	-0.99518473, -0.99631261, -0.99729046, -0.99811811, -0.99879546, -0.99932238, -0.99969882, -0.99992470*/
 };
+// FFT_SIZE = 2^N
+#define FFT_N     9
+// full size table:
+//   sin = sin_table[i    ]
+//   cos = sin_table[i+128]
+//#define SIN(i) sin_table_512[(i)    ]
+//#define COS(i) sin_table_512[(i)+128]
+
+// for size use only 0-128 indexes
+//   sin = i > 128 ? sin_table[256-i] : sin_table[    i];
+//   cos = i > 128 ?-sin_table[i-128] : sin_table[128-i];
+#define SIN(i) ((i) > 128 ? sin_table_512[256-(i)] : sin_table_512[    (i)])
+#define COS(i) ((i) > 128 ?-sin_table_512[(i)-128] : sin_table_512[128-(i)])
+#else
+#error "Need build table for new FFT size"
+#endif
+
+#endif
 
 /***
  * dir = forward: 0, inverse: 1
  * https://www.nayuki.io/res/free-small-fft-in-multiple-languages/fft.c
  */
-void fft512(float array[][2], const uint8_t dir) {
-	constexpr uint16_t n = 512;
-	constexpr uint8_t levels = 9; // log2(n)
-	const float* const cos_table = &sin_table[n/4];
+void fft(float array[][2], const uint8_t dir) {
+	const uint16_t n = FFT_SIZE;
+	const uint8_t levels = FFT_N; // log2(n)
 
 	const uint8_t real =   dir & 1;
 	const uint8_t imag = ~real & 1;
+	uint16_t i;
 
-	for (uint16_t i = 0; i < n; i++) {
+	for (i = 0; i < n; i++) {
 		uint16_t j = reverse_bits(i, levels);
 		if (j > i) {
 			float temp = array[i][real];
@@ -121,23 +185,29 @@ void fft512(float array[][2], const uint8_t dir) {
 			array[j][imag] = temp;
 		}
 	}
-
+	const uint16_t size = 2;
+	uint16_t halfsize = size / 2;
+	uint16_t tablestep = n / size;
+	uint16_t j, k;
 	// Cooley-Tukey decimation-in-time radix-2 FFT
-	for (uint16_t size = 2; size <= n; size *= 2) {
-		uint16_t halfsize = size / 2;
-		uint16_t tablestep = n / size;
-		for (uint16_t i = 0; i < n; i += size) {
-			for (uint16_t j = i, k = 0; j < i + halfsize; j++, k += tablestep) {
+	for (;tablestep; tablestep>>=1, halfsize<<=1) {
+		for (i = 0; i < n; i+=2*halfsize) {
+			for (j = i, k = 0; j < i + halfsize; j++, k += tablestep) {
 				uint16_t l = j + halfsize;
-				float tpre =  array[l][real] * cos_table[k] + array[l][imag] * sin_table[k];
-				float tpim = -array[l][real] * sin_table[k] + array[l][imag] * cos_table[k] ;
+#ifdef FFT_USE_SIN_COS_TABLE
+				float s = SIN(k);
+				float c = COS(k);
+#else
+				float c = cos(2 * VNA_PI * k / FFT_SIZE);
+				float s = sin(2 * VNA_PI * k / FFT_SIZE);
+#endif
+				float tpre =  array[l][real] * c + array[l][imag] * s;
+				float tpim = -array[l][real] * s + array[l][imag] * c;
 				array[l][real] = array[j][real] - tpre;
 				array[l][imag] = array[j][imag] - tpim;
 				array[j][real] += tpre;
 				array[j][imag] += tpim;
 			}
 		}
-		if (size == n)  // Prevent overflow in 'size *= 2'
-			break;
 	}
 }
