@@ -9,6 +9,7 @@ void VNAMeasurement::init() {
 }
 void VNAMeasurement::setCorrelationTable(const int16_t* table, int length) {
 	sampleProcessor.setCorrelationTable(table, length);
+	sampleProcessor.emitValue = _emitValue_t {this};
 }
 void VNAMeasurement::processSamples(uint16_t* buf, int len) {
 	sampleProcessor.process(buf, len);
@@ -58,7 +59,7 @@ void VNAMeasurement::sweepAdvance() {
 	}
 }
 
-void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
+void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, bool clipped) {
 	auto currPoint = sweepCurrPoint;
 	/* If -1 then we restart */
 	if(currPoint == -1) {
@@ -83,7 +84,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		currDP += complexi{valRe, valIm};
 
 		if(measurementPhase == VNAMeasurementPhases::THRU) {
-			if(sampleProcessor.clipFlag) {
+			if(clipped) {
 				// ADC clip occurred during a measurement period
 				if(currGain > gainMin) {
 					// decrease gain and redo measurement
@@ -98,15 +99,15 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm) {
 		}
 
 		if(measurementPhase == VNAMeasurementPhases::THRU)
-			clipFlag2 |= sampleProcessor.clipFlag;
-		else clipFlag |= sampleProcessor.clipFlag;
+			clipFlag2 |= clipped;
+		else clipFlag |= clipped;
 	} else {
 		sampleProcessor.clipFlag = false;
 	}
 	periodCounterSwitch++;
 
 	/* If switch time not elapsed, wait some more */
-	if(periodCounterSwitch < (nWaitSwitch + nPeriods)) {
+	if(periodCounterSwitch < (nWaitSwitch + nPeriods*nPeriodsMultiplier)) {
 		return;
 	}
 
@@ -191,5 +192,5 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 }
 
 void VNAMeasurement::_emitValue_t::operator()(int32_t* valRe, int32_t* valIm) {
-	m->sampleProcessor_emitValue(*valRe, *valIm);
+	m->sampleProcessor_emitValue(*valRe, *valIm, m->sampleProcessor.clipFlag);
 }

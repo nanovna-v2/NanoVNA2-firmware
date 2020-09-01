@@ -47,8 +47,8 @@ public:
 				if(sample > 30000) clipFlag = true;
 				if(sample < -30000) clipFlag = true;
 			
-				accumRe[streamNum] += lo_re*sample/256;
-				accumIm[streamNum] += lo_im*sample/256;
+				accumRe[streamNum] += lo_re*sample/8192;
+				accumIm[streamNum] += lo_im*sample/8192;
 			}
 			
 			accumPhase++;

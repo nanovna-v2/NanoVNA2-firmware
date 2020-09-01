@@ -16,6 +16,10 @@ SECTIONS
 {
  .text : {
   *(.vectors)
+  . = ALIGN(2048);
+  *(.start*)
+  KEEP (*(.start))
+  . = ALIGN(2048);
   *(.text*)
   . = ALIGN(4);
   *(.rodata*)

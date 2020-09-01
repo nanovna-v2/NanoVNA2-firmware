@@ -52,7 +52,7 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define USB_POINTS_MAX 1024
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
-#define FFT_SIZE 512
+#define FFT_SIZE 256
 #define ECAL_PARTIAL
 
 #ifdef ECAL_PARTIAL
@@ -111,15 +111,13 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
 static volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
 
-constexpr int MEASUREMENT_NPERIODS_NORMAL = 14;
-constexpr int MEASUREMENT_NPERIODS_CALIBRATING = 30;
-constexpr int MEASUREMENT_ECAL_INTERVAL = 5;
+
 
 
 // TODO: name all enums and refer to them by name
 
 enum {
-  TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_OFF
+  TRC_LOGMAG, TRC_PHASE, TRC_DELAY, TRC_SMITH, TRC_POLAR, TRC_LINEAR, TRC_SWR, TRC_REAL, TRC_IMAG, TRC_R, TRC_X, TRC_Q, TRC_OFF
 };
 
 enum SweepParameter {
@@ -214,7 +212,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x80081235
+#define CONFIG_MAGIC 0x80081236
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq) 
@@ -249,7 +247,8 @@ static const struct {
   { "REAL",   4,  0.25 },
   { "IMAG",   4,  0.25 },
   { "R",      0, 100 },
-  { "X",      4, 100 }
+  { "X",      4, 100 },
+  { "Q",      0, 10.0 }
 };
 
 static const char * const trc_channel_name[] = {
