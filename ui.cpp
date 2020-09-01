@@ -695,17 +695,23 @@ static UI_FUNCTION_CALLBACK(menu_keyboard_cb)
   }
 }
 
-#if 0
-static void
-menu_ecal(UIEvent evt, int item) {
-  vnaMeasurement.ecalEnabled = !vnaMeasurement.ecalEnabled;
+static UI_FUNCTION_ADV_CALLBACK(menu_ecal)
+{
+    bool ecal_enabled = ecal_mode == ECAL_ENABLED;
+    if (b){
+        b->icon = !ecal_enabled ? BUTTON_ICON_NOCHECK : BUTTON_ICON_CHECK;
+        return;
+    }
+    set_ecal_mode(ecal_enabled ? ECAL_DISABLED : ECAL_ENABLED);
+    draw_menu();
 }
 
-static void
-menu_stimulus_cw(UIEvent evt, int item) {
-  menu_stimulus_cb(evt, 5); /* Faking 5 is ugly and probably breaks */
-}
-#endif
+static const menuitem_t menu_sweep_config[] = {
+  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+  { MT_ADV_CALLBACK, 0, "SET ECAL", (const void *)menu_ecal },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
 
 static UI_FUNCTION_ADV_CALLBACK(menu_pause_acb)
 {
@@ -1022,7 +1028,7 @@ const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, KM_CENTER, "CENTER", (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_SPAN, "SPAN",  (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_CW, "CW FREQ", (const void *)menu_keyboard_cb },
-  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+  { MT_SUBMENU, 0, "CFG SWEEP", (const void *)menu_sweep_config },
 //  { MT_ADV_CALLBACK, 0, "PAUSE\nSWEEP", (const void *)menu_pause_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
@@ -1484,11 +1490,6 @@ menu_item_modify_attribute(const menuitem_t *menu, int item,
        || (item == 1 && (domain_mode & TD_WINDOW) == TD_WINDOW_NORMAL)
        || (item == 2 && (domain_mode & TD_WINDOW) == TD_WINDOW_MAXIMUM)
        ) {
-        *bg = 0x0000;
-        *fg = 0xffff;
-      }
-  } else if (menu == menu_cw) {
-      if ((item == 1 && vnaMeasurement.ecalEnabled)) {
         *bg = 0x0000;
         *fg = 0xffff;
       }

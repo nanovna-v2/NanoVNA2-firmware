@@ -61,6 +61,7 @@ extern uistat_t uistat;
 #define domain_mode current_props._domain_mode
 #define velocity_factor current_props._velocity_factor
 #define marker_smith_format current_props._marker_smith_format
+#define ecal_mode current_props._ecal_mode
 
 extern volatile int MEASUREMENT_NPERIODS_NORMAL;
 extern volatile int MEASUREMENT_NPERIODS_CALIBRATING;

@@ -882,12 +882,13 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 
 // apply user-entered (on device) sweep parameters
 static void setVNASweepToUI() {
-	freqHz_t start = get_sweep_frequency(ST_START);
-	freqHz_t stop = get_sweep_frequency(ST_STOP);
+	freqHz_t start = UIActions::get_sweep_frequency(ST_START);
+	freqHz_t stop = UIActions::get_sweep_frequency(ST_STOP);
 	freqHz_t step = 0;
 	if(current_props._sweep_points > 0)
 		step = (stop - start) / (current_props._sweep_points - 1);
 
+	vnaMeasurement.ecalEnabled = current_props._ecal_mode == ECAL_ENABLED;
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
@@ -1571,6 +1572,25 @@ namespace UIActions {
 		current_props._cal_status = 0;
 		draw_cal_status();
 	}
+
+	void set_ecal_mode(enum EcalMode mode) {
+		// Sanity check input
+		switch(mode) {
+			case ECAL_DISABLED:
+				mode = ECAL_DISABLED;
+				break;
+			default:
+			case ECAL_ENABLED:
+				mode = ECAL_ENABLED;
+				break;
+		}
+		current_props._ecal_mode = mode;
+		setVNASweepToUI();
+		// No ECAL is no calibration! So whipe it!
+		current_props._cal_status = 0;
+		draw_cal_status();
+	}
+
 	freqHz_t get_sweep_frequency(int type) {
 		if(frequency1 > 0) {
 			switch (type) {
