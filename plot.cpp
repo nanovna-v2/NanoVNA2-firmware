@@ -7,6 +7,7 @@
 #include "Font.h"
 #include <board.hpp>
 #include <mculib/printf.hpp>
+#include "ui.hpp"
 
 #define TRUE true
 #define FALSE false
@@ -456,6 +457,15 @@ float reactance(complexf v) {
 	return zi;
 }
 
+static float
+qualityfactor(complexf v)
+{
+  float re = v.real(), im = v.imag();
+  float i = 2*im;
+  float r = (1+re)*(1-re) - im*im;
+  return fabs(i / r);
+}
+
 void
 cartesian_scale(float re, float im, int *xp, int *yp, float scale)
 {
@@ -521,6 +531,10 @@ trace_into_index(int x, int t, int i, complexf array[SWEEP_POINTS_MAX])
 	case TRC_X:
 		v = refpos - reactance(coeff) * scale;
 		break;
+	case TRC_Q:
+		v = refpos - qualityfactor(coeff) * scale;
+		break;
+
 	case TRC_SMITH:
 	//case TRC_ADMIT:
 	case TRC_POLAR:
@@ -708,6 +722,9 @@ trace_get_value_string(int t, char *buf, int len, complexf array[SWEEP_POINTS_MA
 	case TRC_X:
 		gamma2reactance(buf, len, coeff);
 		break;
+	case TRC_Q:
+		chsnprintf(buf, len, "%.2f", qualityfactor(coeff));
+		break;
 	//case TRC_ADMIT:
 	case TRC_POLAR:
 		chsnprintf(buf, len, "%.2f %.2fj", coeff.real(), coeff.imag());
@@ -760,6 +777,9 @@ trace_get_value_string_delta(int t, char *buf, int len, complexf array[SWEEP_POI
 		break;
 	case TRC_X:
 		gamma2reactance(buf, len, coeff);
+		break;
+	case TRC_Q:
+		chsnprintf(buf, len, S_DELTA "%.2f", qualityfactor(coeff) - qualityfactor(coeff_ref));
 		break;
 	//case TRC_ADMIT:
 	case TRC_POLAR:
@@ -1310,7 +1330,7 @@ draw_cell(int m, int n)
 	if(plot_checkerBoard)
 		shade |= (((m + n) % 2) == 0);
 
-	int bg = shade ? RGB565(40,40,40) : 0;
+	uint16_t bg = shade ? RGB565(40,40,40) : DEFAULT_BG_COLOR;
 
 	// Clip cell by area
 	if (x0 + w > area_width)
@@ -1522,19 +1542,18 @@ redraw_marker(int marker)
 void
 request_to_draw_cells_behind_menu(void)
 {
-	// Values Hardcoded from ui.c
-	invalidate_rect(LCD_WIDTH-70, 0, LCD_WIDTH-1, LCD_HEIGHT-1);
-	redraw_request |= REDRAW_CELLS;
+  // Values Hardcoded from ui.c
+  invalidate_rect(LCD_WIDTH-MENU_BUTTON_WIDTH-OFFSETX, 0, LCD_WIDTH-OFFSETX, LCD_HEIGHT-1);
+  redraw_request |= REDRAW_CELLS;
 }
 
 void
 request_to_draw_cells_behind_numeric_input(void)
 {
-	// Values Hardcoded from ui.c
-	invalidate_rect(0, LCD_HEIGHT-32, LCD_WIDTH-1, LCD_HEIGHT-1);
-	redraw_request |= REDRAW_CELLS;
+  // Values Hardcoded from ui.c
+  invalidate_rect(0, LCD_HEIGHT-NUM_INPUT_HEIGHT, LCD_WIDTH-1, LCD_HEIGHT-1);
+  redraw_request |= REDRAW_CELLS;
 }
-
 
 static int
 cell_drawchar(uint8_t ch, int x, int y)
@@ -1751,10 +1770,10 @@ void
 draw_frequencies(void)
 {
 	char buf[24];
-	ili9341_set_foreground(0xFFFF);
-	ili9341_set_background(0x0000);
+	ili9341_set_foreground(DEFAULT_FG_COLOR);
+	ili9341_set_background(DEFAULT_BG_COLOR);
 
-	ili9341_fill(0, FREQUENCIES_YPOS, LCD_WIDTH, FONT_GET_HEIGHT, 0x0000);
+	ili9341_fill(0, FREQUENCIES_YPOS, LCD_WIDTH, FONT_GET_HEIGHT, DEFAULT_BG_COLOR);
 	// draw sweep points
 	chsnprintf(buf, sizeof(buf), "%3d P", (int)sweep_points);
 	ili9341_drawstring(buf, FREQUENCIES_XPOS3, FREQUENCIES_YPOS);
@@ -1800,9 +1819,9 @@ draw_cal_status(void)
   int x = 0;
   int y = 100;
   char c[3];
-  ili9341_set_foreground(0xFFFF);
-  ili9341_set_background(0x0000);
-  ili9341_fill(0, y, OFFSETX, 6*(FONT_STR_HEIGHT), 0x0000);
+  ili9341_set_foreground(DEFAULT_FG_COLOR);
+  ili9341_set_background(DEFAULT_BG_COLOR);
+  ili9341_fill(0, y, OFFSETX, 6*(FONT_STR_HEIGHT), DEFAULT_BG_COLOR);
   if (cal_status & CALSTAT_APPLY) {
     c[0] = cal_status & CALSTAT_INTERPOLATED ? 'c' : 'C';
     c[1] = active_props == &current_props ? '*' : '0' + lastsaveid;
@@ -1812,13 +1831,12 @@ draw_cal_status(void)
   }
   int i;
   static const struct {char text, zero, mask;} calibration_text[]={
-    {'D', 0, CALSTAT_ED},
-    {'R', 0, CALSTAT_ER},
-    {'S', 0, CALSTAT_ES},
-    {'T', 0, CALSTAT_ET},
-    {'X', 0, CALSTAT_EX}
+    {'S', 0, CALSTAT_SHORT},
+    {'O', 0, CALSTAT_OPEN},
+    {'L', 0, CALSTAT_LOAD},
+    {'T', 0, CALSTAT_THRU},
   };
-  for (i = 0; i < 5; i++, y+=FONT_STR_HEIGHT)
+  for (i = 0; i < 4; i++, y+=FONT_STR_HEIGHT)
     if (cal_status & calibration_text[i].mask)
       ili9341_drawstring(&calibration_text[i].text, x, y);
 }
@@ -1831,7 +1849,7 @@ draw_battery_status(void)
 		int i, c;
 		uint16_t *buf = ili9341_spi_buffer;
 		uint8_t vbati = vbat2bati(vbat);
-		uint16_t col = vbati == 0 ? RGB565(0, 255, 0) : RGB565(0, 0, 240);
+		uint16_t col = vbati == 0 ?  DEFAULT_LOW_BAT_COLOR : DEFAULT_NORMAL_BAT_COLOR;
 		memset(ili9341_spi_buffer, 0, w * h * 2);
 
 		// battery head
@@ -1903,7 +1921,7 @@ request_to_redraw_grid(void)
 void
 redraw_frame(void)
 {
-	ili9341_set_background(0x0000);
+	ili9341_set_background(DEFAULT_BG_COLOR);
 	ili9341_clear_screen();
 	draw_frequencies();
 	draw_cal_status();

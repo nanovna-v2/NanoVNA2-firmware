@@ -3,6 +3,7 @@
 #include "fifo.hpp"
 #include "main.hpp"
 #include "ili9341.hpp"
+#include "globals.hpp"
 #include <board.hpp>
 #include <mculib/printf.hpp>
 #include <mculib/message_log.hpp>

@@ -16,10 +16,10 @@ public:
 	typedef complex<int32_t> complexi;
 
 	// how many periods to wait after changing synthesizer frequency
-	uint32_t nWaitSynth = 100;
+	uint32_t nWaitSynth = 20;
 
 	// how many periods to average over
-	uint32_t nPeriods = 20;
+	uint32_t nPeriods = 15;
 
 	// called when a new data point is available
 	small_function<void(int freqIndex, uint64_t freqHz, const VNAObservationSet& v)> emitDataPoint;
@@ -27,35 +27,20 @@ public:
 	// called to change synthesizer frequency
 	small_function<void(uint64_t freqHz)> frequencyChanged;
 
-	VNAMeasurementNoSwitch(): sampleProcessor(_emitValue_t {this}) {}
+	// sweep params
+	uint64_t sweepStartHz = 0, sweepStepHz = 0;
 
-	void init() { sampleProcessor.init(); }
-	void setCorrelationTable(const int16_t* table, int length) {
-		sampleProcessor.setCorrelationTable(table, length);
+	// if sweepPoints is 1, sets frequency to startFreqHz and disables sweep
+	int sweepPoints = 1;
+	int sweepDataPointsPerFreq = 1;
+
+	VNAMeasurementNoSwitch() {}
+
+	void init() {  }
+
+	void resetSweep() {
+		sweepParamsGeneration++;
 	}
-	void processSamples(uint16_t* buf, int len) { sampleProcessor.process(buf, len); }
-
-	// if points is 1, sets frequency to startFreqHz and disables sweep
-	void setSweep(uint64_t startFreqHz, uint64_t stepFreqHz, int points, int dataPointsPerFreq=1) {
-		sweepStartHz = startFreqHz;
-		sweepStepHz = stepFreqHz;
-		sweepPoints = points;
-		sweepCurrPoint = 0;
-		sweepDataPointsPerFreq = dataPointsPerFreq;
-
-		currFreq = startFreqHz;
-		periodCounterSynth = nWaitSynth;
-		dpCounterSynth = 0;
-		frequencyChanged(startFreqHz);
-	}
-
-
-	struct _emitValue_t {
-		VNAMeasurementNoSwitch* m;
-		void operator()(int32_t* valRe, int32_t* valIm);
-	};
-	
-	SampleProcessor<_emitValue_t, nChannels> sampleProcessor;
 
 public:
 	// state variables
@@ -75,25 +60,33 @@ public:
 	// current data point variables
 	complexi currDP[3];
 
-	// sweep params
-	uint64_t sweepStartHz = 0, sweepStepHz = 0;
-	int sweepPoints = 1;
-	int sweepDataPointsPerFreq = 1;
-
 	uint64_t currFreq;
 
+	uint32_t sweepParamsGeneration = 0;
+	uint32_t sweepParamsGeneration2 = 0;
 
 	void sweepAdvance() {
-		sweepCurrPoint++;
-		if(sweepCurrPoint >= sweepPoints)
+		if(sweepParamsGeneration2 != sweepParamsGeneration) {
+			// reset sweep
 			sweepCurrPoint = 0;
-
+			sweepParamsGeneration2 = sweepParamsGeneration;
+			periodCounterSynth = nWaitSynth * 5;
+		} else {
+			// advance sweep
+			sweepCurrPoint++;
+			if(sweepCurrPoint >= sweepPoints) {
+				sweepCurrPoint = 0;
+				periodCounterSynth = nWaitSynth*5;
+			} else {
+				periodCounterSynth = nWaitSynth;
+			}
+		}
+		dpCounterSynth = 0;
 		currFreq = sweepStartHz + sweepStepHz*sweepCurrPoint;
 		frequencyChanged(currFreq);
-
-		periodCounterSynth = nWaitSynth;
 	}
-	void sampleProcessor_emitValue(int32_t* valRe, int32_t* valIm) {
+	// call this function when a new value is available
+	void processValue(int32_t* valRe, int32_t* valIm) {
 		if(periodCounterSynth > 0) {
 			periodCounterSynth--;
 			return;
@@ -126,10 +119,4 @@ public:
 		return {(float) value.real(), (float) value.imag()};
 	}
 };
-
-
-template<int nChannels>
-void VNAMeasurementNoSwitch<nChannels>::_emitValue_t::operator()(int32_t* valRe, int32_t* valIm) {
-	m->sampleProcessor_emitValue(valRe, valIm);
-}
 
