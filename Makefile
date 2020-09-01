@@ -7,7 +7,7 @@ DFU_PORT       ?= /dev/ttyACM0
 BOARDNAME       = board_v2_2
 DEVICE          = gd32f303cc_nofpu
 
-OBJS			+= $(BOARDNAME)/board.o \
+OBJS += $(BOARDNAME)/board.o \
     Font5x7.o \
     Font7x13b.o \
     command_parser.o \
@@ -76,7 +76,7 @@ gitversion.hpp: .git/HEAD .git/index
 	echo "#define GITVERSION \"$(GITVERSION)\"" > $@
 
 clean:
-	$(Q)$(RM) -rf binary.* *.o
+	$(Q)$(RM) -rf binary.* *.o $(BOARDNAME)/*.o
 
 dist-clean: clean
 	make -C $(OPENCM3_DIR) clean
