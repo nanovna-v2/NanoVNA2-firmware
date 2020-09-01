@@ -484,6 +484,10 @@ extern "C" int atoi(const char* s) {
 	// TODO: implement
 	return 0;
 }
+extern "C" long atoll(const char* s) {
+	// TODO: implement
+	return 0;
+}
 extern "C" void __aeabi_atexit(void * arg , void (* func ) (void *)) {
 	// Leave this function empty. Program never exits.
 }

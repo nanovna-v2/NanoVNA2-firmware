@@ -251,9 +251,9 @@ static const uint8_t ili_init_seq[] = {
   // Interface Mode Control
   ILI9341_RGB_INTERFACE_CONTROL, 1, 0x00,
   // Frame Rate
-  ILI9341_FRAME_RATE_CONTROL_1, 2, 0x70, 0x1F,
+  ILI9341_FRAME_RATE_CONTROL_1, 2, 0x80, 0x10,
   // Display Inversion Control , 2 Dot
-  ILI9341_DISPLAY_INVERSION_CONTROL, 1, 0x02,
+  ILI9341_DISPLAY_INVERSION_CONTROL, 1, 0x00,
   // RGB/MCU Interface Control
   ILI9341_DISPLAY_FUNCTION_CONTROL, 3, 0x02, 0x02, 0x3B,
   // EntryMode
@@ -277,9 +277,9 @@ static const uint8_t ili_init_seq[] = {
   //Set Image Func
 //  0xE9, 1, 0x00,
   // Set Brightness to Max
-  ILI9341_WRITE_BRIGHTNESS, 1, 0xFF,
+//  ILI9341_WRITE_BRIGHTNESS, 1, 0xFF,
   // Adjust Control
-  ILI9341_PUMP_RATIO_CONTROL, 4, 0xA9, 0x51, 0x2C, 0x82,
+//  ILI9341_PUMP_RATIO_CONTROL, 4, 0xA9, 0x51, 0x2C, 0x82,
   //Exit Sleep
   ILI9341_SLEEP_OUT, 0x00,
   // display on
@@ -482,11 +482,12 @@ ili9341_drawchar(uint8_t ch, int x, int y)
   blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
 }
 
-void
-ili9341_drawstring(const char *str, int x, int y)
+void ili9341_drawstring(const char *str, int x, int y)
 {
+  int x_pos = x;
   while (*str) {
     uint8_t ch = *str++;
+    if (ch == '\n') {x = x_pos; y+=FONT_STR_HEIGHT; continue;}
     const uint8_t *char_buf = FONT_GET_DATA(ch);
     uint16_t w = FONT_GET_WIDTH(ch);
     blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);

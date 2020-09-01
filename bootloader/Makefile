@@ -1,14 +1,14 @@
-MCULIB ?= 		/persist/mculib
+MCULIB         ?= ../mculib
 DEVICE          = gd32f303cc
-OPENCM3_DIR     = /persist/libopencm3
-OBJS			+= main.o ../common.o ../command_parser.o ../stream_fifo.o
-OBJS            += $(MCULIB)/fastwiring.o $(MCULIB)/usbserial.o
+OPENCM3_DIR    ?= ../libopencm3
+OBJS           += main.o ../common.o ../command_parser.o ../stream_fifo.o
+OBJS           += $(MCULIB)/fastwiring.o $(MCULIB)/usbserial.o
 
 
-CFLAGS          += -Os -g
-CPPFLAGS		+= -Os -g --std=c++0x -fno-exceptions -fno-rtti -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103  -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
-LDFLAGS         += -static -nostartfiles -nostdlib -Wl,--print-memory-usage
-LDLIBS          += -Wl,--start-group -lgcc -lnosys -Wl,--end-group -lm
+CFLAGS         += -Os -g
+CPPFLAGS       += -Os -g --std=c++0x -fno-exceptions -fno-rtti -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103  -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
+LDFLAGS        += -static -nostartfiles -nostdlib -Wl,--print-memory-usage
+LDLIBS         += -Wl,--start-group -lgcc -lnosys -Wl,--end-group -lm
 
 
 include $(OPENCM3_DIR)/mk/genlink-config.mk
