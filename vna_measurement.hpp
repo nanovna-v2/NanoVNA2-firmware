@@ -38,7 +38,7 @@ public:
 
 	// AGC parameters; VNAMeasurement will detect ADC clip events and inform the
 	// host when baseband/rf gain needs to be changed.
-	uint32_t gainMin = 0, gainMax = 3;
+	uint8_t gainMin = 0, gainMax = 3;
 
 	uint32_t adcFullScale = 30000;
 
