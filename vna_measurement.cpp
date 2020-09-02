@@ -138,21 +138,28 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 				}
 			}
 
-			// If zero sweep, do skip ecall
-			if(sweepStepHz > 0 && ecalEnabled) {
-				ecalCounter++;
-				if(ecalCounter >= ecalIntervalPoints)
-					ecalCounter = 0;
-				if(ecalCounter == 0) {
+			// If zero sweep, skip ecall and simply keep generating the signal
+			if(sweepStepHz > 0) {
+				if(ecalEnabled) {
+					ecalCounter++;
+					if(ecalCounter >= ecalIntervalPoints)
+						ecalCounter = 0;
+					if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
-					setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
+						setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 #else
-					setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
+						setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
 #endif
-					return;
+						return;
+					}
 				}
+				setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			}
-			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+			else {
+				/* No sweepStepHz, then assume we want CW mode:
+				 * aka only measure THRU, nothing else!
+				 * And keep the signal on the ouput */
+			}
 			doEmitValue(false);
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
