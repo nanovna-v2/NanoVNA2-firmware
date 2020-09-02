@@ -761,6 +761,7 @@ static int measurementGetDefaultGain(freqHz_t freqHz) {
 static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 	lcdInhibit = false;
+	bool inhibit = vnaMeasurement.sweepStepHz > 0; /* No disable in CW mode */
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -774,12 +775,12 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			rfsw(RFSW_REFL, RFSW_REFL_OFF);
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
-			lcdInhibit = true;
+			lcdInhibit = inhibit;
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
-			lcdInhibit = true;
+			lcdInhibit = inhibit;
 			break;
 		case VNAMeasurementPhases::ECALLOAD:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
