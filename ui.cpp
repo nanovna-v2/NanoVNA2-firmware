@@ -283,6 +283,7 @@ show_version(void)
   ili9341_drawstring("Licensed under GPL. ", x, y += step);
   ili9341_drawstring("https://github.com/ttrftech/NanoVNA", x + 10, y += step);
   ili9341_drawstring("https://github.com/nanovna/NanoVNA-V2-firmware", x + 10, y += step);
+  ili9341_drawstring(GITURL, x + 10, y += step);
   ili9341_drawstring("Version: " GITVERSION, x, y += step);
   ili9341_drawstring("Build Time: " __DATE__ " - " __TIME__, x, y += step);
   y += 5;
