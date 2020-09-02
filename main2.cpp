@@ -82,7 +82,9 @@ static VNAMeasurement vnaMeasurement;
 static CommandParser cmdParser;
 static StreamFIFO cmdInputFIFO;
 static uint8_t cmdInputBuffer[128];
-static bool lcdInhibit = false;
+/* This is written in the 'measurement thread' (ADC ISR)
+ * But read by the 'main thread'. So make it volatile */
+static volatile bool lcdInhibit = false;
 
 static float gainTable[RFSW_BBGAIN_MAX+1];
 
@@ -366,7 +368,7 @@ static void lcd_and_ui_setup() {
 	ili9341_conf_dc = ili9341_dc;
 	ili9341_spi_set_cs = [](bool selected) {
 		lcd_spi_waitDMA();
-		while(lcdInhibit) asm __volatile__ ("nop");
+		while(lcdInhibit) ;
 		// if the xpt2046 is currently selected, deselect it
 		if(selected && digitalRead(xpt2046_cs) == LOW) {
 			digitalWrite(xpt2046_cs, HIGH);
@@ -377,7 +379,7 @@ static void lcd_and_ui_setup() {
 		return lcd_spi_transfer(sdi, bits);
 	};
 	ili9341_spi_transfer_bulk = [](uint32_t words) {
-		while(lcdInhibit) asm __volatile__ ("nop");
+		while(lcdInhibit) ;
 		lcd_spi_transfer_bulk((uint8_t*)ili9341_spi_buffer, words*2);
 	};
 	ili9341_spi_wait_bulk = []() {
