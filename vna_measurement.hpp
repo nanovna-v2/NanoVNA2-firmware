@@ -40,7 +40,7 @@ public:
 	// host when baseband/rf gain needs to be changed.
 	uint32_t gainMin = 0, gainMax = 3;
 
-	static constexpr uint32_t adcFullScale = 30000;
+	uint32_t adcFullScale = 30000;
 
 	// automatically reset before each measurement; indicates whether the current
 	// S11 data point is corrupted when emitDataPoint() is called.
