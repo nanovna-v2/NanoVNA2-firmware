@@ -769,6 +769,8 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 			break;
 		case VNAMeasurementPhases::REFL:
+			rfsw(RFSW_REFL, RFSW_REFL_ON);
+			rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			break;
 		case VNAMeasurementPhases::THRU:
