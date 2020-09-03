@@ -700,7 +700,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_ecal)
 {
     bool ecal_enabled = ecal_mode == ECAL_ENABLED;
     if (b){
-        b->icon = !ecal_enabled ? BUTTON_ICON_NOCHECK : BUTTON_ICON_CHECK;
+        b->icon = ecal_enabled ? BUTTON_ICON_NOCHECK : BUTTON_ICON_CHECK;
         return;
     }
     set_ecal_mode(ecal_enabled ? ECAL_DISABLED : ECAL_ENABLED);
@@ -709,7 +709,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_ecal)
 
 static const menuitem_t menu_sweep_config[] = {
   { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
-  { MT_ADV_CALLBACK, 0, "SET ECAL", (const void *)menu_ecal },
+  { MT_ADV_CALLBACK, 0, "USE ECAL", (const void *)menu_ecal },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
