@@ -44,8 +44,13 @@ void VNAMeasurement::sweepAdvance() {
 	if(sweepCurrPoint >= sweepPoints)
 		sweepCurrPoint = 0;
 
+	/* Only if frequency change apply the new frequency.
+	 * This is to support proper CW mode:
+	 * change to an existing frequency will temporarly break the signal */
+	freqHz_t old_freq = currFreq;
 	currFreq = sweepStartHz + sweepStepHz*sweepCurrPoint;
-	frequencyChanged(currFreq);
+	if(old_freq != currFreq)
+		frequencyChanged(currFreq);
 
 	periodCounterSynth = nWaitSynth;
 
@@ -153,12 +158,14 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 						return;
 					}
 				}
+				/* If no ECAL we only measure REFERENCE, REFL and THRU */
 				setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			}
 			else {
 				/* No sweepStepHz, then assume we want CW mode:
-				 * aka only measure THRU, nothing else!
+				 * aka only measure THRU and REFL, nothing else!
 				 * And keep the signal on the ouput */
+				setMeasurementPhase(VNAMeasurementPhases::REFL);
 			}
 			doEmitValue(false);
 			break;
