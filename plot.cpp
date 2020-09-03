@@ -98,7 +98,7 @@ void update_grid(void)
 		fspan = -frequency1;
 		fstart = frequency0 - fspan/2;
 	}
-	
+
 	while (gdigit > 100) {
 		grid = 5 * gdigit;
 		if (fspan / grid >= 4)
@@ -230,7 +230,7 @@ smith_grid2(int x, int y, float scale)
 	// offset to center
 	x -= P_CENTER_X;
 	y -= P_CENTER_Y;
-	
+
 	// outer circle
 	d = circle_inout(x, y, P_RADIUS);
 	if (d < 0)
@@ -326,7 +326,7 @@ smith_grid3(int x, int y)
 	// offset to center
 	x -= P_CENTER_X;
 	y -= P_CENTER_Y;
-	
+
 	// outer circle
 	d = circle_inout(x, y, P_RADIUS);
 	if (d < 0)
@@ -1614,7 +1614,7 @@ cell_draw_marker_info(int x0, int y0)
 			cell_drawstring(buf, xpos, ypos);
 			xpos += 3*FONT_WIDTH + 3;
 			//trace_get_info(t, buf, sizeof buf);
-			int32_t freq = freqAt(markers[mk].index);
+			freqHz_t freq = freqAt(markers[mk].index);
 			if (uistat.marker_delta && mk != active_marker) {
 				freq -= freqAt(markers[active_marker].index);
 				frequency_string_short(buf, sizeof buf, freq, S_DELTA[0]);
@@ -1710,6 +1710,11 @@ cell_draw_marker_info(int x0, int y0)
 	}
 }
 
+/* Prints a full frequency:
+ * 500.000 Khz
+ * 10.000 000 Mhz
+ * 3000.000 000 Mhz
+ */
 void
 frequency_string(char *buf, size_t len, freqHz_t freq)
 {
@@ -1732,6 +1737,11 @@ frequency_string(char *buf, size_t len, freqHz_t freq)
 	}
 }
 
+/* Prints a shorter/compacter frequency:
+ * 500.000KHz
+ * 10.000000Mhz
+ * 3000.0000Mhz
+ */
 void
 frequency_string_short(char *b, size_t len, freqHz_t freq, char prefix)
 {
@@ -1751,12 +1761,28 @@ frequency_string_short(char *b, size_t len, freqHz_t freq, char prefix)
 		chsnprintf(buf, len, "%d.%03dkHz",
 						 (int)(freq / 1000),
 						 (int)(freq % 1000));
-	} else {
-		chsnprintf(buf, len, "%d.%06d",
-						 (int)(freq / 1000000),
-						 (int)(freq % 1000000));
-		strcpy(b+9, "MHz");
 	}
+	size_t wr = chsnprintf(buf, len, "%d.%06d",
+			(int)(freq / 1000000),
+			(int)(freq % 1000000));
+	// Note that wr is either:
+	// 8: 1 - 9 Mhz
+	// 9: 10 - 99 Mhz
+	// 10: 100 - 999 Mhz
+	// 11: 1000 - 4400 Mhz
+	// Do not add 'Mhz' if it would overwrite all characters
+	if (len < 4)
+		return;
+	// Overwrite last digits, if >= 10Mhz (aka 9 digits)
+	if (wr > 9) {
+		wr = 9;
+	}
+	// Make sure we have space left for 'Mhz'
+	if (wr > len - 4) {
+		wr = len - 4;
+	}
+
+	strcpy(buf + wr, "MHz");
 }
 
 void padString(char* s, int len, char c = ' ') {
