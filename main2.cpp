@@ -307,21 +307,26 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(freqHz_t freqHz) {
-	currFreqHz = freqHz;
 	updateIFrequency(freqHz);
-	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
+	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(freqHz)));
 
-	// use adf4350 for f > 140MHz
-	if(is_freq_for_adf4350(freqHz)) {
-		adf4350_update(freqHz);
-		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
-		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
-		vnaMeasurement.nWaitSynth = calculateSynthWait(false, 0);
-	} else {
-		int ret = si5351_update(freqHz);
-		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
-		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
-		vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
+	/* Only if frequency changes apply the new frequency.
+	 * This is to support proper CW mode:
+	 * changing to an existing frequency temporarily breaks the signal */
+	if(currFreqHz != freqHz) {
+		currFreqHz = freqHz;
+		// use adf4350 for f > 140MHz
+		if(is_freq_for_adf4350(freqHz)) {
+			adf4350_update(freqHz);
+			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
+			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
+			vnaMeasurement.nWaitSynth = calculateSynthWait(false, 0);
+		} else {
+			int ret = si5351_update(freqHz);
+			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
+			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
+			vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
+		}
 	}
 }
 
@@ -761,7 +766,7 @@ static int measurementGetDefaultGain(freqHz_t freqHz) {
 static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 	lcdInhibit = false;
-	bool inhibit = vnaMeasurement.sweepStepHz > 0; /* No disable in CW mode */
+	bool cw_mode = vnaMeasurement.is_cw_mode();
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -769,20 +774,22 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 			break;
 		case VNAMeasurementPhases::REFL:
-			rfsw(RFSW_REFL, RFSW_REFL_ON);
-			rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			if (cw_mode) {
+				rfsw(RFSW_REFL, RFSW_REFL_ON);
+				rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			}
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			break;
 		case VNAMeasurementPhases::THRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			rfsw(RFSW_REFL, RFSW_REFL_OFF);
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
-			lcdInhibit = inhibit;
+			lcdInhibit = !cw_mode;
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
-			lcdInhibit = inhibit;
+			lcdInhibit = true;
 			break;
 		case VNAMeasurementPhases::ECALLOAD:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -1459,6 +1466,7 @@ namespace UIActions {
 
 	void cal_collect(int type) {
 		current_props._cal_status &= ~(1 << type);
+		vnaMeasurement.ecalEnabled = true; /* Force on. TODO how to restore? */
 		collectMeasurementCB = [type]() {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;

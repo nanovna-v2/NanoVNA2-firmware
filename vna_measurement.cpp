@@ -44,13 +44,8 @@ void VNAMeasurement::sweepAdvance() {
 	if(sweepCurrPoint >= sweepPoints)
 		sweepCurrPoint = 0;
 
-	/* Only if frequency change apply the new frequency.
-	 * This is to support proper CW mode:
-	 * change to an existing frequency will temporarly break the signal */
-	freqHz_t old_freq = currFreq;
 	currFreq = sweepStartHz + sweepStepHz*sweepCurrPoint;
-	if(old_freq != currFreq)
-		frequencyChanged(currFreq);
+	frequencyChanged(currFreq);
 
 	periodCounterSynth = nWaitSynth;
 
@@ -143,31 +138,35 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 				}
 			}
 
-			// If zero sweep, skip ecall and simply keep generating the signal
-			if(sweepStepHz > 0) {
+			if(!is_cw_mode()) {
 				if(ecalEnabled) {
-					ecalCounter++;
-					if(ecalCounter >= ecalIntervalPoints)
-						ecalCounter = 0;
 					if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
 						setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 #else
 						setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
 #endif
-						return;
+					} else {
+						setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+						doEmitValue(false);
 					}
+					ecalCounter++;
+					if(ecalCounter >= ecalIntervalPoints)
+						ecalCounter = 0;
+					break;
+				} else {
+					/* Go back to the start: REFERENCE */
+					setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+					doEmitValue(false);
 				}
-				/* If no ECAL we only measure REFERENCE, REFL and THRU */
-				setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			}
 			else {
-				/* No sweepStepHz, then assume we want CW mode:
+				/* CW mode
 				 * aka only measure THRU and REFL, nothing else!
 				 * And keep the signal on the ouput */
 				setMeasurementPhase(VNAMeasurementPhases::REFL);
+				doEmitValue(false);
 			}
-			doEmitValue(false);
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
 			ecal[2] = to_complexf(currDP);
@@ -177,6 +176,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 		case VNAMeasurementPhases::ECALLOAD:
 			ecal[0] = to_complexf(currDP);
 #ifdef ECAL_PARTIAL
+			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			doEmitValue(true);
 #else
@@ -185,6 +185,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 #endif
 		case VNAMeasurementPhases::ECALSHORT:
 			ecal[1] = to_complexf(currDP);
+			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			doEmitValue(true);
 			break;
