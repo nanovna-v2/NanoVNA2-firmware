@@ -55,10 +55,10 @@ enum {
   KM_START, KM_STOP, KM_CENTER, KM_SPAN, KM_POINTS, KM_CW, KM_SCALE, KM_REFPOS, KM_EDELAY, KM_VELOCITY_FACTOR, KM_SCALEDELAY
 };
 
-static uint8_t ui_mode = UI_NORMAL;
-static uint8_t keypad_mode;
-static int8_t selection = 0;
-static bool ui_disabled = false;
+uint8_t ui_mode = UI_NORMAL;
+uint8_t keypad_mode;
+int8_t selection = 0;
+bool ui_disabled = false;
 
 // Button definition (used in MT_ADV_CALLBACK for custom)
 #define BUTTON_ICON_NONE            -1
@@ -1056,7 +1056,7 @@ const menuitem_t menu_marker_ops[] = {
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
 
-static const menuitem_t menu_marker_search[] = {
+const menuitem_t menu_marker_search[] = {
   //{ MT_CALLBACK, "OFF", menu_marker_search_cb },
   { MT_CALLBACK, 0, "MAXIMUM", (const void *)menu_marker_search_cb },
   { MT_CALLBACK, 0, "MINIMUM", (const void *)menu_marker_search_cb },
@@ -1131,7 +1131,7 @@ const menuitem_t menu_top[] = {
 };
 
 #define MENU_STACK_DEPTH_MAX 4
-static uint8_t menu_current_level = 0;
+uint8_t menu_current_level = 0;
 const menuitem_t *menu_stack[4] = {
   menu_top, NULL, NULL, NULL
 };
@@ -1323,7 +1323,7 @@ static const keypads_t * const keypads_mode_tbl[] = {
   keypads_time // scale of delay
 };
 
-static const char * const keypad_mode_label[] = {
+const char * const keypad_mode_label[] = {
   "START", "STOP", "CENTER", "SPAN", "POINTS", "CW FREQ", "SCALE", "REFPOS", "EDELAY", "VELOCITY%", "DELAY"
 };
 
