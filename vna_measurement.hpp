@@ -109,6 +109,11 @@ public:
 	// If false no ECAL is performed
 	bool ecalEnabled = true;
 
+	/* If sweepStepHz == 0 we are in CW mode */
+	bool is_cw_mode() {
+		return sweepStepHz == 0;
+	}
+
 	// number of frequency points since start of sweep
 	volatile int sweepCurrPoint = 0;
 
@@ -124,7 +129,7 @@ public:
 	int sweepPoints = 1;
 	int sweepDataPointsPerFreq = 1;
 
-	uint64_t currFreq;
+	freqHz_t currFreq;
 
 	complexf ecal[ECAL_CHANNELS];
 
