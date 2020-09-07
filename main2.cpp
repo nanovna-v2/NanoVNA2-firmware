@@ -75,7 +75,7 @@ int adf4350_freqStep = 12000; // adf4350 resolution, Hz
 
 static USBSerial serial;
 
-static constexpr size_t adcBufSize=1024;	// must be power of 2
+static const int adcBufSize=1024;	// must be power of 2
 static volatile uint16_t adcBuffer[adcBufSize];
 
 static VNAMeasurement vnaMeasurement;
