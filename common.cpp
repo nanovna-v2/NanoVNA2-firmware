@@ -27,7 +27,7 @@ void properties_t::setFieldsToDefault() {
 	_active_marker   = 0;
 	_domain_mode     = 0;
 	_marker_smith_format = MS_RLC;
-	_ecal_mode = ECAL_ENABLED;
+	_measurement_mode = MEASURE_MODE_FULL;
 
 	memset(_cal_data, 0, sizeof(_cal_data));
 	memcpy(_trace, def_trace, sizeof(_trace));
