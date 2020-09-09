@@ -106,8 +106,8 @@ public:
 	uint32_t ecalCounter = 0;
 	uint32_t ecalCounterOffset = 0;
 
-	// If false no ECAL is performed
-	bool ecalEnabled = true;
+	// What measurements to make
+	enum MeasurementMode measurement_mode = MEASURE_MODE_FULL;
 
 	/* If sweepStepHz == 0 we are in CW mode */
 	bool is_cw_mode() {

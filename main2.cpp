@@ -766,7 +766,6 @@ static int measurementGetDefaultGain(freqHz_t freqHz) {
 static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 	lcdInhibit = false;
-	bool cw_mode = vnaMeasurement.is_cw_mode();
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
@@ -774,7 +773,9 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 			break;
 		case VNAMeasurementPhases::REFL:
-			if (cw_mode) {
+			// If only measuring REFL and THRU, we skip REFERENCE and thus
+			// the rfsw are not setup correct, so fix it here
+			if (vnaMeasurement.measurement_mode == MEASURE_MODE_REFL_THRU) {
 				rfsw(RFSW_REFL, RFSW_REFL_ON);
 				rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			}
@@ -784,7 +785,7 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			rfsw(RFSW_REFL, RFSW_REFL_OFF);
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
-			lcdInhibit = !cw_mode;
+			lcdInhibit = true;
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
@@ -875,6 +876,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 				ecalState = ECAL_STATE_DONE;
 				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 				vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+				vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
 			}
 		}
 	}
@@ -900,7 +902,8 @@ static void setVNASweepToUI() {
 	if(current_props._sweep_points > 0)
 		step = (stop - start) / (current_props._sweep_points - 1);
 
-	vnaMeasurement.ecalEnabled = current_props._ecal_mode == ECAL_ENABLED;
+	// Default to full, after ecalState is done we goto the configured mode
+	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
@@ -1466,7 +1469,7 @@ namespace UIActions {
 
 	void cal_collect(int type) {
 		current_props._cal_status &= ~(1 << type);
-		vnaMeasurement.ecalEnabled = true; /* Force on. TODO how to restore? */
+		vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 		collectMeasurementCB = [type]() {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
@@ -1480,6 +1483,7 @@ namespace UIActions {
 	}
 	void cal_done(void) {
 		current_props._cal_status |= CALSTAT_APPLY;
+		vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
 	}
 
 	static inline void clampFrequency(freqHz_t& f) {
@@ -1566,6 +1570,8 @@ namespace UIActions {
 				clampFrequency(frequency);
 				frequency0 = frequency;
 				frequency1 = 0;
+				// True CW mode by not switching output RF switch
+				current_props._measurement_mode = MEASURE_MODE_REFL_THRU;
 				break;
 			default: return;
 		}
@@ -1586,23 +1592,22 @@ namespace UIActions {
 		draw_cal_status();
 	}
 
-	void set_ecal_mode(enum EcalMode mode) {
-		// Sanity check input
-		switch(mode) {
-			case ECAL_DISABLED:
-				mode = ECAL_DISABLED;
-				break;
-			default:
-			case ECAL_ENABLED:
-				mode = ECAL_ENABLED;
-				break;
-		}
-		current_props._ecal_mode = mode;
+	void set_measurement_mode(enum MeasurementMode mode) {
+		current_props._measurement_mode = mode;
 		setVNASweepToUI();
-		// No ECAL is no calibration! So whipe it!
-		current_props._cal_status = 0;
-		draw_cal_status();
 	}
+
+    void set_low_power_output_mode(bool lp_mode) {
+        // TODO this only works for 140Mhz and up!
+        if(lp_mode) {
+            adf4350_tx.rfPower = 0b0; //-4dBm on TX output
+            adf4350_rx.rfPower = 0b0; //-4dBm on TX output
+        }
+        else {
+            adf4350_tx.rfPower = 0b11; //+5dBm on TX output
+            adf4350_rx.rfPower = 0b11; //-4dBm on TX output
+        }
+    }
 
 	freqHz_t get_sweep_frequency(int type) {
 		if(frequency1 > 0) {

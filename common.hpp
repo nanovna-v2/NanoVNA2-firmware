@@ -107,9 +107,11 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define REDRAW_MARKER     (1<<3)
 #define REDRAW_AREA       (1<<4)
 
-enum EcalMode {
-	ECAL_DISABLED = 0,
-	ECAL_ENABLED = 1
+/* Determines the measurements that need to be done */
+enum MeasurementMode {
+    MEASURE_MODE_REFL_THRU,
+    MEASURE_MODE_REFL_THRU_REFRENCE,
+    MEASURE_MODE_FULL, //Including ECAL, slowest
 };
 
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
@@ -179,7 +181,7 @@ struct alignas(4) properties_t {
   int _active_marker;
   uint8_t _domain_mode; /* 0bxxxxxffm : where ff: TD_FUNC m: DOMAIN_MODE */
   uint8_t _marker_smith_format;
-  uint8_t _ecal_mode; //1 = enabled, 0 = disabled. TODO add 2 = full?
+  uint8_t _measurement_mode; //See enum MeasurementMode. Kept an uint8_t here otherwise it could consume an uint_32t depending on compiler settings.
 
   int32_t checksum;
 
@@ -220,7 +222,7 @@ struct uistat_t {
 #define CONFIG_MAGIC 0x80081237
 
 
-static inline bool is_freq_for_adf4350(freqHz_t freq) 
+static inline bool is_freq_for_adf4350(freqHz_t freq)
 {
 	return freq > FREQUENCY_CHANGE_OVER;
 }

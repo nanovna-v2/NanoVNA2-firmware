@@ -111,7 +111,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 		return;
 	}
 
-	// Loop through measurement fases
+	// Loop through measurement phase
 	switch(measurementPhase) {
 		case VNAMeasurementPhases::REFERENCE:
 			currFwd = currDP;
@@ -138,36 +138,35 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 				}
 			}
 
-			if(!is_cw_mode()) {
-				if(ecalEnabled) {
+			switch(measurement_mode) {
+				case MEASURE_MODE_FULL:
+					ecalCounter++;
+					if(ecalCounter >= ecalIntervalPoints)
+						ecalCounter = 0;
 					if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
 						setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 #else
 						setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
 #endif
+						return;
 					} else {
 						setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-						doEmitValue(false);
 					}
-					ecalCounter++;
-					if(ecalCounter >= ecalIntervalPoints)
-						ecalCounter = 0;
 					break;
-				} else {
+				case MEASURE_MODE_REFL_THRU_REFRENCE: /* AKA no ECAL */
 					/* Go back to the start: REFERENCE */
 					setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
-					doEmitValue(false);
-				}
+					break;
+				case MEASURE_MODE_REFL_THRU:
+					/* aka CW mode
+					 * And keep the signal on the ouput */
+					setMeasurementPhase(VNAMeasurementPhases::REFL);
+					break;
 			}
-			else {
-				/* CW mode
-				 * aka only measure THRU and REFL, nothing else!
-				 * And keep the signal on the ouput */
-				setMeasurementPhase(VNAMeasurementPhases::REFL);
-				doEmitValue(false);
-			}
+            doEmitValue(false);
 			break;
+
 		case VNAMeasurementPhases::ECALTHRU:
 			ecal[2] = to_complexf(currDP);
 			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
