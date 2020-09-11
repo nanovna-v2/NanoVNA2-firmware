@@ -275,7 +275,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 150000;
 			adf4350_freqStep = 10000;
 			vnaMeasurement.setCorrelationTable(sinROM10x2, 20);
-			vnaMeasurement.adcFullScale = 800 * 48;
+			vnaMeasurement.adcFullScale = 10000 * 48;
 			vnaMeasurement.gainMax = 3;
 		}
 		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
