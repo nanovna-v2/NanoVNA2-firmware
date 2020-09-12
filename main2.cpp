@@ -1601,11 +1601,9 @@ namespace UIActions {
         // TODO this only works for 140Mhz and up!
         if(lp_mode) {
             adf4350_tx.rfPower = 0b0; //-4dBm on TX output
-            adf4350_rx.rfPower = 0b0; //-4dBm on TX output
         }
         else {
             adf4350_tx.rfPower = 0b11; //+5dBm on TX output
-            adf4350_rx.rfPower = 0b11; //-4dBm on TX output
         }
     }
 
