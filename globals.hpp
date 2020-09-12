@@ -10,7 +10,7 @@
 // for events that can be acted upon rather than let modules directly
 // modify global state.
 
-constexpr int registerSize = 64;
+constexpr int registerSize = 256;
 constexpr int registersSizeMask = registerSize - 1;
 extern uint8_t registers[registerSize];
 
