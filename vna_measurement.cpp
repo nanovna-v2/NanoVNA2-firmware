@@ -89,6 +89,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 					currGain--;
 					gainChanged(currGain);
 					periodCounterSwitch = 0;
+					currDP = {0, 0};
 					sampleProcessor.clipFlag = false;
 					gainChangeOccurred = true;
 					return;
@@ -119,12 +120,13 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 
 		float mag = abs(to_complexf(currThru));
 		float fullScale = float(adcFullScale) * nPeriods*nPeriodsMultiplier;
-		if(mag < fullScale * 0.15 && currGain < gainMax && !gainChangeOccurred) {
+		if(mag < (fullScale * 0.15) && currGain < gainMax && !gainChangeOccurred) {
 			// signal level too low; increase gain and retry
 			currGain++;
 			gainChanged(currGain);
 			gainChangeOccurred = true;
 			periodCounterSwitch = 0;
+			currDP = {0, 0};
 			return;
 		}
 
