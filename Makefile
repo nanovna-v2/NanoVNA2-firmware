@@ -4,7 +4,9 @@ OPENCM3_DIR    ?= libopencm3
 DFU_PORT       ?= /dev/ttyACM0
 
 # device config
-BOARDNAME       = board_v2_2
+BOARDNAME       ?= board_v2_2
+EXTRA_CFLAGS	?= 
+
 DEVICE          = gd32f303cc_nofpu
 
 OBJS += $(BOARDNAME)/board.o \
@@ -40,7 +42,7 @@ OBJS	+= \
 	$(MCULIB)/usbserial.o
 
 CFLAGS         += -O2 -g
-CPPFLAGS       += -O2 -g -ffast-math -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
+CPPFLAGS       += $(EXTRA_CFLAGS) -O2 -g -ffast-math -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
 CPPFLAGS       += -Wall -Wno-unused-function
 # CPPFLAGS      += -DDISPLAY_ST7796
 CPPFLAGS       +=  -ffunction-sections -fdata-sections

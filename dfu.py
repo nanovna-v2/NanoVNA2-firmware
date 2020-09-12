@@ -4,6 +4,7 @@ import os
 from sys import exit
 import time
 import tty
+from struct import pack, unpack_from
 
 import serial
 
@@ -45,6 +46,22 @@ class DummySerial:
         pass
 
 
+def read_serialNumber(ser):
+     # reset protocol to known state
+    ser.write([0] * 8)
+
+    # read registers starting from 0xd0
+    cmd = b"\x12\xd0\x12\xd4\x12\xd8"
+    ser.write(cmd)
+    resp = ser.read(12)
+    if len(resp) != 12:
+        print("Read timeout")
+        return None
+
+    sn = unpack_from("<iii", resp)
+    sn = f"{sn[0]:08x}-{sn[1]:08x}-{sn[2]:08x}"
+    return sn
+
 def detect_dfu(ser):
     """returns true if device is in dfu mode"""
 
@@ -72,6 +89,7 @@ def detect_dfu(ser):
         print(f"  Hardware version: 0x{resp[2]:02x}")
         print(f"  Firmware major version: 0x{resp[3]:02x}")
         print(f"  Firmware minor version: 0x{resp[4]:02x}")
+        print("  SN: " + read_serialNumber(ser))
     else:
         print("Read timeout")
     return False
@@ -123,6 +141,12 @@ def main():
         help="Reset device without flashing any image",
     )
     parser.add_argument(
+        "-p",
+        "--printsn",
+        action="store_true",
+        help="Print the serial number or an empty string if no device detected",
+    )
+    parser.add_argument(
         "-a",
         "--argument",
         type=int,
@@ -137,8 +161,8 @@ def main():
         print("-f and -r can not both be specified at the same time")
         exit(1)
 
-    if args.file is None and not args.reboot:
-        print("Either -f or -r required")
+    if args.file is None and not args.reboot and not args.printsn:
+        print("Either -f or -r or -p required")
         exit(1)
 
     if not args.dummy:
@@ -151,6 +175,15 @@ def main():
         ser.timeout = 2
     else:
         ser = DummySerial()
+
+    if args.printsn:
+        sn = read_serialNumber(ser)
+        ret = 0
+        if sn == None:
+            sn = ""
+            ret = 1
+        print(sn)
+        exit(ret)
 
     if not detect_dfu(ser):
         print("Device not in DFU mode")

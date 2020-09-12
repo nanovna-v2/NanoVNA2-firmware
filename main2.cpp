@@ -75,7 +75,7 @@ int adf4350_freqStep = 12000; // adf4350 resolution, Hz
 
 static USBSerial serial;
 
-static constexpr size_t adcBufSize=1024;	// must be power of 2
+static const int adcBufSize=1024;	// must be power of 2
 static volatile uint16_t adcBuffer[adcBufSize];
 
 static VNAMeasurement vnaMeasurement;
@@ -86,7 +86,7 @@ static uint8_t cmdInputBuffer[128];
  * But read by the 'main thread'. So make it volatile */
 static volatile bool lcdInhibit = false;
 
-static float gainTable[RFSW_BBGAIN_MAX+1];
+float gainTable[RFSW_BBGAIN_MAX+1];
 
 struct usbDataPoint {
 	VNAObservation value;
@@ -112,7 +112,7 @@ static FIFO<small_function<void()>, 8> eventQueue;
 static volatile bool usbDataMode = false;
 
 static freqHz_t currFreqHz = 0;		// current hardware tx frequency
-static int currThruGain = 0;		// gain setting used for this thru measurement
+int currThruGain = 0;		// gain setting used for this thru measurement
 
 // if nonzero, any ecal data in the next ecalIgnoreValues data points will be ignored.
 // this variable is decremented every time a data point arrives, if nonzero.
@@ -199,9 +199,11 @@ extern "C" void tim2_isr() {
 }
 
 static int si5351_doUpdate(uint32_t freqHz) {
-	// si5351 code seems to give high frequency errors when frequency
-	// isn't a multiple of 10Hz. TODO: investigate
-	freqHz = (freqHz/10) * 10;
+	// round frequency to values that can be accurately set, so that IF frequency is not wrong
+	if(freqHz <= 10000000)
+		freqHz = (freqHz/10) * 10;
+	else
+		freqHz = (freqHz/100) * 100;
 	return synthesizers::si5351_set(freqHz+lo_freq, freqHz);
 }
 
@@ -257,6 +259,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 6000;
+			adf4350_freqStep = 6000;
 			vnaMeasurement.setCorrelationTable(sinROM200x1, 200);
 			vnaMeasurement.adcFullScale = 10000 * 200;
 			vnaMeasurement.gainMax = 0;
@@ -264,6 +267,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
 		} else if(txFreqHz <= 350000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 12000;
+			adf4350_freqStep = 12000;
 			vnaMeasurement.setCorrelationTable(sinROM100x1, 100);
 			vnaMeasurement.adcFullScale = 10000 * 100;
 			vnaMeasurement.gainMax = 0;
@@ -273,7 +277,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 150000;
 			adf4350_freqStep = 10000;
 			vnaMeasurement.setCorrelationTable(sinROM10x2, 20);
-			vnaMeasurement.adcFullScale = 800 * 48;
+			vnaMeasurement.adcFullScale = 10000 * 48;
 			vnaMeasurement.gainMax = 3;
 		}
 		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
@@ -1203,12 +1207,20 @@ int main(void) {
 
 	boardInit();
 
+	uint32_t* deviceID = (uint32_t*)0x1FFFF7E8;
+
 	// set version registers (accessed through usb serial)
 	registers[0xf0 & registersSizeMask] = 2;	// device variant
 	registers[0xf1 & registersSizeMask] = 1;	// protocol version
 	registers[0xf2 & registersSizeMask] = (uint8_t) BOARD_REVISION;
 	registers[0xf3 & registersSizeMask] = (uint8_t) FIRMWARE_MAJOR_VERSION;
 	registers[0xf4 & registersSizeMask] = (uint8_t) FIRMWARE_MINOR_VERSION;
+	for(int i=0; i<3; i++) {
+		registers[(0xd0 + i*4 + 0) & registersSizeMask] = deviceID[i] & 0xff;
+		registers[(0xd0 + i*4 + 1) & registersSizeMask] = (deviceID[i] >> 8) & 0xff;
+		registers[(0xd0 + i*4 + 2) & registersSizeMask] = (deviceID[i] >> 16) & 0xff;
+		registers[(0xd0 + i*4 + 3) & registersSizeMask] = (deviceID[i] >> 24) & 0xff;
+	}
 
 	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
@@ -1264,7 +1276,6 @@ int main(void) {
 	if(config.ui_options & UI_OPTIONS_FLIP)
 		ili9341_set_flip(true, true);
 
-	uint32_t* deviceID = (uint32_t*)0x1FFFF7E8;
 	printk("SN: %08x-%08x-%08x\n", deviceID[0], deviceID[1], deviceID[2]);
 
 	// show dmesg and wait for user input if there is an important error
@@ -1288,6 +1299,7 @@ int main(void) {
 
 
 	setFrequency(56000000);
+	updateIFrequency(300000);
 
 	// initialize VNAMeasurement
 	measurement_setup();
@@ -1295,6 +1307,7 @@ int main(void) {
 	dsp_timer_setup();
 
 	adf4350_setup();
+	
 
 	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
 
@@ -1445,7 +1458,7 @@ extern "C" {
 		errorBlink(6);
 		while(1);
 	}
-	uint8_t crashDiagBuf[128];
+	uint8_t crashDiagBuf[128] alignas(8);
 	__attribute__((section(".start"), used))
 	const void* keepFunctions[] = {(void*)0xdeadbabe, (void*)insertSamples,
 		(void*)&vnaMeasurement.sampleProcessor, (void*) adc_read,
@@ -1454,7 +1467,7 @@ extern "C" {
 		(void*)&vnaMeasurement.nWaitSwitch, &lo_freq, &adf4350_freqStep,
 		sinROM50x1, sinROM48x1, sinROM25x2, sinROM24x2, sinROM10x2, sinROM200x1,
 		(void*)adc_process, &outputRawSamples, (void*)&vnaMeasurement.nPeriodsMultiplier,
-		crashDiagBuf, sinROM100x1};
+		crashDiagBuf, sinROM100x1, (void*) adcBuffer};
 	__attribute__((used))
 	void __assert_fail(const char *__assertion, const char *__file,
                unsigned int __line, const char *__function) {
