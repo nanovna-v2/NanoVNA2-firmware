@@ -26,18 +26,13 @@ static void discardPoints(FIFO<complexf, fifoSize>& dpFIFO, int n) {
 }
 
 
+// measure the attenuation at each gain setting
 void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGain) {
-	// measure the reference channel at all gain settings to determine baseband gains
-
 	auto old_emitDataPoint = vnaMeasurement.emitDataPoint;
 	auto old_phaseChanged = vnaMeasurement.phaseChanged;
 	FIFO<complexf, 32> dpFIFO;
 	volatile int currGain = 0;
 
-	vnaMeasurement.emitDataPoint = [&](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
-		digitalWrite(board::led, vnaMeasurement.clipFlag?1:0);
-		dpFIFO.enqueue(v[1]);
-	};
 
 	// override phaseChanged, set bbgain to desired value
 	vnaMeasurement.phaseChanged = [&](VNAMeasurementPhases ph) {
@@ -45,12 +40,15 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(currGain));
 	};
 
+	// disable ecal during gain cal
 	vnaMeasurement.ecalIntervalPoints = 10000;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+	vnaMeasurement.setSweep(DEFAULT_FREQ, 0, 1, 1);
+	vnaMeasurement.emitDataPoint = [&](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
+		dpFIFO.enqueue(v[1]);
+	};
 
-	// only > 2.5GHz can we be sure that the max gain setting will not clip when measuring the reference channel
-	vnaMeasurement.setSweep(2600000000, 0, 1, 1);
-
+	// use averaging 10x
 	for(currGain=0; currGain <= maxGain; currGain++) {
 		discardPoints(dpFIFO, 3);
 		float mag = 0;
@@ -63,7 +61,7 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 		gainTable[currGain] = 1.f/mag;
 	}
 
-	// normalize gain table
+	// normalize first entry to 1.0
 	for(currGain=1; currGain <= maxGain; currGain++) {
 		gainTable[currGain] /= gainTable[0];
 	}

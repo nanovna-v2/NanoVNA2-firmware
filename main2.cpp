@@ -1451,7 +1451,7 @@ extern "C" {
 	}
 	uint8_t crashDiagBuf[128] alignas(8);
 	__attribute__((section(".start"), used))
-	const void* keepFunctions[] = {(void*)0xdeadbabe, (void*)insertSamples,
+	const void* keepFunctions[] = {(void*)BOARD_REVISION_MAGIC, (void*)insertSamples,
 		(void*)&vnaMeasurement.sampleProcessor, (void*) adc_read,
 		(void*)calculateSynthWait, (void*)&MEASUREMENT_NPERIODS_NORMAL,
 		(void*)&MEASUREMENT_NPERIODS_CALIBRATING, (void*)&MEASUREMENT_ECAL_INTERVAL,
