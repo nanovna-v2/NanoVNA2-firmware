@@ -86,8 +86,15 @@ float2int(float v)
 	return 0;
 }
 
-void update_grid(void)
+void recalculate_grid(void)
 {
+	// no horizontal grid in zero-span mode
+	if (frequency1 == 0) {
+		grid_offset = 0;
+		grid_width = 10 * WIDTH;
+		return;
+	}
+
 	freqHz_t gdigit = 100000000;
 	freqHz_t fstart, fspan;
 	freqHz_t grid;
@@ -115,7 +122,11 @@ void update_grid(void)
 
 	grid_offset = WIDTH * ((fstart % fgrid) / 100) / (fspan / 100);
 	grid_width = WIDTH * (fgrid / 100) / (fspan / 1000);
+}
 
+void update_grid(void)
+{
+	recalculate_grid();
 	force_set_markmap();
 	redraw_request |= REDRAW_FREQUENCY;
 }
