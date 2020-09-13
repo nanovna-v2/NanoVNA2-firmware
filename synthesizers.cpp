@@ -63,15 +63,31 @@ namespace synthesizers {
 
 		return si5351.Init() == 0;
 	}
-	static uint32_t gcd(uint32_t x, uint32_t y) {
-		uint32_t z;
-		while (y != 0) {
-			z = x % y;
-			x = y;
-			y = z;
-		}
-		return x;
+
+	// Find better approximate values for n/d
+	#define MAX_DENOMINATOR ((1 << 20) - 1)
+	static inline void approximate_fraction(uint32_t *n, uint32_t *d)
+	{
+	  // cf. https://github.com/python/cpython/blob/master/Lib/fractions.py#L227
+	  uint32_t denom = *d;
+	  if (denom > MAX_DENOMINATOR) {
+	    uint32_t num = *n;
+	    uint32_t p0 = 0, q0 = 1, p1 = 1, q1 = 0;
+	    while (denom != 0) {
+	      uint32_t a = num / denom;
+	      uint32_t b = num % denom;
+	      uint32_t q2 = q0 + a*q1;
+	      if (q2 > MAX_DENOMINATOR)
+	        break;
+	      uint32_t p2 = p0 + a*p1;
+	      p0 = p1; q0 = q1; p1 = p2; q1 = q2;
+	      num = denom; denom = b;
+	    }
+	    *n = p1;
+	    *d = q1;
+	  }
 	}
+
 	int si5351_set(uint32_t rxFreqHz, uint32_t txFreqHz) {
 		using namespace Si5351;
 		int ret = 0;
@@ -86,7 +102,7 @@ namespace synthesizers {
 
 		pllFreqHz = xtalFreqHz * mult;
 
-		int divInputFreqHz = pllFreqHz;
+		uint32_t divInputFreqHz = pllFreqHz;
 
 		if(rxFreqHz < 500000) { /* Below 500Khz */
 			rDiv = CLK_R_Div128;
@@ -148,17 +164,11 @@ namespace synthesizers {
 			uint32_t freqHz = (i == 0) ? rxFreqHz : txFreqHz;
 			int port = (i == 0) ? si5351_rxPort : si5351_txPort;
 
-			int32_t div = divInputFreqHz / freqHz; // range: 8 ~ 1800
-			int32_t num = divInputFreqHz % freqHz;
-			int32_t denom = freqHz;
-			//int32_t k = freq / (1<<20) + 1;
-			int32_t k = gcd(num, denom);
-			num /= k;
-			denom /= k;
-			while (denom >= (1<<20)) {
-				num >>= 1;
-				denom >>= 1;
-			}
+			uint32_t div = divInputFreqHz / freqHz; // range: 8 ~ 1800
+			uint32_t num = divInputFreqHz % freqHz;
+			uint32_t denom = freqHz;
+			approximate_fraction(&num, &denom);
+
 			// f = divInputFreqHz / (div + num/denom)
 			// = divInputFreqHz / ((div*denom + num) / denom)
 			// = divInputFreqHz * denom / (div*denom + num)
