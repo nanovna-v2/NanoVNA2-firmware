@@ -21,6 +21,7 @@
 
 #define BOARD_NAME "NanoVNA V2_1"
 #define BOARD_REVISION (1)
+#define BOARD_REVISION_MAGIC 0xdeadbabb
 
 using namespace mculib;
 using namespace std;
@@ -63,6 +64,7 @@ namespace board {
 
 	// All boards use a 24Mhz TCXO. It gives best phase noise with the ADF4350
 	static constexpr uint32_t xtalFreqHz = 24000000; 
+	static constexpr freqHz_t DEFAULT_FREQ = 2600000000;
 
 	// ADC parameters, set by boardInit()
 	extern uint32_t adc_ratecfg;
