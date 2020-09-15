@@ -48,16 +48,20 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 		dpFIFO.enqueue(v[1]);
 	};
 
-	// use averaging 10x
 	for(currGain=0; currGain <= maxGain; currGain++) {
 		discardPoints(dpFIFO, 3);
+		int nValues = 10;
+		if(currGain == 3)
+			nValues = 40;
+
 		float mag = 0;
-		for(int i=0; i<10; i++) {
+		for(int i=0; i<nValues; i++) {
 			while(!dpFIFO.readable());
 			auto& dp = dpFIFO.read();
 			mag += abs(dp);
 			dpFIFO.dequeue();
 		}
+		mag /= nValues;
 		gainTable[currGain] = 1.f/mag;
 	}
 
