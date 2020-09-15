@@ -283,9 +283,9 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
 		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
-			vnaMeasurement.nPeriodsMultiplier = 6;
+			vnaMeasurement.nPeriodsMultiplier = 6 * current_props._avg;
 		} else {
-			vnaMeasurement.nPeriodsMultiplier = 1;
+			vnaMeasurement.nPeriodsMultiplier = 1 * current_props._avg;
 		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 6000;
@@ -1773,6 +1773,16 @@ namespace UIActions {
 	float get_electrical_delay(void)
 	{
 		return electrical_delay;
+	}
+	
+	void set_averaging(int i) {
+		if(i < 1) i = 1;
+		if(i > 255) i = 255;
+		current_props._avg = (uint8_t) i;
+	#if BOARD_REVISION >= 4
+		sys_setTimings_args args = {0, i};
+		sys_syscall(5, &args);
+	#endif
 	}
 
 	int caldata_save(int id) {

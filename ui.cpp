@@ -648,6 +648,20 @@ static UI_FUNCTION_ADV_CALLBACK(menu_transform_filter_acb)
   ui_mode_normal();
 }
 
+
+static UI_FUNCTION_ADV_CALLBACK(menu_avg_acb)
+{
+  (void)item;
+  if(b) {
+    if (current_props._avg == data)
+      b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
+  set_averaging(data);
+  ui_mode_normal();
+}
+
+
 static UI_FUNCTION_ADV_CALLBACK(menu_display_acb)
 {
   if(b){
@@ -993,11 +1007,24 @@ const menuitem_t menu_transform[] = {
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
 
+
+const menuitem_t menu_avg[] = {
+  { MT_ADV_CALLBACK, 1, "NONE", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 2, "2x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 5, "5x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 10, "10x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 20, "20x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 40, "40x", (const void *)menu_avg_acb },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
+
 const menuitem_t menu_display[] = {
   { MT_SUBMENU, 0, "TRACE", (const void *)menu_trace },
   { MT_SUBMENU, 0, "FORMAT", (const void *)menu_format },
   { MT_SUBMENU, 0, "SCALE", (const void *)menu_scale },
   { MT_SUBMENU, 0, "CHANNEL", (const void *)menu_channel },
+  { MT_SUBMENU, 0, "AVG", (const void *)menu_avg },
   { MT_SUBMENU, 0, "TRANSFORM", (const void *)menu_transform },
   { MT_ADV_CALLBACK, 0, "FLIP\nDISPLAY", (const void *)menu_display_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
