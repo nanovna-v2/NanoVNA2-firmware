@@ -81,6 +81,7 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define CALSTAT_EX CALSTAT_ISOLN
 #define CALSTAT_APPLY (1<<8)
 #define CALSTAT_INTERPOLATED (1<<9)
+#define CALSTAT_ENHANCED_RESPONSE (1<<10)
 
 #define ETERM_ED 0 /* error term directivity */
 #define ETERM_ES 1 /* error term source match */
