@@ -23,3 +23,9 @@ make "$MAKE_FLAGS" BOARDNAME=board_v2_plus EXTRA_CFLAGS=-DDISPLAY_ST7796 || exit
 mv binary.bin v2plus-st7796.bin
 make clean
 
+
+make "$MAKE_FLAGS" BOARDNAME=board_v2_plus4 EXTRA_CFLAGS=-DDISPLAY_ST7796 \
+	LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld || exit 1
+mv binary.bin v2plus4.bin
+make clean
+
