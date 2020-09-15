@@ -1161,6 +1161,13 @@ static bool processDataPoint() {
 			auto cal_thru_leak = y2-cal_thru_leak_r*x2;
 			thru = thru - (cal_thru_leak + refl*cal_thru_leak_r);
 
+			// calculate reflection
+			auto newRefl = SOL_compute_reflection(
+						current_props._cal_data[CAL_SHORT][freqIndex],
+						current_props._cal_data[CAL_OPEN][freqIndex],
+						current_props._cal_data[CAL_LOAD][freqIndex],
+						refl);
+
 			// apply thru response correction
 			if(current_props._cal_status & CALSTAT_THRU) {
 				auto refThru = current_props._cal_data[CAL_THRU][freqIndex];
@@ -1170,15 +1177,19 @@ static bool processDataPoint() {
 				// this causes ~0.05dB of S21 error but it will be a problem if attempting
 				// to use this code with low-spec hardware with lots of leakage.
 				refThru = refThru - (cal_thru_leak + refl*cal_thru_leak_r);
-				thru = thru / refThru;
-			}
-
-			// apply reflection correction
-			refl = SOL_compute_reflection(
+				auto thruGain = SOL_compute_thru_gain(
 						current_props._cal_data[CAL_SHORT][freqIndex],
 						current_props._cal_data[CAL_OPEN][freqIndex],
 						current_props._cal_data[CAL_LOAD][freqIndex],
-						refl);
+						newRefl);
+
+				if(cal_status & CALSTAT_ENHANCED_RESPONSE)
+					refThru *= thruGain;
+
+				thru = thru / refThru;
+			}
+
+			refl = newRefl;
 		}
 		apply_edelay(usbDP.freqIndex, refl, thru);
 		measuredFreqDomain[0][usbDP.freqIndex] = refl;
