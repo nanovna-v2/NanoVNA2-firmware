@@ -145,6 +145,38 @@ static void errorBlink(int cnt) {
 	}
 }
 
+#define errnoToPtr(x) ((void*)(uint32_t)(-x))
+
+typedef void (*emitDataPoint_t)(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped);
+
+struct sys_init_args {
+	volatile uint16_t* adcBuf;
+	volatile uint32_t* dmaCndtr;
+	uint32_t adcBufWords = 0;
+	emitDataPoint_t emitDataPoint;
+};
+struct sys_start_args {
+};
+struct sys_setSweep_args {
+	freqHz_t startFreqHz, stepFreqHz;
+	int nPoints, dataPointsPerFreq;
+	uint32_t flags = 0;
+};
+struct sys_setTimings_args {
+	uint32_t extraSynthDelay = 0;
+	uint32_t nAverage = 1;
+};
+
+typedef void* (*sys_syscall_t)(int opcode, void* args);
+sys_syscall_t sys_syscall = (sys_syscall_t) 0x08000151;
+
+sys_setSweep_args currSweepArgs;
+
+void setHWSweep(const sys_setSweep_args& sweepArgs) {
+	currSweepArgs = sweepArgs;
+	sys_syscall(3, &currSweepArgs);
+}
+
 // period is in units of us
 static void startTimer(uint32_t timerDevice, int period) {
 	// set the timer to count one tick per us
@@ -281,6 +313,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 		return;
 	}
+	vnaMeasurement.adcFullScale = 20000 * 48;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -693,6 +726,7 @@ static void setVNASweepToUSB() {
 	if(points > USB_POINTS_MAX)
 		points = USB_POINTS_MAX;
 
+#if BOARD_REVISION < 4
 	vnaMeasurement.sweepStartHz = (freqHz_t)*(uint64_t*)(registers + 0x00);
 	vnaMeasurement.sweepStepHz = (freqHz_t)*(uint64_t*)(registers + 0x10);
 	vnaMeasurement.sweepDataPointsPerFreq = values;
@@ -701,6 +735,17 @@ static void setVNASweepToUSB() {
 	if(outputRawSamples) {
 		setFrequency((freqHz_t)*(uint64_t*)(registers + 0x00));
 	}
+#else
+	setHWSweep(sys_setSweep_args {
+		(freqHz_t)*(uint64_t*)(registers + 0x00),
+		(freqHz_t)*(uint64_t*)(registers + 0x10),
+		points,
+		values
+	});
+	if(outputRawSamples) {
+		// TODO: syscall: stop sweep
+	}
+#endif
 }
 static void cmdRegisterWrite(int address) {
 	if(!usbDataMode)
@@ -796,19 +841,25 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 
 
 // callback called by VNAMeasurement when an observation is available.
-static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal) {
-	digitalWrite(led, vnaMeasurement.clipFlag?1:0);
+static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped) {
+	digitalWrite(led, clipped?1:0);
 
+#if BOARD_REVISION < 4
 	v[2] *= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
-
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
+#endif
+
+	//v[0] = powf(10, currThruGain/20.f)*v[1];
+	//ecal = nullptr;
 
 	int ecalIgnoreValues2 = ecalIgnoreValues;
 	if(ecalIgnoreValues2 != 0) {
 		ecal = nullptr;
 		__sync_bool_compare_and_swap(&ecalIgnoreValues, ecalIgnoreValues2, ecalIgnoreValues2-1);
 	}
+
+	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
 
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
@@ -821,30 +872,6 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 			measuredEcal[1][freqIndex] = ecal[1] * scale;
 			measuredEcal[2][freqIndex] = ecal[2] * scale;
 #endif
-
-			current_props._cal_data[collectMeasurementType][freqIndex] = ecalApplyReflection(v[0]/v[1], freqIndex);
-
-			auto tmp = v[2]/v[1];
-			if(collectMeasurementType == CAL_OPEN)
-				current_props._cal_data[CAL_ISOLN_OPEN][freqIndex] = tmp;
-			else if(collectMeasurementType == CAL_SHORT)
-				current_props._cal_data[CAL_ISOLN_SHORT][freqIndex] = tmp;
-			else if(collectMeasurementType == CAL_THRU)
-				current_props._cal_data[CAL_THRU][freqIndex] = tmp;
-
-			if(collectMeasurementState == 0) {
-				collectMeasurementState = 1;
-				collectMeasurementOffset = freqIndex;
-			} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
-				collectMeasurementState = 2;
-				collectMeasurementOffset += 2;
-				if(collectMeasurementOffset >= vnaMeasurement.sweepPoints)
-					collectMeasurementOffset -= vnaMeasurement.sweepPoints;
-			} else if(collectMeasurementState == 2 && collectMeasurementOffset == freqIndex) {
-				collectMeasurementState = 0;
-				collectMeasurementType = -1;
-				eventQueue.enqueue(collectMeasurementCB);
-			}
 		} else {
 			if(ecalState == ECAL_STATE_DONE) {
 				scale *= 0.2f;
@@ -868,6 +895,34 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 				vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 			}
+		}
+	}
+	
+	if(collectMeasurementType >= 0 && collectAllowed) {
+		// we are collecting a measurement for calibration
+
+		current_props._cal_data[collectMeasurementType][freqIndex] = ecalApplyReflection(v[0]/v[1], freqIndex);
+
+		auto tmp = v[2]/v[1];
+		if(collectMeasurementType == CAL_OPEN)
+			current_props._cal_data[CAL_ISOLN_OPEN][freqIndex] = tmp;
+		else if(collectMeasurementType == CAL_SHORT)
+			current_props._cal_data[CAL_ISOLN_SHORT][freqIndex] = tmp;
+		else if(collectMeasurementType == CAL_THRU)
+			current_props._cal_data[CAL_THRU][freqIndex] = tmp;
+
+		if(collectMeasurementState == 0) {
+			collectMeasurementState = 1;
+			collectMeasurementOffset = freqIndex;
+		} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
+			collectMeasurementState = 2;
+			collectMeasurementOffset += 2;
+			if(collectMeasurementOffset >= currSweepArgs.nPoints)
+				collectMeasurementOffset -= currSweepArgs.nPoints;
+		} else if(collectMeasurementState == 2 && collectMeasurementOffset == freqIndex) {
+			collectMeasurementState = 0;
+			collectMeasurementType = -1;
+			eventQueue.enqueue(collectMeasurementCB);
 		}
 	}
 	// enqueue new data point
@@ -899,11 +954,17 @@ static void setVNASweepToUI() {
 	if(current_props._sweep_points > 0)
 		step = (stop - start) / (current_props._sweep_points - 1);
 
+#if BOARD_REVISION < 4
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 	ecalState = ECAL_STATE_MEASURING;
+#else
+	setHWSweep(sys_setSweep_args {
+		start, step, current_props._sweep_points, 1
+	});
+#endif
 	update_grid();
 }
 
@@ -916,7 +977,7 @@ static void measurement_setup() {
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(currThruGain));
 	};
 	vnaMeasurement.emitDataPoint = [](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
-		measurementEmitDataPoint(freqIndex, freqHz, v, ecal);
+		measurementEmitDataPoint(freqIndex, freqHz, v, ecal, vnaMeasurement.clipFlag);
 	};
 	vnaMeasurement.frequencyChanged = [](freqHz_t freqHz) {
 		setFrequency(freqHz);
@@ -1280,14 +1341,13 @@ int main(void) {
 	//debug_plot_markmap();
 	UIActions::printTouchCal();
 
-	si5351_i2c.init();
-	if(!synthesizers::si5351_setup()) {
-		printk1("ERROR: si5351 init failed\n");
-		printk1("Touch anywhere to continue...\n");
-		current_props._frequency0 = 200000000;
-		show_dmesg();
-	}
 
+	bool si5351failed = false;
+
+#if BOARD_REVISION < 4
+	si5351_i2c.init();
+	if(!synthesizers::si5351_setup())
+		si5351failed = true;
 
 	setFrequency(56000000);
 	updateIFrequency(300000);
@@ -1296,11 +1356,35 @@ int main(void) {
 	measurement_setup();
 	adc_setup();
 	dsp_timer_setup();
-
 	adf4350_setup();
-	
+#else
+	adc_setup();
+	sys_init_args a1 = {
+		adcBuffer,
+		&DMA_CNDTR(board::dma.device, board::dmaChannelADC.channel),
+		adcBufSize,
+		&measurementEmitDataPoint
+	};
+	void* ret = sys_syscall(1, &a1);
+	if(ret == errnoToPtr(EHOSTDOWN))
+		si5351failed = true;
 
+	sys_syscall(2, nullptr);
+#endif
+
+	if(si5351failed) {
+		printk1("ERROR: si5351 init failed\n");
+		printk1("Touch anywhere to continue...\n");
+		current_props._frequency0 = 200000000;
+		show_dmesg();
+	}
+
+
+#if BOARD_REVISION < 4
 	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
+#else
+	sys_syscall(4, gainTable);
+#endif
 
 	for(int i=0; i<=RFSW_BBGAIN_MAX; i++) {
 		printk("BBGAIN %d: %.2f dB\n", i, log10f(gainTable[i])*20.f);
@@ -1612,7 +1696,11 @@ namespace UIActions {
 		return 0;
 	}
 	freqHz_t frequencyAt(int index) {
+	#if BOARD_REVISION < 4
 		return vnaMeasurement.sweepStartHz + vnaMeasurement.sweepStepHz * index;
+	#else
+		return currSweepArgs.startFreqHz + currSweepArgs.stepFreqHz * index;
+	#endif
 	}
 
 	void toggle_sweep(void) {
