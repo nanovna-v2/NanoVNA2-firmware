@@ -361,6 +361,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		return;
 	}
 	vnaMeasurement.adcFullScale = 20000 * 48;
+	vnaMeasurement.nPeriodsMultiplier = 1 * current_props._avg;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
