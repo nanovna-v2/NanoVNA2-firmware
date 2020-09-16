@@ -149,6 +149,38 @@ static void errorBlink(int cnt) {
 
 typedef void (*emitDataPoint_t)(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped);
 
+
+// the parameters for one point in the sweep
+struct sys_sweepPoint {
+	// populated with startFreq + i * stepFreq
+	int64_t freqHz = 0;
+
+	// populated with 0
+	uint32_t flags = 0;
+
+	// populated with 1; actual averaging factor is this multiplied by global nAverage
+	uint32_t nAverage = 1;
+
+	// populated with global dataPointsPerFreq
+	uint32_t dataPoints = 1;
+
+	// populated with 0; actual synth delay is baseDelay + extraSynthDelay + global extraSynthDelay
+	int16_t extraSynthDelay = 0;
+
+	// populated with 3
+	uint8_t adf4350_txPower = 3;
+
+	// populated with 1
+	uint8_t si5351_txPower = 1;
+
+	enum {
+		FLAG_POWERDOWN = 1,
+		FLAG_FORCE_ADF435X = 2,
+		FLAG_FORCE_SI5351 = 4,
+		FLAG_SKIP_SYNTH_SET = 8
+	};
+};
+
 struct sys_init_args {
 	volatile uint16_t* adcBuf;
 	volatile uint32_t* dmaCndtr;
@@ -161,6 +193,16 @@ struct sys_setSweep_args {
 	freqHz_t startFreqHz, stepFreqHz;
 	int nPoints, dataPointsPerFreq;
 	uint32_t flags = 0;
+
+	// this function is called to modify the frequency or other parameters at
+	// each sweep point if FLAG_CUSTOMSWEEP is set.
+	// outParams is filled with default parameters and freqHz populated with
+	// startFreqHz + freqIndex * stepFreqHz when this function is called.
+	void (*sweepMutateParams)(int freqIndex, sys_sweepPoint* outParams);
+	enum {
+		FLAG_RFDISABLE=1,
+		FLAG_CUSTOMSWEEP=2
+	};
 };
 struct sys_setTimings_args {
 	uint32_t extraSynthDelay = 0;
@@ -172,8 +214,12 @@ sys_syscall_t sys_syscall = (sys_syscall_t) 0x08000151;
 
 sys_setSweep_args currSweepArgs;
 
+void sweepMutateParams(int freqIndex, sys_sweepPoint* outParams);
+
 void setHWSweep(const sys_setSweep_args& sweepArgs) {
 	currSweepArgs = sweepArgs;
+	currSweepArgs.flags = sys_setSweep_args::FLAG_CUSTOMSWEEP;
+	currSweepArgs.sweepMutateParams = &sweepMutateParams;
 	sys_syscall(3, &currSweepArgs);
 }
 
@@ -262,6 +308,7 @@ static void adf4350_setup() {
 	adf4350_tx.sendN();
 }
 static void adf4350_update(freqHz_t freqHz) {
+	adf4350_tx.rfPower = current_props._adf4350_txPower;
 	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
 	synthesizers::adf4350_set(adf4350_tx, freqHz, adf4350_freqStep);
 	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
@@ -358,6 +405,12 @@ void setFrequency(freqHz_t freqHz) {
 		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 		vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
 	}
+}
+
+void sweepMutateParams(int freqIndex, sys_sweepPoint* outParams) {
+	sys_sweepPoint& sp = *outParams;
+	sp.adf4350_txPower = current_props._adf4350_txPower;
+	sp.si5351_txPower = current_props._si5351_txPower;
 }
 
 static void adc_setup() {
@@ -1571,12 +1624,25 @@ namespace UIActions {
 		collectMeasurementCB = [type]() {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+		#if BOARD_REVISION >= 4
+			sys_setTimings_args args {0, current_props._avg};
+			sys_syscall(5, &args);
+		#endif
 			current_props._cal_status |= (1 << type);
 			ui_cal_collected();
 		};
 		__sync_synchronize();
 		vnaMeasurement.ecalIntervalPoints = 1;
 		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
+	#if BOARD_REVISION >= 4
+		int avg = current_props._avg;
+		if(avg <= 4)
+			avg *= 4;
+		else if(avg < 20)
+			avg *= 2;
+		sys_setTimings_args args {0, avg};
+		sys_syscall(5, &args);
+	#endif
 		collectMeasurementType = type;
 	}
 	void cal_done(void) {
@@ -1794,6 +1860,12 @@ namespace UIActions {
 		sys_setTimings_args args = {0, i};
 		sys_syscall(5, &args);
 	#endif
+	}
+
+	void set_adf4350_txPower(int i) {
+		if(i < 0) i = 0;
+		if(i > 3) i = 3;
+		current_props._adf4350_txPower = (uint8_t) i;
 	}
 
 	int caldata_save(int id) {

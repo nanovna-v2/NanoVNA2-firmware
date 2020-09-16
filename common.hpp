@@ -177,6 +177,8 @@ struct alignas(4) properties_t {
   uint8_t _domain_mode; /* 0bxxxxxffm : where ff: TD_FUNC m: DOMAIN_MODE */
   uint8_t _marker_smith_format;
   uint8_t _avg;
+  uint8_t _adf4350_txPower; // 0 to 3
+  uint8_t _si5351_txPower; // 0 to 3
 
   int32_t checksum;
 
@@ -214,7 +216,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x80081237
+#define CONFIG_MAGIC 0x80081238
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq) 
