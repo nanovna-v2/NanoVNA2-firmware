@@ -28,6 +28,8 @@ void properties_t::setFieldsToDefault() {
 	_domain_mode     = 0;
 	_marker_smith_format = MS_RLC;
 	_avg = 1;
+	_adf4350_txPower = 3;
+	_si5351_txPower = 1;
 
 	memset(_cal_data, 0, sizeof(_cal_data));
 	memcpy(_trace, def_trace, sizeof(_trace));

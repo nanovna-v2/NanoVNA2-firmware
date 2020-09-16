@@ -666,6 +666,19 @@ static UI_FUNCTION_ADV_CALLBACK(menu_avg_acb)
 }
 
 
+static UI_FUNCTION_ADV_CALLBACK(menu_power_acb)
+{
+  (void)item;
+  if(b) {
+    if (current_props._adf4350_txPower == data)
+      b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
+  set_adf4350_txPower(data);
+  ui_mode_normal();
+}
+
+
 static UI_FUNCTION_ADV_CALLBACK(menu_display_acb)
 {
   if(b){
@@ -1036,6 +1049,16 @@ const menuitem_t menu_display[] = {
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
 
+
+const menuitem_t menu_power[] = {
+  { MT_ADV_CALLBACK, 0, "0", (const void *)menu_power_acb },
+  { MT_ADV_CALLBACK, 1, "1", (const void *)menu_power_acb },
+  { MT_ADV_CALLBACK, 2, "2", (const void *)menu_power_acb },
+  { MT_ADV_CALLBACK, 3, "3", (const void *)menu_power_acb },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
+
 const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, KM_START, "START", (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_STOP, "STOP",   (const void *)menu_keyboard_cb },
@@ -1043,6 +1066,7 @@ const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, KM_SPAN, "SPAN",  (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_CW, "CW FREQ", (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+  { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
 //  { MT_ADV_CALLBACK, 0, "PAUSE\nSWEEP", (const void *)menu_pause_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
