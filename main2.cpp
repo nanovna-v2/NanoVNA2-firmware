@@ -122,7 +122,7 @@ static small_function<void()> collectMeasurementCB;
 
 static void adc_process();
 static int measurementGetDefaultGain(freqHz_t freqHz);
-
+void cal_interpolate(void);
 
 #define myassert(x) if(!(x)) do { errorBlink(3); } while(1)
 
@@ -1191,6 +1191,86 @@ static void apply_edelay(int i, complexf& refl, complexf& thru) {
 	thru *= s;
 }
 
+void
+cal_interpolate(void)
+{
+  const properties_t *src = caldata_reference();
+  uint16_t i, j;
+  int eterm;
+  if (src == NULL)
+    return;
+
+  freqHz_t src_start, src_stop;
+  freqHz_t src_step = 0;
+  if(src->_frequency1 <= 0) {
+    // center/span mode
+    src_start = src->_frequency0 + src->_frequency1/2;
+    src_stop = src->_frequency0 - src->_frequency1/2;
+  } else {
+    src_start = src->_frequency0;
+    src_stop = src->_frequency1;
+  }
+  if(src->_sweep_points > 2)
+    src_step = (src_stop - src_start) / (src->_sweep_points - 1);
+
+  freqHz_t dst_start, dst_stop;
+  freqHz_t dst_step = 0;
+  if(src->_frequency1 <= 0) {
+    // center/span mode
+    dst_start = current_props._frequency0 + current_props._frequency1/2;
+    dst_stop  = current_props._frequency0 - current_props._frequency1/2;
+  } else {
+    dst_start = current_props._frequency0;
+    dst_stop = current_props._frequency1;
+  }
+  if(current_props._sweep_points > 2)
+    dst_step = (dst_stop - dst_start) / (current_props._sweep_points - 1);
+
+  // lower than start freq of src range
+  for (i = 0; i < sweep_points; i++) {
+    freqHz_t dst_f = dst_start + i*dst_step;
+    if (dst_f >= src_start)
+      break;
+
+    // fill cal_data at head of src range
+    for (eterm = 0; eterm < 6; eterm++) {
+      cal_data[eterm][i] = src->_cal_data[eterm][0];
+    }
+  }
+
+  j = 0;
+  for (; i < sweep_points; i++) {
+    freqHz_t dst_f = dst_start + i*dst_step;
+    for (; j < src->_sweep_points; j++) {
+      freqHz_t src_f = src_start + j*src_step;
+      if (src_f <= dst_f && dst_f < src_f + src_step) {
+        // found f between freqs at j and j+1
+        float k1 = (src_step == 0) ? 0.0 : (float)(dst_f - src_f) / src_step;
+        uint16_t idx = j;
+        float k0 = 1.0 - k1;
+        for (eterm = 0; eterm < 6; eterm++) {
+          auto re = src->_cal_data[eterm][idx].real() * k0 + src->_cal_data[eterm][idx+1].real() * k1;
+          auto im = src->_cal_data[eterm][idx].imag() * k0 + src->_cal_data[eterm][idx+1].imag() * k1;
+          cal_data[eterm][i] = complexf(re, im);
+        }
+        break;
+      }
+    }
+    if (j == src->_sweep_points-1)
+      break;
+  }
+
+  // upper than end freq of src range
+  for (; i < sweep_points; i++) {
+    // fill cal_data at tail of src
+    for (eterm = 0; eterm < 6; eterm++) {
+      cal_data[eterm][i] = src->_cal_data[eterm][src->_sweep_points-1];
+    }
+  }
+  cal_status |= src->_cal_status | CALSTAT_APPLY | CALSTAT_INTERPOLATED;
+  redraw_request |= REDRAW_CAL_STATUS;
+}
+
 // consume all items in the values fifo and update the "measured" array.
 static bool processDataPoint() {
 	int rdRPos = usbTxQueueRPos;
@@ -1390,6 +1470,8 @@ int main(void) {
 		eventQueue.dequeue();
 
 	flash_config_recall();
+	// Load 0 slot
+	flash_caldata_recall(0);
 	if(config.ui_options & UI_OPTIONS_FLIP)
 		ili9341_set_flip(true, true);
 
@@ -1738,10 +1820,7 @@ namespace UIActions {
 			default: return;
 		}
 		setVNASweepToUI();
-		current_props._cal_status = 0;
-		draw_cal_status();
-
-
+		cal_interpolate();
 	}
 	void set_sweep_points(int points) {
 		if(points < SWEEP_POINTS_MIN)
@@ -1750,8 +1829,7 @@ namespace UIActions {
 			points = SWEEP_POINTS_MAX;
 		current_props._sweep_points = points;
 		setVNASweepToUI();
-		current_props._cal_status = 0;
-		draw_cal_status();
+		cal_interpolate();
 	}
 	freqHz_t get_sweep_frequency(int type) {
 		if(frequency1 > 0) {
