@@ -455,6 +455,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_cal2_acb)
   (void)data;
   if (b){
     if (item == 3) b->icon = (cal_status&CALSTAT_APPLY) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    if (item == 4) b->icon = (cal_status&CALSTAT_ENHANCED_RESPONSE) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
     return;
   }
   switch (item) {
@@ -465,6 +466,9 @@ static UI_FUNCTION_ADV_CALLBACK(menu_cal2_acb)
     // toggle applying correction
     if (cal_status)
       cal_status ^= CALSTAT_APPLY;
+    break;
+  case 4: // ENHANCED RESPONSE
+    cal_status ^= CALSTAT_ENHANCED_RESPONSE;
     break;
   }
   draw_menu();
@@ -649,6 +653,33 @@ static UI_FUNCTION_ADV_CALLBACK(menu_transform_filter_acb)
   ui_mode_normal();
 }
 
+
+static UI_FUNCTION_ADV_CALLBACK(menu_avg_acb)
+{
+  (void)item;
+  if(b) {
+    if (current_props._avg == data)
+      b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
+  set_averaging(data);
+  ui_mode_normal();
+}
+
+
+static UI_FUNCTION_ADV_CALLBACK(menu_power_acb)
+{
+  (void)item;
+  if(b) {
+    if (current_props._adf4350_txPower == data)
+      b->icon = BUTTON_ICON_CHECK;
+    return;
+  }
+  set_adf4350_txPower(data);
+  ui_mode_normal();
+}
+
+
 static UI_FUNCTION_ADV_CALLBACK(menu_display_acb)
 {
   if(b){
@@ -715,6 +746,7 @@ static const menuitem_t menu_sweep_config[] = {
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
+  { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -944,6 +976,7 @@ const menuitem_t menu_cal[] = {
   { MT_SUBMENU,  0, "SAVE",  (const void *)menu_save },
   { MT_ADV_CALLBACK, 0, "RESET", (const void *)menu_cal2_acb },
   { MT_ADV_CALLBACK, 0, "APPLY", (const void *)menu_cal2_acb },
+  { MT_ADV_CALLBACK, 0, "ENHANCED\nRESPONSE", (const void *)menu_cal2_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -1017,13 +1050,36 @@ const menuitem_t menu_transform[] = {
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
 
+
+const menuitem_t menu_avg[] = {
+  { MT_ADV_CALLBACK, 1, "NONE", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 2, "2x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 5, "5x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 10, "10x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 20, "20x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 40, "40x", (const void *)menu_avg_acb },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
+
 const menuitem_t menu_display[] = {
   { MT_SUBMENU, 0, "TRACE", (const void *)menu_trace },
   { MT_SUBMENU, 0, "FORMAT", (const void *)menu_format },
   { MT_SUBMENU, 0, "SCALE", (const void *)menu_scale },
   { MT_SUBMENU, 0, "CHANNEL", (const void *)menu_channel },
+  { MT_SUBMENU, 0, "AVG", (const void *)menu_avg },
   { MT_SUBMENU, 0, "TRANSFORM", (const void *)menu_transform },
   { MT_ADV_CALLBACK, 0, "FLIP\nDISPLAY", (const void *)menu_display_acb },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
+
+
+const menuitem_t menu_power[] = {
+  { MT_ADV_CALLBACK, 0, "0", (const void *)menu_power_acb },
+  { MT_ADV_CALLBACK, 1, "1", (const void *)menu_power_acb },
+  { MT_ADV_CALLBACK, 2, "2", (const void *)menu_power_acb },
+  { MT_ADV_CALLBACK, 3, "3", (const void *)menu_power_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };

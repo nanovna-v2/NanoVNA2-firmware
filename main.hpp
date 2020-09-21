@@ -34,6 +34,8 @@ namespace UIActions {
 
 	void apply_edelay_at(int i);
 
+	void set_averaging(int i);
+	void set_adf4350_txPower(int i);
 
 	int caldata_save(int id);
 	int caldata_recall(int id);
