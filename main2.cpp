@@ -1820,6 +1820,11 @@ namespace UIActions {
 					center = FREQUENCY_MAX - span/2;
 					frequency0 = center;
 				}
+
+				// If span is zero, assume CW mode
+                if(span == 0)
+                    current_props._measurement_mode = MEASURE_MODE_REFL_THRU;
+
 				break;
 			}
 			case ST_CW:
