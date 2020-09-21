@@ -710,24 +710,11 @@ static UI_FUNCTION_ADV_CALLBACK(measurement_mode)
     draw_menu();
 }
 
-static UI_FUNCTION_ADV_CALLBACK(low_power_mode)
-{
-    static bool lp_mode = false;
-    if (b){
-        b->icon = (lp_mode) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK ;
-        return;
-    }
-    lp_mode = !lp_mode;
-    set_low_power_output_mode(lp_mode);
-    draw_menu();
-}
-
 static const menuitem_t menu_sweep_config[] = {
   { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
-  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "LOW POWER\nOUTPUT", (const void *)low_power_mode  },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };

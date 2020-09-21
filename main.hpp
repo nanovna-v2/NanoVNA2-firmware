@@ -19,7 +19,6 @@ namespace UIActions {
 	void set_sweep_points(int points);
 	freqHz_t get_sweep_frequency(int type);
 	void set_measurement_mode(enum MeasurementMode mode);
-   	void set_low_power_output_mode(bool lp_mode);
 	freqHz_t frequencyAt(int index);
 
 	void toggle_sweep(void);

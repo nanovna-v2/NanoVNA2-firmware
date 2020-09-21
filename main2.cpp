@@ -1307,7 +1307,7 @@ int main(void) {
 	dsp_timer_setup();
 
 	adf4350_setup();
-	
+
 
 	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
 
@@ -1609,16 +1609,6 @@ namespace UIActions {
 		current_props._measurement_mode = mode;
 		setVNASweepToUI();
 	}
-
-    void set_low_power_output_mode(bool lp_mode) {
-        // TODO this only works for 140Mhz and up!
-        if(lp_mode) {
-            adf4350_tx.rfPower = 0b0; //-4dBm on TX output
-        }
-        else {
-            adf4350_tx.rfPower = 0b11; //+5dBm on TX output
-        }
-    }
 
 	freqHz_t get_sweep_frequency(int type) {
 		if(frequency1 > 0) {
