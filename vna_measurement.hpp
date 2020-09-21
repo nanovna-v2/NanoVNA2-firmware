@@ -109,11 +109,6 @@ public:
 	// What measurements to make
 	enum MeasurementMode measurement_mode = MEASURE_MODE_FULL;
 
-	/* If sweepStepHz == 0 we are in CW mode */
-	bool is_cw_mode() {
-		return sweepStepHz == 0;
-	}
-
 	// number of frequency points since start of sweep
 	volatile int sweepCurrPoint = 0;
 
