@@ -19,9 +19,9 @@
 #include "../common.hpp"
 #include "../xpt2046.hpp"
 
-#define BOARD_NAME "NanoVNA V2_1"
-#define BOARD_REVISION (1)
-#define BOARD_REVISION_MAGIC 0xdeadbabb
+#define BOARD_NAME "NanoVNA V2Plus4"
+#define BOARD_REVISION (4)
+#define BOARD_REVISION_MAGIC 0xdeadbabf
 
 using namespace mculib;
 using namespace std;
@@ -63,7 +63,7 @@ namespace board {
 	extern uint32_t hseEstimateHz;
 
 	// All boards use a 24Mhz TCXO. It gives best phase noise with the ADF4350
-	static constexpr uint32_t xtalFreqHz = 24000000; 
+	static constexpr uint32_t xtalFreqHz = 24000000;
 	static constexpr freqHz_t DEFAULT_FREQ = 2600000000;
 
 	// ADC parameters, set by boardInit()
@@ -78,12 +78,9 @@ namespace board {
 
 	// ##### board peripherals #####
 
-	// baseband ADC
-
 	extern DMADriver dma;
 	extern DMAChannel dmaChannelADC;
 	extern DMAADC dmaADC;
-
 
 	// synthesizers
 
@@ -117,8 +114,6 @@ namespace board {
 
 	constexpr int si5351_rxPLL = 0, si5351_txPLL = 1;
 	constexpr int si5351_rxPort = 0, si5351_txPort = 2, si5351_passthruPort = -1;
-
-
 
 	// lcd display
 
@@ -168,6 +163,7 @@ namespace board {
 	void ledPulse();
 
 	int calculateSynthWait(bool, int);
+
 	// sets up hardware spi for ili9341 and touch.
 	// spi peripheral only manages clk, sdi, and sdo.
 	void lcd_spi_init();
