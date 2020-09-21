@@ -108,10 +108,10 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define REDRAW_MARKER     (1<<3)
 #define REDRAW_AREA       (1<<4)
 
-/* Determines the measurements that need to be done */
+/* Determines the measurements the ADC will do. */
 enum MeasurementMode {
-    MEASURE_MODE_REFL_THRU,
-    MEASURE_MODE_REFL_THRU_REFRENCE,
+    MEASURE_MODE_REFL_THRU, //Does not switch the output, use for CW mode
+    MEASURE_MODE_REFL_THRU_REFRENCE, //No ecal
     MEASURE_MODE_FULL, //Including ECAL, slowest
 };
 
