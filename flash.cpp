@@ -139,12 +139,11 @@ int flash_caldata_recall(int id) {
 	memcpy(dst, src, sizeof(properties_t));
 	return 0;
 }
-const properties_t *flash_caldata_ref(int id) {
-	const properties_t *src;
-	if (id < 0 || id >= SAVEAREA_MAX)
-		return nullptr;
 
-	src = (const properties_t*)SAVEAREA(id);
+const properties_t *caldata_reference(void) {
+	const properties_t *src;
+
+	src = (const properties_t*)SAVEAREA(lastsaveid);
 	if (src->magic != CONFIG_MAGIC)
 		return nullptr;
 	if (checksum(src, sizeof(properties_t)) != 0)

@@ -81,6 +81,7 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define CALSTAT_EX CALSTAT_ISOLN
 #define CALSTAT_APPLY (1<<8)
 #define CALSTAT_INTERPOLATED (1<<9)
+#define CALSTAT_ENHANCED_RESPONSE (1<<10)
 
 #define ETERM_ED 0 /* error term directivity */
 #define ETERM_ES 1 /* error term source match */
@@ -175,6 +176,9 @@ struct alignas(4) properties_t {
   int _active_marker;
   uint8_t _domain_mode; /* 0bxxxxxffm : where ff: TD_FUNC m: DOMAIN_MODE */
   uint8_t _marker_smith_format;
+  uint8_t _avg;
+  uint8_t _adf4350_txPower; // 0 to 3
+  uint8_t _si5351_txPower; // 0 to 3
 
   int32_t checksum;
 
@@ -212,7 +216,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x80081236
+#define CONFIG_MAGIC 0x80081238
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq) 
