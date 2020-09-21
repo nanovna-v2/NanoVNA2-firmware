@@ -741,16 +741,6 @@ static UI_FUNCTION_ADV_CALLBACK(measurement_mode)
     draw_menu();
 }
 
-static const menuitem_t menu_sweep_config[] = {
-  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
-  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
-  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
-  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
-  { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
-  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
-  { MT_NONE, 0, NULL, NULL } // sentinel
-};
-
 static UI_FUNCTION_ADV_CALLBACK(menu_pause_acb)
 {
   (void)item;
@@ -1080,6 +1070,16 @@ const menuitem_t menu_power[] = {
   { MT_ADV_CALLBACK, 1, "1", (const void *)menu_power_acb },
   { MT_ADV_CALLBACK, 2, "2", (const void *)menu_power_acb },
   { MT_ADV_CALLBACK, 3, "3", (const void *)menu_power_acb },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
+
+static const menuitem_t menu_sweep_config[] = {
+  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
+  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
+  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
+  { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
