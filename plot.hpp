@@ -71,6 +71,7 @@ void plot_init(void);
 
 // cancel ongoing draw operations further up the stack
 void plot_cancel();
+void recalculate_grid(void);
 void update_grid(void);
 void request_to_redraw_grid(void);
 void redraw_frame(void);
