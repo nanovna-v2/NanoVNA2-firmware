@@ -1822,8 +1822,8 @@ namespace UIActions {
 				}
 
 				// If span is zero, assume CW mode
-                if(span == 0)
-                    current_props._measurement_mode = MEASURE_MODE_REFL_THRU;
+				if (span == 0)
+					current_props._measurement_mode = MEASURE_MODE_REFL_THRU;
 
 				break;
 			}
