@@ -14,6 +14,7 @@ namespace UIActions {
 
 	void cal_collect(int type);
 	void cal_done(void);
+	void cal_reset(void);
 
 	void set_sweep_frequency(SweepParameter type, freqHz_t frequency);
 	void set_sweep_points(int points);

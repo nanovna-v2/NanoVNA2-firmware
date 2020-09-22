@@ -459,7 +459,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_cal2_acb)
   }
   switch (item) {
   case 2: // RESET
-    cal_status = 0;
+    cal_reset();
     break;
   case 3: // CORRECTION
     // toggle applying correction
@@ -662,6 +662,7 @@ static UI_FUNCTION_ADV_CALLBACK(menu_avg_acb)
     return;
   }
   set_averaging(data);
+  draw_frequencies();
   ui_mode_normal();
 }
 

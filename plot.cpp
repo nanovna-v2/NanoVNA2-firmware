@@ -1812,7 +1812,7 @@ draw_frequencies(void)
 
 	ili9341_fill(0, FREQUENCIES_YPOS, LCD_WIDTH, FONT_GET_HEIGHT, DEFAULT_BG_COLOR);
 	// draw sweep points
-	chsnprintf(buf, sizeof(buf), "%3d P", (int)sweep_points);
+	chsnprintf(buf, sizeof(buf), "%3d P  %2dx AVG", (int)sweep_points, (int)current_props._avg);
 	ili9341_drawstring(buf, FREQUENCIES_XPOS3, FREQUENCIES_YPOS);
 
 	if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
@@ -1856,26 +1856,28 @@ draw_cal_status(void)
   int x = 0;
   int y = 100;
   char c[3];
-  ili9341_set_foreground(DEFAULT_FG_COLOR);
+  ili9341_set_foreground(DEFAULT_CAL_INACTIVE_COLOR);
   ili9341_set_background(DEFAULT_BG_COLOR);
   ili9341_fill(0, y, OFFSETX, 6*(FONT_STR_HEIGHT), DEFAULT_BG_COLOR);
   if (cal_status & CALSTAT_APPLY) {
+	ili9341_set_foreground(DEFAULT_CAL_ACTIVE_COLOR);
     c[0] = cal_status & CALSTAT_INTERPOLATED ? 'c' : 'C';
     c[1] = active_props == &current_props ? '*' : '0' + lastsaveid;
     c[2] = 0;
     ili9341_drawstring(c, x, y);
-    y +=FONT_STR_HEIGHT;
   }
+  y += FONT_STR_HEIGHT;
   int i;
-  static const struct {char text, zero, mask;} calibration_text[]={
-    {'S', 0, CALSTAT_SHORT},
-    {'O', 0, CALSTAT_OPEN},
-    {'L', 0, CALSTAT_LOAD},
-    {'T', 0, CALSTAT_THRU},
+  static const struct {char text[2]; uint16_t mask;} calibration_text[]={
+    {"S", CALSTAT_SHORT},
+    {"O", CALSTAT_OPEN},
+    {"L", CALSTAT_LOAD},
+    {"T", CALSTAT_THRU},
+    {"E", CALSTAT_ENHANCED_RESPONSE},
   };
-  for (i = 0; i < 4; i++, y+=FONT_STR_HEIGHT)
+  for (i = 0; i < sizeof(calibration_text)/sizeof(*calibration_text); i++, y+=FONT_STR_HEIGHT)
     if (cal_status & calibration_text[i].mask)
-      ili9341_drawstring(&calibration_text[i].text, x, y);
+      ili9341_drawstring(calibration_text[i].text, x, y);
 }
 
 void
