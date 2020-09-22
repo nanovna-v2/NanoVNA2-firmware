@@ -411,7 +411,6 @@ void setFrequency(freqHz_t freqHz) {
 void sweepMutateParams(int freqIndex, sys_sweepPoint* outParams) {
 	sys_sweepPoint& sp = *outParams;
 	sp.adf4350_txPower = current_props._adf4350_txPower;
-	sp.si5351_txPower = current_props._si5351_txPower;
 }
 
 static void adc_setup() {
@@ -955,15 +954,18 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	if(collectMeasurementType >= 0 && collectAllowed) {
 		// we are collecting a measurement for calibration
 
-		current_props._cal_data[collectMeasurementType][freqIndex] = ecalApplyReflection(v[0]/v[1], freqIndex);
+		auto refl = ecalApplyReflection(v[0]/v[1], freqIndex);
+		current_props._cal_data[collectMeasurementType][freqIndex] = refl;
 
 		auto tmp = v[2]/v[1];
 		if(collectMeasurementType == CAL_OPEN)
 			current_props._cal_data[CAL_ISOLN_OPEN][freqIndex] = tmp;
 		else if(collectMeasurementType == CAL_SHORT)
 			current_props._cal_data[CAL_ISOLN_SHORT][freqIndex] = tmp;
-		else if(collectMeasurementType == CAL_THRU)
+		else if(collectMeasurementType == CAL_THRU) {
+			current_props._cal_data[CAL_THRU_REFL][freqIndex] = refl;
 			current_props._cal_data[CAL_THRU][freqIndex] = tmp;
+		}
 
 		if(collectMeasurementState == 0) {
 			collectMeasurementState = 1;
@@ -1020,6 +1022,13 @@ static void setVNASweepToUI() {
 	});
 #endif
 	update_grid();
+}
+
+void updateAveraging() {
+#if BOARD_REVISION >= 4
+	sys_setTimings_args args = {0, current_props._avg};
+	sys_syscall(5, &args);
+#endif
 }
 
 static void measurement_setup() {
@@ -1225,20 +1234,27 @@ static bool processDataPoint() {
 			// apply thru response correction
 			if(current_props._cal_status & CALSTAT_THRU) {
 				auto refThru = current_props._cal_data[CAL_THRU][freqIndex];
-				//refThru = refThru - (cal_thru_leak + refl*cal_thru_leak_r);
-				// TODO: we can't do proper leakage correction on the reference thru measurement
-				// because we didn't store the S11 of the thru calibration. In V2 hardware
-				// this causes ~0.05dB of S21 error but it will be a problem if attempting
-				// to use this code with low-spec hardware with lots of leakage.
-				refThru = refThru - (cal_thru_leak + refl*cal_thru_leak_r);
+				auto reflThru = current_props._cal_data[CAL_THRU_REFL][freqIndex];
+				refThru = refThru - (cal_thru_leak + reflThru*cal_thru_leak_r);
+				reflThru = SOL_compute_reflection(
+						current_props._cal_data[CAL_SHORT][freqIndex],
+						current_props._cal_data[CAL_OPEN][freqIndex],
+						current_props._cal_data[CAL_LOAD][freqIndex],
+						reflThru);
 				auto thruGain = SOL_compute_thru_gain(
 						current_props._cal_data[CAL_SHORT][freqIndex],
 						current_props._cal_data[CAL_OPEN][freqIndex],
 						current_props._cal_data[CAL_LOAD][freqIndex],
 						newRefl);
+				
+				auto refThruGain = SOL_compute_thru_gain(
+						current_props._cal_data[CAL_SHORT][freqIndex],
+						current_props._cal_data[CAL_OPEN][freqIndex],
+						current_props._cal_data[CAL_LOAD][freqIndex],
+						reflThru);
 
 				if(cal_status & CALSTAT_ENHANCED_RESPONSE)
-					refThru *= thruGain;
+					refThru *= thruGain / refThruGain;
 
 				thru = thru / refThru;
 			}
@@ -1388,6 +1404,8 @@ int main(void) {
 	delay(50);
 	while(eventQueue.readable())
 		eventQueue.dequeue();
+
+	UIActions::cal_reset();
 
 	flash_config_recall();
 	if(config.ui_options & UI_OPTIONS_FLIP)
@@ -1649,6 +1667,22 @@ namespace UIActions {
 	void cal_done(void) {
 		current_props._cal_status |= CALSTAT_APPLY;
 	}
+	void do_cal_reset(int calType, complexf val) {
+		myassert(calType >= 0 && calType < CAL_ENTRIES);
+		complexf* arr = current_props._cal_data[calType];
+		for(int i=0; i<sweep_points; i++)
+			arr[i] = val;
+	}
+	void cal_reset(void) {
+		current_props._cal_status = 0;
+		do_cal_reset(CAL_LOAD, 0.f);
+		do_cal_reset(CAL_OPEN, 1.f);
+		do_cal_reset(CAL_SHORT, -1.f);
+		do_cal_reset(CAL_THRU, 1.f);
+		do_cal_reset(CAL_ISOLN_OPEN, 0.f);
+		do_cal_reset(CAL_ISOLN_SHORT, 0.f);
+		do_cal_reset(CAL_THRU_REFL, 0.f);
+	}
 
 	static inline void clampFrequency(freqHz_t& f) {
 		if(f < FREQUENCY_MIN)
@@ -1738,7 +1772,7 @@ namespace UIActions {
 			default: return;
 		}
 		setVNASweepToUI();
-		current_props._cal_status = 0;
+		cal_reset();
 		draw_cal_status();
 
 
@@ -1750,7 +1784,7 @@ namespace UIActions {
 			points = SWEEP_POINTS_MAX;
 		current_props._sweep_points = points;
 		setVNASweepToUI();
-		current_props._cal_status = 0;
+		cal_reset();
 		draw_cal_status();
 	}
 	freqHz_t get_sweep_frequency(int type) {
@@ -1852,15 +1886,12 @@ namespace UIActions {
 	{
 		return electrical_delay;
 	}
-	
+
 	void set_averaging(int i) {
 		if(i < 1) i = 1;
 		if(i > 255) i = 255;
 		current_props._avg = (uint8_t) i;
-	#if BOARD_REVISION >= 4
-		sys_setTimings_args args = {0, i};
-		sys_syscall(5, &args);
-	#endif
+		updateAveraging();
 	}
 
 	void set_adf4350_txPower(int i) {
@@ -1877,8 +1908,11 @@ namespace UIActions {
 	}
 	int caldata_recall(int id) {
 		int ret = flash_caldata_recall(id);
-		if(ret == 0)
+		if(ret == 0) {
 			setVNASweepToUI();
+			updateAveraging();
+			force_set_markmap();
+		}
 		return ret;
 	}
 

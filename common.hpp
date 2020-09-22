@@ -62,12 +62,14 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #endif
 
 
+#define CAL_ENTRIES 7
 #define CAL_LOAD 0
 #define CAL_OPEN 1
 #define CAL_SHORT 2
 #define CAL_THRU 3
 #define CAL_ISOLN_OPEN 4
 #define CAL_ISOLN_SHORT 5
+#define CAL_THRU_REFL 6
 
 #define CALSTAT_LOAD (1<<0)
 #define CALSTAT_OPEN (1<<1)
@@ -167,7 +169,7 @@ struct alignas(4) properties_t {
   int16_t _sweep_points;
   uint16_t _cal_status;
 
-  complexf _cal_data[6][SWEEP_POINTS_MAX];
+  complexf _cal_data[CAL_ENTRIES][SWEEP_POINTS_MAX];
   float _electrical_delay; // picoseconds
   
   trace_t _trace[TRACES_MAX];
@@ -216,7 +218,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x80081238
+#define CONFIG_MAGIC 0x80081239
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq) 
