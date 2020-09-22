@@ -286,6 +286,7 @@ namespace board {
 		if(!isSi) return 10;
 		switch(retval) {
 			case 0: return 18;
+			default:
 			case 1: return 60;
 			case 2: return 60;
 		}

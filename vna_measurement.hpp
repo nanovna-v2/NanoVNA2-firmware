@@ -38,7 +38,7 @@ public:
 
 	// AGC parameters; VNAMeasurement will detect ADC clip events and inform the
 	// host when baseband/rf gain needs to be changed.
-	int gainMin = 0, gainMax = 3;
+	uint8_t gainMin = 0, gainMax = 3;
 
 	uint32_t adcFullScale = 30000;
 
@@ -106,6 +106,9 @@ public:
 	uint32_t ecalCounter = 0;
 	uint32_t ecalCounterOffset = 0;
 
+	// What measurements to make
+	enum MeasurementMode measurement_mode = MEASURE_MODE_FULL;
+
 	// number of frequency points since start of sweep
 	volatile int sweepCurrPoint = 0;
 
@@ -121,7 +124,7 @@ public:
 	int sweepPoints = 1;
 	int sweepDataPointsPerFreq = 1;
 
-	uint64_t currFreq;
+	freqHz_t currFreq;
 
 	complexf ecal[ECAL_CHANNELS];
 
