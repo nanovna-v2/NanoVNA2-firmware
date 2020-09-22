@@ -57,6 +57,7 @@ LDFLAGS        += -Wl,--gc-sections
 LDLIBS         += -Wl,--start-group -lgcc -lnosys -Wl,--end-group -lm
 
 GITVERSION      = "$(shell git log -n 1 --pretty=format:"git-%ad%h" --date=format:"%Y%m%d-")"
+GITURL          = "$(shell git config --get remote.origin.url)"
 
 # This is needed for the included genlink-config.mk to work properly
 LIBNAME         = opencm3_$(genlink_family)
@@ -76,6 +77,7 @@ $(OPENCM3_LIB):
 
 gitversion.hpp: .git/HEAD .git/index
 	echo "#define GITVERSION \"$(GITVERSION)\"" > $@
+	echo "#define GITURL \"$(GITURL)\"" >> $@
 
 clean:
 	$(Q)$(RM) -rf binary.* *.o $(BOARDNAME)/*.o

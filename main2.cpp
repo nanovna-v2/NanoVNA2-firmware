@@ -82,7 +82,9 @@ static VNAMeasurement vnaMeasurement;
 static CommandParser cmdParser;
 static StreamFIFO cmdInputFIFO;
 static uint8_t cmdInputBuffer[128];
-static bool lcdInhibit = false;
+/* This is written in the 'measurement thread' (ADC ISR)
+ * But read by the 'main thread'. So make it volatile */
+static volatile bool lcdInhibit = false;
 
 float gainTable[RFSW_BBGAIN_MAX+1];
 
@@ -390,21 +392,26 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(freqHz_t freqHz) {
-	currFreqHz = freqHz;
 	updateIFrequency(freqHz);
-	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
+	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(freqHz)));
 
-	// use adf4350 for f > 140MHz
-	if(is_freq_for_adf4350(freqHz)) {
-		adf4350_update(freqHz);
-		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
-		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
-		vnaMeasurement.nWaitSynth = calculateSynthWait(false, 0);
-	} else {
-		int ret = si5351_update(freqHz);
-		rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
-		rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
-		vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
+	/* Only if frequency changes apply the new frequency.
+	 * This is to support proper CW mode:
+	 * changing to an existing frequency temporarily breaks the signal */
+	if(currFreqHz != freqHz) {
+		currFreqHz = freqHz;
+		// use adf4350 for f > 140MHz
+		if(is_freq_for_adf4350(freqHz)) {
+			adf4350_update(freqHz);
+			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
+			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
+			vnaMeasurement.nWaitSynth = calculateSynthWait(false, 0);
+		} else {
+			int ret = si5351_update(freqHz);
+			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
+			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
+			vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
+		}
 	}
 }
 
@@ -457,7 +464,7 @@ static void lcd_and_ui_setup() {
 	ili9341_conf_dc = ili9341_dc;
 	ili9341_spi_set_cs = [](bool selected) {
 		lcd_spi_waitDMA();
-		while(lcdInhibit) asm __volatile__ ("nop");
+		while(lcdInhibit) ;
 		// if the xpt2046 is currently selected, deselect it
 		if(selected && digitalRead(xpt2046_cs) == LOW) {
 			digitalWrite(xpt2046_cs, HIGH);
@@ -468,7 +475,7 @@ static void lcd_and_ui_setup() {
 		return lcd_spi_transfer(sdi, bits);
 	};
 	ili9341_spi_transfer_bulk = [](uint32_t words) {
-		while(lcdInhibit) asm __volatile__ ("nop");
+		while(lcdInhibit) ;
 		lcd_spi_transfer_bulk((uint8_t*)ili9341_spi_buffer, words*2);
 	};
 	ili9341_spi_wait_bulk = []() {
@@ -869,6 +876,12 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 			break;
 		case VNAMeasurementPhases::REFL:
+			// If only measuring REFL and THRU, we skip REFERENCE and thus
+			// the rfsw are not setup correct, so fix it here
+			if (vnaMeasurement.measurement_mode == MEASURE_MODE_REFL_THRU) {
+				rfsw(RFSW_REFL, RFSW_REFL_ON);
+				rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			}
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			break;
 		case VNAMeasurementPhases::THRU:
@@ -948,10 +961,11 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 				ecalState = ECAL_STATE_DONE;
 				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 				vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+				vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
 			}
 		}
 	}
-	
+
 	if(collectMeasurementType >= 0 && collectAllowed) {
 		// we are collecting a measurement for calibration
 
@@ -995,19 +1009,14 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 
 // apply user-entered (on device) sweep parameters
 static void setVNASweepToUI() {
-	freqHz_t start, stop;
-	if(current_props._frequency1 <= 0) {
-		// center/span mode
-		start = current_props._frequency0 + current_props._frequency1/2;
-		stop = current_props._frequency0 - current_props._frequency1/2;
-	} else {
-		start = current_props._frequency0;
-		stop = current_props._frequency1;
-	}
+	freqHz_t start = UIActions::get_sweep_frequency(ST_START);
+	freqHz_t stop = UIActions::get_sweep_frequency(ST_STOP);
 	freqHz_t step = 0;
 	if(current_props._sweep_points > 0)
 		step = (stop - start) / (current_props._sweep_points - 1);
 
+	// Default to full, after ecalState is done we goto the configured mode
+	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 #if BOARD_REVISION < 4
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
@@ -1526,7 +1535,6 @@ int main(void) {
 		show_dmesg();
 	}
 
-
 #if BOARD_REVISION < 4
 	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
 #else
@@ -1704,6 +1712,7 @@ namespace UIActions {
 
 	void cal_collect(int type) {
 		current_props._cal_status &= ~(1 << type);
+		vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 		collectMeasurementCB = [type]() {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
@@ -1730,6 +1739,7 @@ namespace UIActions {
 	}
 	void cal_done(void) {
 		current_props._cal_status |= CALSTAT_APPLY;
+		vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
 	}
 
 	static inline void clampFrequency(freqHz_t& f) {
@@ -1810,12 +1820,19 @@ namespace UIActions {
 					center = FREQUENCY_MAX - span/2;
 					frequency0 = center;
 				}
+
+				// If span is zero, assume CW mode
+				if (span == 0)
+					current_props._measurement_mode = MEASURE_MODE_REFL_THRU;
+
 				break;
 			}
 			case ST_CW:
 				clampFrequency(frequency);
 				frequency0 = frequency;
 				frequency1 = 0;
+				// True CW mode by not switching output RF switch
+				current_props._measurement_mode = MEASURE_MODE_REFL_THRU;
 				break;
 			default: return;
 		}
@@ -1831,6 +1848,12 @@ namespace UIActions {
 		setVNASweepToUI();
 		cal_interpolate();
 	}
+
+	void set_measurement_mode(enum MeasurementMode mode) {
+		current_props._measurement_mode = mode;
+		setVNASweepToUI();
+	}
+
 	freqHz_t get_sweep_frequency(int type) {
 		if(frequency1 > 0) {
 			switch (type) {
@@ -1930,7 +1953,7 @@ namespace UIActions {
 	{
 		return electrical_delay;
 	}
-	
+
 	void set_averaging(int i) {
 		if(i < 1) i = 1;
 		if(i > 255) i = 255;

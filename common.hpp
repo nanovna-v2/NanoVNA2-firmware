@@ -108,6 +108,12 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define REDRAW_MARKER     (1<<3)
 #define REDRAW_AREA       (1<<4)
 
+/* Determines the measurements the ADC will do. */
+enum MeasurementMode {
+    MEASURE_MODE_REFL_THRU, //Does not switch the output, use for CW mode
+    MEASURE_MODE_REFL_THRU_REFRENCE, //No ecal
+    MEASURE_MODE_FULL, //Including ECAL, slowest
+};
 
 constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
 static volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
@@ -169,7 +175,7 @@ struct alignas(4) properties_t {
 
   complexf _cal_data[6][SWEEP_POINTS_MAX];
   float _electrical_delay; // picoseconds
-  
+
   trace_t _trace[TRACES_MAX];
   marker_t _markers[MARKERS_MAX];
   float _velocity_factor; // %
@@ -179,6 +185,7 @@ struct alignas(4) properties_t {
   uint8_t _avg;
   uint8_t _adf4350_txPower; // 0 to 3
   uint8_t _si5351_txPower; // 0 to 3
+  uint8_t _measurement_mode; //See enum MeasurementMode.
 
   int32_t checksum;
 
@@ -219,7 +226,7 @@ struct uistat_t {
 #define CONFIG_MAGIC 0x80081238
 
 
-static inline bool is_freq_for_adf4350(freqHz_t freq) 
+static inline bool is_freq_for_adf4350(freqHz_t freq)
 {
 	return freq > FREQUENCY_CHANGE_OVER;
 }
