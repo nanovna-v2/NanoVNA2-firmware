@@ -43,7 +43,7 @@ OBJS	+= \
 
 CFLAGS         += -O2 -g
 CPPFLAGS       += $(EXTRA_CFLAGS) -O2 -g -ffast-math -fstack-protector-strong -I$(BOARDNAME) -I$(MCULIB)/include -DMCULIB_DEVICE_STM32F103 -DSTM32F103 -DSTM32F1 -D_XOPEN_SOURCE=600
-CPPFLAGS       += -Wall -Wno-unused-function
+CPPFLAGS       += -Wall -Wno-unused-function -Werror=implicit-fallthrough
 # CPPFLAGS      += -DDISPLAY_ST7796
 CPPFLAGS       +=  -ffunction-sections -fdata-sections
 # C++ only flags, CPP is used for both C++ and C files
