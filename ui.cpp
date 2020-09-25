@@ -265,7 +265,7 @@ show_version(void)
   const char *fpu;
   uint32_t* deviceID = (uint32_t*)0x1FFFF7E8;
   char snStr[64];
-	chsnprintf(snStr, sizeof(snStr), "SN: %08x-%08x-%08x\n", deviceID[0], deviceID[1], deviceID[2]);
+  chsnprintf(snStr, sizeof(snStr), "SN: %08x-%08x-%08x\n", deviceID[0], deviceID[1], deviceID[2]);
 
   ili9341_set_foreground(DEFAULT_FG_COLOR);
   ili9341_set_background(DEFAULT_BG_COLOR);
@@ -290,9 +290,9 @@ show_version(void)
   ili9341_drawstring("Port Info: " PORT_INFO, x, y += step);
   ili9341_drawstring("Board: " BOARD_NAME, x, y += step);
   if(cpu_enable_fpu())
-	  fpu = "Has FPU: yes";
+      fpu = "Has FPU: yes";
   else
-	  fpu = "Has FPU: no";
+      fpu = "Has FPU: no";
   ili9341_drawstring(fpu, x, y += step);
 
   while (true) {
@@ -727,6 +727,20 @@ static UI_FUNCTION_CALLBACK(menu_keyboard_cb)
   }
 }
 
+static UI_FUNCTION_ADV_CALLBACK(measurement_mode)
+{
+    (void) item;
+    enum MeasurementMode mode = (enum MeasurementMode) data;
+    enum MeasurementMode cur_mode = (enum MeasurementMode) current_props._measurement_mode;
+
+    if (b){
+        b->icon = (mode == cur_mode) ? BUTTON_ICON_GROUP_CHECKED : BUTTON_ICON_GROUP ;
+        return;
+    }
+    set_measurement_mode(mode);
+    draw_menu();
+}
+
 static UI_FUNCTION_ADV_CALLBACK(menu_pause_acb)
 {
   (void)item;
@@ -1060,14 +1074,23 @@ const menuitem_t menu_power[] = {
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
 
+static const menuitem_t menu_sweep_config[] = {
+  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
+  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
+  { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
+  { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
+  { MT_CANCEL, 0, S_LARROW" BACK", NULL },
+  { MT_NONE, 0, NULL, NULL } // sentinel
+};
+
 const menuitem_t menu_stimulus[] = {
   { MT_CALLBACK, KM_START, "START", (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_STOP, "STOP",   (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_CENTER, "CENTER", (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_SPAN, "SPAN",  (const void *)menu_keyboard_cb },
   { MT_CALLBACK, KM_CW, "CW FREQ", (const void *)menu_keyboard_cb },
-  { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
-  { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
+  { MT_SUBMENU, 0, "CFG SWEEP", (const void *)menu_sweep_config },
 //  { MT_ADV_CALLBACK, 0, "PAUSE\nSWEEP", (const void *)menu_pause_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
