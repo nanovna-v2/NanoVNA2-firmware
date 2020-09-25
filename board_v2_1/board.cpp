@@ -289,6 +289,7 @@ namespace board {
 			case 1: return 60;
 			case 2: return 60;
 		}
+		while(1) asm __volatile ("nop");
 	}
 
 	void lcd_spi_init() {
