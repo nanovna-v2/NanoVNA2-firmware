@@ -182,8 +182,8 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 			doEmitValue(true);
 #else
 			setMeasurementPhase(VNAMeasurementPhases::ECALSHORT);
-			break;
 #endif
+			break;
 		case VNAMeasurementPhases::ECALSHORT:
 			ecal[1] = to_complexf(currDP);
 			/* Go back to the start: REFERENCE */
