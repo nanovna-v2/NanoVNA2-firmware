@@ -238,7 +238,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x80081239
+#define CONFIG_MAGIC 0x8008123a
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq)
