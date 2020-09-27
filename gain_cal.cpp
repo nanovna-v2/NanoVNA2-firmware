@@ -36,7 +36,9 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 
 	// override phaseChanged, set bbgain to desired value
 	vnaMeasurement.phaseChanged = [&](VNAMeasurementPhases ph) {
-		old_phaseChanged(ph);
+		rfsw(RFSW_REFL, RFSW_REFL_ON);
+		rfsw(RFSW_RECV, RFSW_RECV_REFL);
+		rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
 		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(currGain));
 	};
 
