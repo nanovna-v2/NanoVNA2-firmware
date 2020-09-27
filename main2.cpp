@@ -331,10 +331,12 @@ static void adf4350_powerup(void) {
 static void updateIFrequency(freqHz_t txFreqHz) {
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
+		int avg = current_props._avg;
+		if(usbDataMode) avg = 1;
 		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
-			vnaMeasurement.nPeriodsMultiplier = 6 * current_props._avg;
+			vnaMeasurement.nPeriodsMultiplier = 6 * avg;
 		} else {
-			vnaMeasurement.nPeriodsMultiplier = 1 * current_props._avg;
+			vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 6000;
@@ -554,7 +556,9 @@ static void exitUSBDataMode() {
 
 
 static complexf ecalApplyReflection(complexf refl, int freqIndex) {
-	#ifdef ECAL_PARTIAL
+	#if BOARD_REVISION >= 4
+		return refl;
+	#elif defined(ECAL_PARTIAL)
 		return refl - measuredEcal[0][freqIndex];
 	#else
 		return SOL_compute_reflection(
@@ -928,6 +932,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 
 	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
 
+#if BOARD_REVISION < 4
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
 		auto ecal0 = applyFixedCorrections(ecal[0] * scale, freqHz);
@@ -965,6 +970,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 			}
 		}
 	}
+#endif
 
 	if(collectMeasurementType >= 0 && collectAllowed) {
 		// we are collecting a measurement for calibration
@@ -1035,8 +1041,10 @@ static void setVNASweepToUI() {
 }
 
 void updateAveraging() {
+	int avg = current_props._avg;
+	if(usbDataMode) avg = 1;
 #if BOARD_REVISION >= 4
-	sys_setTimings_args args = {0, current_props._avg};
+	sys_setTimings_args args = {0, avg};
 	sys_syscall(5, &args);
 #endif
 }
@@ -1581,6 +1589,7 @@ int main(void) {
 			if(!lastUSBDataMode) {
 				ui_mode_usb();
 				setVNASweepToUSB();
+				updateAveraging();
 			}
 			lastUSBDataMode = usbDataMode;
 
@@ -1594,6 +1603,7 @@ int main(void) {
 				redraw_frame();
 				request_to_redraw_grid();
 				setVNASweepToUI();
+				updateAveraging();
 			}
 		}
 		lastUSBDataMode = usbDataMode;
@@ -1744,21 +1754,14 @@ namespace UIActions {
 		current_props._cal_status |= CALSTAT_APPLY;
 		vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
 	}
-	void do_cal_reset(int calType, complexf val) {
-		myassert(calType >= 0 && calType < CAL_ENTRIES);
-		complexf* arr = current_props._cal_data[calType];
-		for(int i=0; i<sweep_points; i++)
-			arr[i] = val;
-	}
 	void cal_reset(void) {
-		current_props._cal_status = 0;
-		do_cal_reset(CAL_LOAD, 0.f);
-		do_cal_reset(CAL_OPEN, 1.f);
-		do_cal_reset(CAL_SHORT, -1.f);
-		do_cal_reset(CAL_THRU, 1.f);
-		do_cal_reset(CAL_ISOLN_OPEN, 0.f);
-		do_cal_reset(CAL_ISOLN_SHORT, 0.f);
-		do_cal_reset(CAL_THRU_REFL, 0.f);
+		current_props.setCalDataToDefault();
+	}
+	void cal_reset_all(void) {
+		current_props.setFieldsToDefault();
+		setVNASweepToUI();
+		updateAveraging();
+		force_set_markmap();
 	}
 
 	static inline void clampFrequency(freqHz_t& f) {

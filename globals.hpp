@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "common.hpp"
+#include "board.hpp"
 
 // global variables, to be defined in globals.cpp that can be accessed by all modules.
 // DO NOT ADD STATEFUL FUNCTIONS HERE.
@@ -35,8 +36,9 @@ extern complexf measuredFreqDomain[2][SWEEP_POINTS_MAX];
 // measured data, possibly transformed
 extern complexf measured[2][SWEEP_POINTS_MAX];
 
+#if BOARD_REVISION < 4
 extern complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX];
-
+#endif
 
 enum EcalStates {
 	ECAL_STATE_MEASURING,
