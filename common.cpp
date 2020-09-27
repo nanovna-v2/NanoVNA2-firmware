@@ -32,11 +32,26 @@ void properties_t::setFieldsToDefault() {
 	_si5351_txPower = 1;
 	_measurement_mode = MEASURE_MODE_FULL;
 
-	memset(_cal_data, 0, sizeof(_cal_data));
+	setCalDataToDefault();
 	memcpy(_trace, def_trace, sizeof(_trace));
 	memcpy(_markers, def_markers, sizeof(_markers));
 }
 
+void properties_t::setCalDataToDefault() {
+  _cal_status = 0;
+  do_cal_reset(CAL_LOAD, 0.f);
+  do_cal_reset(CAL_OPEN, 1.f);
+  do_cal_reset(CAL_SHORT, -1.f);
+  do_cal_reset(CAL_THRU, 1.f);
+  do_cal_reset(CAL_ISOLN_OPEN, 0.f);
+  do_cal_reset(CAL_ISOLN_SHORT, 0.f);
+  do_cal_reset(CAL_THRU_REFL, 0.f);
+}
+void properties_t::do_cal_reset(int calType, complexf val) {
+  complexf* arr = _cal_data[calType];
+  for(int i=0; i<SWEEP_POINTS_MAX; i++)
+    arr[i] = val;
+}
 
 float my_atof(const char *p)
 {

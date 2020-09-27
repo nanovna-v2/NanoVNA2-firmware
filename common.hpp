@@ -49,7 +49,7 @@ typedef int64_t freqHz_t;
 static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define SWEEP_POINTS_MIN 2
 #define SWEEP_POINTS_MAX 201
-#define USB_POINTS_MAX 1024
+
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
 #define FFT_SIZE 256
@@ -194,6 +194,9 @@ struct alignas(4) properties_t {
   // overwrite all fields of this instance with factory default values
   void setFieldsToDefault();
 
+  // clear calibration data
+  void setCalDataToDefault();
+
   properties_t() { setFieldsToDefault(); }
   freqHz_t startFreqHz() const {
     if(_frequency1 > 0) return _frequency0;
@@ -208,6 +211,8 @@ struct alignas(4) properties_t {
       return (stopFreqHz() - startFreqHz()) / (_sweep_points - 1);
     return 0;
   }
+
+  void do_cal_reset(int calType, complexf val);
 };
 
 

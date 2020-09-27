@@ -453,20 +453,23 @@ static UI_FUNCTION_ADV_CALLBACK(menu_cal2_acb)
 {
   (void)data;
   if (b){
-    if (item == 3) b->icon = (cal_status&CALSTAT_APPLY) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
-    if (item == 4) b->icon = (cal_status&CALSTAT_ENHANCED_RESPONSE) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    if (item == 4) b->icon = (cal_status&CALSTAT_APPLY) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    if (item == 5) b->icon = (cal_status&CALSTAT_ENHANCED_RESPONSE) ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
     return;
   }
   switch (item) {
   case 2: // RESET
     cal_reset();
     break;
-  case 3: // CORRECTION
+  case 3: // RESET ALL
+    cal_reset_all();
+    break;
+  case 4: // CORRECTION
     // toggle applying correction
     if (cal_status)
       cal_status ^= CALSTAT_APPLY;
     break;
-  case 4: // ENHANCED RESPONSE
+  case 5: // ENHANCED RESPONSE
     cal_status ^= CALSTAT_ENHANCED_RESPONSE;
     break;
   }
@@ -965,6 +968,7 @@ const menuitem_t menu_cal[] = {
   { MT_SUBMENU,  0, "CALIBRATE", (const void *)menu_calop },
   { MT_SUBMENU,  0, "SAVE",  (const void *)menu_save },
   { MT_ADV_CALLBACK, 0, "RESET", (const void *)menu_cal2_acb },
+  { MT_ADV_CALLBACK, 0, "RESET\nALL", (const void *)menu_cal2_acb },
   { MT_ADV_CALLBACK, 0, "APPLY", (const void *)menu_cal2_acb },
   { MT_ADV_CALLBACK, 0, "ENHANCED\nRESPONSE", (const void *)menu_cal2_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
