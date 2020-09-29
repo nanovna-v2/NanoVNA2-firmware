@@ -6,8 +6,9 @@
  * flash.cpp
  */
 
-
-#define SAVEAREA_MAX  5
+#ifndef SAVEAREA_MAX
+#define SAVEAREA_MAX  7
+#endif
 
 // allocated bytes per save area. must be a multiple of the flash page size (2048)
 constexpr uint32_t SAVEAREA_BYTES = 18432;
