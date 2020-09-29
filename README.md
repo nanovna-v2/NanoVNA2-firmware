@@ -1,6 +1,9 @@
 
-This repository contains the source code to build the firmware for the NanoVNA2 (or SAA2)
+This repository contains the source code to build the firmware for the NanoVNA V2 (S-A-A-2).
+
 See https://nanorfe.com/nanovna-v2.html for more info.
+
+Developers chat room: https://discord.gg/DUH5Xk5
 
 Below is information for building the firmware on Linux.
 
