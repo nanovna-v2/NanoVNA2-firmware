@@ -48,7 +48,7 @@ typedef int64_t freqHz_t;
 // The ADF4350 lower limit is 137Mhz, so it must be above 137Mhz
 static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define SWEEP_POINTS_MIN 2
-#define SWEEP_POINTS_MAX 201
+#define SWEEP_POINTS_MAX 301
 
 #define TRACES_MAX 4
 #define MARKERS_MAX 4

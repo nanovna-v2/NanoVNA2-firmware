@@ -88,12 +88,14 @@ static volatile bool lcdInhibit = false;
 
 float gainTable[RFSW_BBGAIN_MAX+1];
 
+__attribute__((packed))
 struct usbDataPoint {
-	VNAObservation value;
+	//VNAObservation value;
+	complexf S11, S21;
 	int freqIndex;
 };
-static usbDataPoint usbTxQueue[64];
-static constexpr int usbTxQueueMask = 63;
+static usbDataPoint usbTxQueue[128];
+static constexpr int usbTxQueueMask = 127;
 static volatile int usbTxQueueWPos = 0;
 static volatile int usbTxQueueRPos = 0;
 
@@ -714,10 +716,10 @@ static void cmdReadFIFO(int address, int nValues) {
 		}
 
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
-		VNAObservation& value = usbDP.value;
 		if(usbDP.freqIndex < 0 || usbDP.freqIndex > USB_POINTS_MAX)
 			continue;
 
+		/*VNAObservation& value = usbDP.value;
 		value[0] = ecalApplyReflection(value[0] / value[1], usbDP.freqIndex) * value[1];
 
 		int32_t fwdRe = value[1].real();
@@ -725,7 +727,18 @@ static void cmdReadFIFO(int address, int nValues) {
 		int32_t reflRe = value[0].real();
 		int32_t reflIm = value[0].imag();
 		int32_t thruRe = value[2].real();
-		int32_t thruIm = value[2].imag();
+		int32_t thruIm = value[2].imag();*/
+		
+		
+		complexf refl = ecalApplyReflection(usbDP.S11, usbDP.freqIndex);
+		complexf thru = usbDP.S21;
+		int32_t fwdRe = 1073741824;
+		int32_t fwdIm = 0;
+		int32_t reflRe = int32_t(refl.real() * 1073741824.f);
+		int32_t reflIm = int32_t(refl.imag() * 1073741824.f);
+		int32_t thruRe = int32_t(thru.real() * 1073741824.f);
+		int32_t thruIm = int32_t(thru.imag() * 1073741824.f);
+
 
 		uint8_t txbuf[32];
 		txbuf[0] = uint8_t(fwdRe >> 0);
@@ -757,6 +770,8 @@ static void cmdReadFIFO(int address, int nValues) {
 		txbuf[21] = uint8_t(thruIm >> 8);
 		txbuf[22] = uint8_t(thruIm >> 16);
 		txbuf[23] = uint8_t(thruIm >> 24);
+		
+		
 
 		txbuf[24] = uint8_t(usbDP.freqIndex >> 0);
 		txbuf[25] = uint8_t(usbDP.freqIndex >> 8);
@@ -1010,7 +1025,9 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 		// overflow
 	} else {
 		usbTxQueue[wrWPos].freqIndex = freqIndex;
-		usbTxQueue[wrWPos].value = v;
+		//usbTxQueue[wrWPos].value = v;
+		usbTxQueue[wrWPos].S11 = v[0]/v[1];
+		usbTxQueue[wrWPos].S21 = v[2]/v[1];
 		__sync_synchronize();
 		usbTxQueueWPos = (wrWPos + 1) & usbTxQueueMask;
 	}
@@ -1288,10 +1305,12 @@ static bool processDataPoint() {
 
 	while(rdRPos != rdWPos) {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
-		VNAObservation& value = usbDP.value;
 		int freqIndex = usbDP.freqIndex;
+		/*VNAObservation& value = usbDP.value;
 		auto refl = value[0]/value[1];
-		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;
+		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;*/
+		auto refl = usbDP.S11;
+		auto thru = usbDP.S21;
 
 		refl = ecalApplyReflection(refl, freqIndex);
 		if(current_props._cal_status & CALSTAT_APPLY) {
@@ -1561,6 +1580,7 @@ int main(void) {
 	}
 #endif
 
+	usbTxQueueRPos = usbTxQueueWPos;
 	setVNASweepToUI();
 	updateAveraging();
 
