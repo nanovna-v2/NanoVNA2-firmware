@@ -7,9 +7,9 @@ MEMORY
 	/*
 	256KB flash total
 	32KB reserved at start for bootloader and OS.
-	92KB reserved at end for user data (18K * 5 + 2K).
+	128KB reserved at end for user data (18K * 7 + 2K).
 	*/
-	rom (rx) : ORIGIN = 0x08008000, LENGTH = 132K
+	rom (rx) : ORIGIN = 0x08008000, LENGTH = 96K
 }
 SECTIONS
 {
