@@ -61,8 +61,9 @@ cd NanoVNA-V2-firmware
 Now you can build the firmware by running make in the firmware sources directory:
 ```
 cd NanoVNA-V2-firmware
-make
+make EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
 ```
+Note that SWEEP_POINTS_MAX and SAVEAREA_MAX can be customized depending on hardware target. Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase SWEEP_POINTS_MAX to 301 points.
 
 ## Flashing the firmware
 There are two options to update the firmware when using the regular USB interface:
