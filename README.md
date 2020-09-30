@@ -61,9 +61,19 @@ cd NanoVNA-V2-firmware
 Now you can build the firmware by running make in the firmware sources directory:
 ```
 cd NanoVNA-V2-firmware
-make EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
+make BOARDNAME=board_v2_2 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
 ```
-Note that SWEEP_POINTS_MAX and SAVEAREA_MAX can be customized depending on hardware target. Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase SWEEP_POINTS_MAX to 301 points.
+Note that `SWEEP_POINTS_MAX` and `SAVEAREA_MAX` can be customized depending on hardware target. Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase `SWEEP_POINTS_MAX` to 301 points.
+
+`BOARDNAME` should be set to:
+- `board_v2_2` for V2.2 hardware
+- `board_v2_plus` for V2 Plus hardware
+- `board_v2_plus4` for V2 Plus4 hardware
+
+For Plus4, a different linker script needs to be used. The build command line for the Plus4 is:
+```
+make BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=301 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
+```
 
 ## Flashing the firmware
 There are two options to update the firmware when using the regular USB interface:
