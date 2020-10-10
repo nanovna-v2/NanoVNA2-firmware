@@ -1861,7 +1861,7 @@ ui_mode_numeric(int _keypad_mode)
   draw_numeric_area_frame();
   fetch_numeric_target();
   draw_numeric_area();
-  enable_refresh(false);
+  enable_redraw(false);
 }
 
 void
@@ -1888,8 +1888,7 @@ ui_mode_keypad(int _keypad_mode)
   draw_numeric_area_frame();
   fetch_numeric_target();
 //  draw_numeric_area();
-  enable_refresh(false);
-  plot_cancel();
+  enable_redraw(false);
 }
 
 void
@@ -2218,7 +2217,7 @@ ui_process_numeric(UIEvent evt)
       } else {
         set_numeric_value();
         ui_mode_normal();
-        enable_refresh(true);
+        enable_redraw(true);
       }
     }
   }
@@ -2266,7 +2265,7 @@ ui_process_numeric(UIEvent evt)
  exit:
   // cancel operation
   ui_mode_normal();
-  enable_refresh(true);
+  enable_redraw(true);
 }
 
 void
@@ -2311,7 +2310,7 @@ return_to_normal:
   ui_mode_normal();
   //redraw_all();
   uiEnableProcessing();
-  enable_refresh(true);
+  enable_redraw(true);
 }
 
 
