@@ -32,6 +32,7 @@ int16_t grid_width;
 int area_width = AREA_WIDTH_NORMAL;
 int area_height = AREA_HEIGHT_NORMAL;
 
+bool plot_redraw_enable = true;
 bool plot_canceled = false;
 
 small_function<freqHz_t(int)> plot_getFrequencyAt;
@@ -1523,6 +1524,7 @@ draw_all_cells(bool flush_markmap)
 void
 draw_all(bool flush)
 {
+	if(!plot_redraw_enable) return;
 	plot_canceled = false;
 	if (redraw_request & REDRAW_MARKER)
 		markmap_upperarea();
@@ -1974,4 +1976,8 @@ plot_init(void)
 
 void plot_cancel() {
 	plot_canceled = true;
+}
+void enable_redraw(bool enable) {
+	plot_redraw_enable = enable;
+	if(!enable) plot_canceled = true;
 }

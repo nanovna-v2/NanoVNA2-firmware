@@ -1653,8 +1653,8 @@ int main(void) {
 					plot_into_index(measured);
 					ui_marker_track();
 				}
-				if(!lcdInhibit) draw_all(true);
 			}
+			if(!lcdInhibit) draw_all(true);
 			continue;
 		}
 		auto callback = eventQueue.read();
