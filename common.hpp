@@ -49,7 +49,7 @@ typedef int64_t freqHz_t;
 static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define SWEEP_POINTS_MIN 2
 #ifndef SWEEP_POINTS_MAX
-#define SWEEP_POINTS_MAX 301
+#define SWEEP_POINTS_MAX 201
 #endif
 
 #define TRACES_MAX 4

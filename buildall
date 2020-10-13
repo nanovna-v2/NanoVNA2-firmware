@@ -1,31 +1,32 @@
-#!/bin/bash
+#!/bin/bash -x
 
-MAKE_FLAGS=-j7
+MAKE=(make -j7)
+DEFAULTFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
 
-make clean || exit 1
+"${MAKE[@]}" clean || exit 1
 rm *.bin
 
 
 
-make "$MAKE_FLAGS" BOARDNAME=board_v2_2 || exit 1
+"${MAKE[@]}" BOARDNAME=board_v2_2 EXTRA_CFLAGS="$DEFAULTFLAGS" || exit 1
 mv binary.bin v2_2-ili9341.bin
-make clean
+"${MAKE[@]}" clean
 
-make "$MAKE_FLAGS" BOARDNAME=board_v2_2 EXTRA_CFLAGS=-DDISPLAY_ST7796 || exit 1
+"${MAKE[@]}" BOARDNAME=board_v2_2 EXTRA_CFLAGS="$DEFAULTFLAGS -DDISPLAY_ST7796" || exit 1
 mv binary.bin v2_2-st7796.bin
-make clean
+"${MAKE[@]}" clean
 
-make "$MAKE_FLAGS" BOARDNAME=board_v2_plus || exit 1
+"${MAKE[@]}" BOARDNAME=board_v2_plus EXTRA_CFLAGS="$DEFAULTFLAGS" || exit 1
 mv binary.bin v2plus-ili9341.bin
-make clean
+"${MAKE[@]}" clean
 
-make "$MAKE_FLAGS" BOARDNAME=board_v2_plus EXTRA_CFLAGS=-DDISPLAY_ST7796 || exit 1
+"${MAKE[@]}" BOARDNAME=board_v2_plus EXTRA_CFLAGS="$DEFAULTFLAGS -DDISPLAY_ST7796" || exit 1
 mv binary.bin v2plus-st7796.bin
-make clean
+"${MAKE[@]}" clean
 
 
-make "$MAKE_FLAGS" BOARDNAME=board_v2_plus4 EXTRA_CFLAGS=-DDISPLAY_ST7796 \
+DEFAULTFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
+"${MAKE[@]}" BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="$DEFAULTFLAGS -DDISPLAY_ST7796" \
 	LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld || exit 1
 mv binary.bin v2plus4.bin
-make clean
-
+"${MAKE[@]}" clean

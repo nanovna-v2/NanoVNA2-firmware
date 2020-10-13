@@ -63,7 +63,8 @@ Now you can build the firmware by running make in the firmware sources directory
 cd NanoVNA-V2-firmware
 make BOARDNAME=board_v2_2 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
 ```
-Note that `SWEEP_POINTS_MAX` and `SAVEAREA_MAX` can be customized depending on hardware target. Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase `SWEEP_POINTS_MAX` to 301 points.
+Note that `SWEEP_POINTS_MAX` and `SAVEAREA_MAX` can be customized depending on hardware target.
+Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase `SWEEP_POINTS_MAX` to 301 points (warning: experimental! there may not be enough stack space if ram usage is near full).
 
 `BOARDNAME` should be set to:
 - `board_v2_2` for V2.2 hardware
@@ -72,7 +73,7 @@ Note that `SWEEP_POINTS_MAX` and `SAVEAREA_MAX` can be customized depending on h
 
 For Plus4, a different linker script needs to be used. The build command line for the Plus4 is:
 ```
-make BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=301 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
+make BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
 ```
 
 ## Flashing the firmware
