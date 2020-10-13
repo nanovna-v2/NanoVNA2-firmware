@@ -33,7 +33,7 @@ typedef int64_t freqHz_t;
 
 #define VERSION "git"
 #define FIRMWARE_MAJOR_VERSION 1
-#define FIRMWARE_MINOR_VERSION 1
+#define FIRMWARE_MINOR_VERSION 2
 #define CH_KERNEL_VERSION "None"
 #define PORT_COMPILER_NAME "gcc"
 #define PORT_ARCHITECTURE_NAME "arm"
@@ -245,7 +245,7 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x8008123a
+#define CONFIG_MAGIC 0x8008123b
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq)
