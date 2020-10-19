@@ -13,7 +13,8 @@
 #define KEYBOARD_BUTTON_BORDER  2
 // Height of numerical input field (at bottom)
 #define NUM_INPUT_HEIGHT       32
-
+// Distance for marker start grab
+#define MARKER_PICKUP_DISTANCE 30
 // On screen keyboard button size
 #if 1
 #define KP_WIDTH                  ((LCD_WIDTH - MENU_BUTTON_WIDTH) / 4) // numeric keypad button width
@@ -38,7 +39,8 @@
 #define KEYBOARD_BUTTON_BORDER  2
 // Height of numerical input field (at bottom)
 #define NUM_INPUT_HEIGHT   32
-
+// Distance for marker start grab
+#define MARKER_PICKUP_DISTANCE 20
 #if 1
 #define KP_WIDTH                  ((LCD_WIDTH - MENU_BUTTON_WIDTH) / 4) // numeric keypad button width
 #define KP_HEIGHT                 ((LCD_HEIGHT - NUM_INPUT_HEIGHT) / 4) // numeric keypad button height

@@ -1246,10 +1246,10 @@ cal_interpolate(void)
     return;
 
   freqHz_t src_start = src->startFreqHz();
-  freqHz_t src_stop = src->stopFreqHz();
+//freqHz_t src_stop = src->stopFreqHz();
   freqHz_t src_step = src->stepFreqHz();
   freqHz_t dst_start = dst->startFreqHz();
-  freqHz_t dst_stop = dst->stopFreqHz();
+//freqHz_t dst_stop = dst->stopFreqHz();
   freqHz_t dst_step = dst->stepFreqHz();
 
   // lower than start freq of src range
