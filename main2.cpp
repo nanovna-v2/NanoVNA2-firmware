@@ -112,6 +112,7 @@ volatile uint32_t systemTimeCounter = 0;
 static FIFO<small_function<void()>, 8> eventQueue;
 
 static volatile bool usbDataMode = false;
+static volatile bool usbCaptureMode = false;
 
 static freqHz_t currFreqHz = 0;		// current hardware tx frequency
 int currThruGain = 0;		// gain setting used for this thru measurement
@@ -828,6 +829,27 @@ static void setVNASweepToUSB() {
 #endif
 }
 static void cmdRegisterWrite(int address) {
+	if(address == 0xef) {
+		usbCaptureMode = true;
+
+		constexpr struct {
+			uint16_t width;
+			uint16_t height;
+			uint8_t pixelFormat;
+		} meta = { LCD_WIDTH, LCD_HEIGHT, 16 };
+
+		serial.print((char*) &meta, sizeof(meta));
+
+		// use uint16_t ili9341_spi_buffers for read buffer
+		static_assert(meta.width * 2 <= sizeof(ili9341_spi_buffers));
+		for (int y=0; y < meta.height; y+=1){
+			ili9341_read_memory(0, y, meta.width, 1, meta.width*2, ili9341_spi_buffers);   
+			serial.print((char*) ili9341_spi_buffers, meta.width * 2 * 1);
+		}
+
+		usbCaptureMode = false;
+		return;
+	}
 	if(!usbDataMode)
 		enterUSBDataMode();
 	if(address == 0x00 || address == 0x10 || address == 0x20 || address == 0x22) {
@@ -1601,6 +1623,10 @@ int main(void) {
 	while(true) {
 		// process any outstanding commands from usb
 		cmdInputFIFO.drain();
+		if (usbCaptureMode) {
+			continue;
+		}
+
 		if(usbDataMode) {
 			if(outputRawSamples)
 				usb_transmit_rawSamples();
@@ -2067,6 +2093,8 @@ namespace UIActions {
 	}
 
 	void application_doSingleEvent() {
+		// process any outstanding commands from usb
+		cmdInputFIFO.drain();
 		if(eventQueue.readable()) {
 			auto callback = eventQueue.read();
 			eventQueue.dequeue();
