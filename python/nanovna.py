@@ -467,7 +467,7 @@ class NanoVNAV2(NanoVNA):
         # reset protocol to known state
         self.serial.write([0,0,0,0,0,0,0,0])
 
-        self.serial.write([0x20, 0xef, 0x00])
+        self.serial.write([0x20, 0xee, 0x00])
         meta = self.serial.read(2 + 2 + 1)
         print(meta)
 
