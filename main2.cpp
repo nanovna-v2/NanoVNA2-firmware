@@ -829,7 +829,7 @@ static void setVNASweepToUSB() {
 #endif
 }
 static void cmdRegisterWrite(int address) {
-	if(address == 0xef) {
+	if(address == 0xee) {
 		usbCaptureMode = true;
 
 		constexpr struct {
