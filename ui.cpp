@@ -45,7 +45,7 @@ using namespace UIActions;
 #define FALSE false
 
 
-int8_t previous_marker = -1;
+int8_t previous_marker = MARKER_INVALID;
 
 enum {
   UI_NORMAL, UI_MENU, UI_NUMERIC, UI_KEYPAD, UI_USB_MODE
@@ -703,18 +703,6 @@ static UI_FUNCTION_ADV_CALLBACK(menu_display_acb)
   plot_cancel();
 }
 
-static void
-choose_active_marker(void)
-{
-  int i;
-  for (i = 0; i < MARKERS_MAX; i++)
-    if (markers[i].enabled) {
-      active_marker = i;
-      return;
-    }
-  active_marker = -1;
-}
-
 static UI_FUNCTION_CALLBACK(menu_keyboard_cb)
 {
   (void)item;
@@ -781,7 +769,7 @@ static UI_FUNCTION_CALLBACK(menu_marker_op_cb)
     break;
   case 3: /* MARKERS->SPAN */
     {
-      if (previous_marker == -1 || active_marker == previous_marker) {
+      if (previous_marker == MARKER_INVALID || active_marker == previous_marker) {
         // if only 1 marker is active, keep center freq and make span the marker comes to the edge
         freqHz_t center = get_sweep_frequency(ST_CENTER);
         freqHz_t span = center - freq;
@@ -819,7 +807,7 @@ static UI_FUNCTION_CALLBACK(menu_marker_op_cb)
 static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
 {
   int i;
-  if (active_marker == -1)
+  if (active_marker == MARKER_INVALID)
     return;
 
   switch (item) {
@@ -855,7 +843,7 @@ static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
 void ui_marker_track() {
   if (uistat.marker_tracking) {
     int i = marker_search(uistat.marker_search_mode);
-    if (i != -1 && active_marker != -1) {
+    if (i != -1 && active_marker != MARKER_INVALID) {
       markers[active_marker].index = i;
       redraw_request |= REDRAW_MARKER;
     }
@@ -886,56 +874,57 @@ static UI_FUNCTION_ADV_CALLBACK(menu_marker_smith_acb)
   draw_menu();
 }
 
-
-void
-active_marker_select(UIEvent evt, int item)
+static void
+active_marker_check(void)
 {
-  if (item == -1) {
-    active_marker = previous_marker;
-    previous_marker = -1;
-    if (active_marker == -1) {
-      choose_active_marker();
-    }
-  } else {
-    if (previous_marker != active_marker)
-      previous_marker = active_marker;
-    active_marker = item;
+  int i;
+  // Auto select active marker if disabled
+  if (active_marker == MARKER_INVALID)
+    for (i = 0; i < MARKERS_MAX; i++)
+      if (markers[i].enabled) active_marker = i;
+  // Auto select previous marker if disabled
+  if (previous_marker == active_marker) previous_marker = MARKER_INVALID;
+  if (previous_marker == MARKER_INVALID){
+    for (i = 0; i < MARKERS_MAX; i++)
+      if (markers[i].enabled && i != active_marker) previous_marker = i;
   }
 }
 
+#define UI_MARKER_OFF   (MARKERS_MAX  )
+#define UI_MARKER_DELTA (MARKERS_MAX+1)
 static UI_FUNCTION_ADV_CALLBACK(menu_marker_sel_acb)
 {
-  (void)data;
+  int i;
   if (b){
-    if (item < 4 && markers[item].enabled) b->icon = BUTTON_ICON_CHECK;
-    else if (item == 5) b->icon = uistat.marker_delta ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    if (data < MARKERS_MAX && markers[data].enabled) b->icon = BUTTON_ICON_CHECK;
+    else if (data == UI_MARKER_DELTA) b->icon = uistat.marker_delta ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
     return;
   }
-  if (item >= 0 && item < MARKERS_MAX) {
-    if (markers[item].enabled) {
-      if (item == active_marker) {
-        // disable if active trace is selected
-        markers[item].enabled = FALSE;
-        active_marker_select(evt, -1);
-      } else {
-        active_marker_select(evt, item);
+  // Marker select click
+  if (data < MARKERS_MAX) {
+    int mk = data;
+    if (markers[mk].enabled) {            // Marker enabled
+      if (mk == active_marker) {          // If active marker:
+        markers[mk].enabled = FALSE;      //  disable it
+        mk = previous_marker;             //  set select from previous marker
+        active_marker = MARKER_INVALID;   //  invalidate active
       }
     } else {
-      markers[item].enabled = TRUE;
-      active_marker_select(evt, item);
+      markers[mk].enabled = TRUE;         // Enable marker
     }
-  } else if (item == 4) { /* all off */
-	int i;
-	for (i = 0; i < MARKERS_MAX; i++)
-		markers[i].enabled = FALSE;
-      previous_marker = -1;
-      active_marker = -1;
-  } else if (item == 5) { /* marker delta */
+    previous_marker = active_marker;      // set previous marker as current active
+    active_marker = mk;                   // set new active marker
+    active_marker_check();
+  } else if (data == UI_MARKER_OFF) {     // all off
+      for (i = 0; i < MARKERS_MAX; i++)
+        markers[i].enabled = FALSE;
+      previous_marker = MARKER_INVALID;
+      active_marker = MARKER_INVALID;
+  } else if (data == UI_MARKER_DELTA) { // marker delta
     uistat.marker_delta = !uistat.marker_delta;
   }
-  request_to_redraw_marker(active_marker);
+  redraw_marker(active_marker);
   draw_menu();
-//  uistat.lever_mode = LM_MARKER;
 }
 
 static const menuitem_t menu_calop[] = {
@@ -1101,12 +1090,12 @@ const menuitem_t menu_stimulus[] = {
 };
 
 const menuitem_t menu_marker_sel[] = {
-  { MT_ADV_CALLBACK, 1, "MARKER 1", (const void *)menu_marker_sel_acb },
-  { MT_ADV_CALLBACK, 2, "MARKER 2", (const void *)menu_marker_sel_acb },
-  { MT_ADV_CALLBACK, 3, "MARKER 3", (const void *)menu_marker_sel_acb },
-  { MT_ADV_CALLBACK, 4, "MARKER 4", (const void *)menu_marker_sel_acb },
-  { MT_ADV_CALLBACK, 0, "ALL OFF", (const void *)menu_marker_sel_acb },
-  { MT_ADV_CALLBACK, 0, "DELTA", (const void *)menu_marker_sel_acb },
+  { MT_ADV_CALLBACK, 0, "MARKER 1", (const void *)menu_marker_sel_acb },
+  { MT_ADV_CALLBACK, 1, "MARKER 2", (const void *)menu_marker_sel_acb },
+  { MT_ADV_CALLBACK, 2, "MARKER 3", (const void *)menu_marker_sel_acb },
+  { MT_ADV_CALLBACK, 3, "MARKER 4", (const void *)menu_marker_sel_acb },
+  { MT_ADV_CALLBACK, UI_MARKER_OFF, "ALL OFF", (const void *)menu_marker_sel_acb },
+  { MT_ADV_CALLBACK, UI_MARKER_DELTA, "DELTA", (const void *)menu_marker_sel_acb },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -1906,7 +1895,7 @@ ui_mode_normal(void)
 static void
 lever_move_marker(UIEvent evt)
 {
-  if (active_marker >= 0 && markers[active_marker].enabled) {
+  if (active_marker != MARKER_INVALID && markers[active_marker].enabled) {
     auto& am = markers[active_marker];
     int step = evt.isTick() ? 3 : 1;
     if (evt.isJogLeft()) {
@@ -1927,7 +1916,7 @@ lever_move_marker(UIEvent evt)
 static void
 lever_search_marker(UIEvent evt)
 {
-  if (active_marker >= 0) {
+  if (active_marker != MARKER_INVALID) {
     if (evt.isJogLeft()) {
       int i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
       if (i != -1)
@@ -2008,7 +1997,7 @@ ui_process_normal(UIEvent evt)
 #endif
   }
   if(evt.isJogEnd()) {
-    if (active_marker >= 0)
+    if (active_marker != MARKER_INVALID)
       request_to_redraw_marker(active_marker);
   }
   if(evt.isTouchPress()) {
@@ -2335,52 +2324,46 @@ drag_marker(int t, int m)
 }
 
 static int
-sq_distance(int x0, int y0)
-{
-  return x0*x0 + y0*y0;
-}
-
-static int
 touch_pickup_marker(void)
 {
   int touch_x, touch_y;
-  int m, t;
   if(!touch_position(&touch_x, &touch_y))
     return FALSE;
   touch_x -= OFFSETX;
   touch_y -= OFFSETY;
-
-  for (m = 0; m < MARKERS_MAX; m++) {
-    if (!markers[m].enabled)
+  int8_t i = MARKER_INVALID, mt, m, t;
+  int min_dist = MARKER_PICKUP_DISTANCE * MARKER_PICKUP_DISTANCE;
+  // Search closest marker to touch position
+  for (t = 0; t < TRACES_MAX; t++) {
+    if (!trace[t].enabled)
       continue;
-
-    for (t = 0; t < TRACES_MAX; t++) {
-      int x, y;
-      if (!trace[t].enabled)
+    for (m = 0; m < MARKERS_MAX; m++) {
+      if (!markers[m].enabled)
         continue;
-
-      marker_position(m, t, &x, &y);
-
-      if (sq_distance(x - touch_x, y - touch_y) < 400) {
-        if (active_marker != m) {
-          previous_marker = active_marker;
-          active_marker = m;
-          request_to_redraw_marker(active_marker);
-        }
-        // select trace
-        uistat.current_trace = t;
-
-        // drag marker until release
-        drag_marker(t, m);
-        return TRUE;
+      // Get distance to marker from touch point
+      int dist = distance_to_index(t, markers[m].index, touch_x, touch_y);
+      if (dist < min_dist) {
+        min_dist = dist;
+        i  = m;
+        mt = t;
       }
     }
   }
+  // Marker not found
+  if (i == MARKER_INVALID)
+    return FALSE;
+  // Marker found, set as active and start drag it
+  if (active_marker != i) {
+    previous_marker = active_marker;
+    active_marker = i;
+  }
 
-  return FALSE;
+  // select trace
+  uistat.current_trace = mt;
+  // drag marker until release
+  drag_marker(mt, i);
+  return TRUE;
 }
-
-
 
 void
 ui_process(UIEvent evt)

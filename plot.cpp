@@ -1171,14 +1171,6 @@ draw_marker(int x, int y, int c, int ch)
 	}
 }
 
-void
-marker_position(int m, int t, int *x, int *y)
-{
-	uint32_t index = trace_index[t][markers[m].index];
-	*x = CELL_X(index);
-	*y = CELL_Y(index);
-}
-
 typedef int (*compare_t)(int x, int y);
 static int greater(int x, int y) { return x > y; }
 static int lesser(int x, int y) { return x < y; }
@@ -1275,20 +1267,22 @@ marker_search_right(MarkerSearchModes mode, int from)
 
 
 int
+distance_to_index(int8_t t, uint16_t idx, int16_t x, int16_t y)
+{
+	uint32_t index = trace_index[t][idx];
+	x-= CELL_X(index);
+	y-= CELL_Y(index);
+	return x*x + y*y;
+}
+
+int
 search_nearest_index(int x, int y, int t)
 {
-	uint32_t *index = trace_index[t];
 	int min_i = -1;
-	int min_d = 1000;
+	int min_d = MARKER_PICKUP_DISTANCE * MARKER_PICKUP_DISTANCE;
 	int i;
 	for (i = 0; i < sweep_points; i++) {
-		int16_t dx = x - CELL_X(index[i]);
-		int16_t dy = y - CELL_Y(index[i]);
-		if (dx < 0) dx = -dx;
-		if (dy < 0) dy = -dy;
-		if (dx > 20 || dy > 20)
-			continue;
-		int d = dx*dx + dy*dy;
+		int d = distance_to_index(t, i, x , y);
 		if (d < min_d) {
 			min_d = d;
 			min_i = i;
@@ -1539,7 +1533,7 @@ draw_all(bool flush)
 void
 request_to_redraw_marker(int marker)
 {
-	if (marker < 0)
+	if (marker == MARKER_INVALID)
 		return;
 	// mark map on new position of marker
 	redraw_request |= REDRAW_MARKER;
@@ -1609,11 +1603,11 @@ cell_draw_marker_info(int x0, int y0)
 {
 	char buf[24];
 	int t;
-	if (active_marker < 0)
+	if (active_marker == MARKER_INVALID)
 		return;
 	int idx = markers[active_marker].index;
 	int j = 0;
-	if (active_marker != -1 && previous_marker != -1 && uistat.current_trace != -1) {
+	if (previous_marker != MARKER_INVALID && uistat.current_trace != -1) {
 		int t = uistat.current_trace;
 		int mk;
 		for (mk = 0; mk < MARKERS_MAX; mk++) {
@@ -1646,15 +1640,16 @@ cell_draw_marker_info(int x0, int y0)
 		}
 
 		// draw marker delta
-		if (!uistat.marker_delta && previous_marker >= 0 && active_marker != previous_marker && markers[previous_marker].enabled) {
+		if (!uistat.marker_delta && active_marker != previous_marker) {
 			int idx0 = markers[previous_marker].index;
 			int xpos = (WIDTH/2+30) + CELLOFFSETX - x0;
 			int ypos = 1 + (j/2)*(FONT_STR_HEIGHT) - y0;
-			strcpy(buf, S_DELTA "1:"); if (mk == active_marker) buf[0] = S_SARROW[0];
-			buf[1] += previous_marker;
+			strcpy(buf, S_DELTA "1-1:"); if (mk == active_marker) buf[0] = S_SARROW[0];
+			buf[1] += active_marker;
+			buf[3] += previous_marker;
 			ili9341_set_foreground(0xFFFF);
 			cell_drawstring(buf, xpos, ypos);
-			xpos += 3*FONT_WIDTH + 3;
+			xpos += 5*FONT_WIDTH + 5;
 			if ((domain_mode & DOMAIN_MODE) == DOMAIN_FREQ) {
 				frequency_string(buf, sizeof buf, freqAt(idx) - freqAt(idx0));
 			} else {
@@ -1869,7 +1864,7 @@ draw_cal_status(void)
     ili9341_drawstring(c, x, y);
   }
   y += FONT_STR_HEIGHT;
-  int i;
+  uint16_t i;
   static const struct {char text[2]; uint16_t mask;} calibration_text[]={
     {"S", CALSTAT_SHORT},
     {"O", CALSTAT_OPEN},
