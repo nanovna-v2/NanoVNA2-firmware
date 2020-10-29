@@ -460,7 +460,26 @@ class NanoVNAV2(NanoVNA):
         return (self.data(0), self.data(1))
     
     def capture(self):
-        raise NotImplementedError()
+        from PIL import Image
+
+        self.open()
+
+        # reset protocol to known state
+        self.serial.write([0,0,0,0,0,0,0,0])
+
+        self.serial.write([0x20, 0xee, 0x00])
+        meta = self.serial.read(2 + 2 + 1)
+        print(meta)
+
+        self.serial.timeout = 10
+        width, height, pixel = struct.unpack('<HHB', meta)
+        b = self.serial.read(width * height * 2)
+        x = struct.unpack(">" + str(width * height) + "H", b)
+
+        # convert pixel format from 565(RGB) to 8888(RGBA)
+        arr = np.array(x, dtype=np.uint32)
+        arr = 0xFF000000 + ((arr & 0xF800) >> 8) + ((arr & 0x07E0) << 5) + ((arr & 0x001F) << 19)
+        return Image.frombuffer('RGBA', (width, height), arr, 'raw', 'RGBA', 0, 1)
 
 
 
