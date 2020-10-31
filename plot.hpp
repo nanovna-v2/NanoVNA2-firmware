@@ -94,7 +94,7 @@ void draw_cal_status(void);
 
 void markmap_all_markers(void);
 
-void marker_position(int m, int t, int *x, int *y);
+int distance_to_index(int8_t t, uint16_t idx, int16_t x, int16_t y);
 int search_nearest_index(int x, int y, int t);
 
 int marker_search(MarkerSearchModes mode);
