@@ -58,7 +58,7 @@ def read_serialNumber(ser):
         print("Read timeout")
         return None
 
-    sn = unpack_from("<iii", resp)
+    sn = unpack_from("<III", resp)
     sn = f"{sn[0]:08x}-{sn[1]:08x}-{sn[2]:08x}"
     return sn
 
