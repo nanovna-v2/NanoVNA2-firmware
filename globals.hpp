@@ -25,6 +25,7 @@ extern int16_t lastsaveid;
 extern properties_t *active_props;
 extern properties_t current_props;
 
+#define MARKER_INVALID     -1
 extern int8_t previous_marker;
 
 
