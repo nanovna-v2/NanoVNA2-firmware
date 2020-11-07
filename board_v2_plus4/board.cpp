@@ -310,9 +310,8 @@ namespace board {
 		spi_set_baudrate_prescaler(SPI1, SPI_CR1_BR_FPCLK_DIV_16);
 	}
 	void spi_drop_read() {
-		uint16_t data;
-		data = SPI_DR(SPI1); // Cleanup read buffers in SPI hardware
-		data = SPI_DR(SPI1);
+		(void)SPI_DR(SPI1); // Cleanup read buffers in SPI hardware
+		(void)SPI_DR(SPI1);
 	}
 	bool lcd_spi_isDMAInProgress = false;
 	
