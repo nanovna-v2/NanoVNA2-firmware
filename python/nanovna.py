@@ -217,7 +217,7 @@ class NanoVNA:
         x = struct.unpack(">76800H", b)
         # convert pixel format from 565(RGB) to 8888(RGBA)
         arr = np.array(x, dtype=np.uint32)
-        arr = 0xFF000000 + ((arr & 0xF800) >> 8) + ((arr & 0x07E0) << 5) + ((arr & 0x001F) << 19)
+        arr = 0xFF000000 + ((arr & 0xF800) << 8) + ((arr & 0x07E0) << 5) + ((arr & 0x001F) << 3)
         return Image.frombuffer('RGBA', (320, 240), arr, 'raw', 'RGBA', 0, 1)
 
     def logmag(self, x):

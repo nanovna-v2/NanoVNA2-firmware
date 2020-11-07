@@ -311,16 +311,26 @@ namespace board {
 		
 		spi_enable_tx_dma(SPI1);
 
+		// Set to tx+rx mode
+		spi_set_unidirectional_mode(SPI1);
+
 		/* Enable SPI1 periph. */
 		spi_enable(SPI1);
 	}
-	void lcd_spi_fast() {
-		spi_set_baudrate_prescaler(SPI1, 0b001);
+	void lcd_spi_write() {
+		spi_set_baudrate_prescaler(SPI1,SPI_CR1_BR_FPCLK_DIV_4);
+	}
+	void lcd_spi_read() {
+		spi_set_baudrate_prescaler(SPI1, SPI_CR1_BR_FPCLK_DIV_8);
 	}
 	void lcd_spi_slow() {
-		spi_set_baudrate_prescaler(SPI1, 0b110);
+		spi_set_baudrate_prescaler(SPI1, SPI_CR1_BR_FPCLK_DIV_16);
 	}
-	
+	void spi_drop_read() {
+		uint16_t data;
+		data = SPI_DR(SPI1); // Cleanup read buffers in SPI hardware
+		data = SPI_DR(SPI1);
+	}
 	bool lcd_spi_isDMAInProgress = false;
 	
 	void lcd_spi_waitDMA() {
@@ -335,8 +345,6 @@ namespace board {
 		while (!(SPI_SR(SPI1) & SPI_SR_TXE));
 		while ((SPI_SR(SPI1) & SPI_SR_BSY));
 		
-		// switch back to tx+rx mode
-		spi_set_unidirectional_mode(SPI1);
 		lcd_spi_isDMAInProgress = false;
 //		delayMicroseconds(10);
 	}
@@ -344,10 +352,10 @@ namespace board {
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits) {
 		if(lcd_spi_isDMAInProgress)
 			lcd_spi_waitDMA();
-		uint32_t ret = 0;
-		ret |= spi_xfer(SPI1, (uint16_t) sdi);
+		spi_drop_read();
+		uint32_t ret = spi_xfer(SPI1, (uint16_t) sdi);
 		if(bits == 16) {
-			ret = uint32_t(spi_xfer(SPI1, (uint16_t) (sdi >> 8))) << 8;
+			ret|= uint32_t(spi_xfer(SPI1, (uint16_t) (sdi >> 8))) << 8;
 		}
 		return ret;
 	}
@@ -357,9 +365,6 @@ namespace board {
 			lcd_spi_waitDMA();
 
 		lcd_spi_isDMAInProgress = true;
-
-		// switch to tx only mode (do not put garbage in rx register)
-		spi_set_bidirectional_transmit_only_mode(SPI1);
 		DMATransferParams srcParams, dstParams;
 		srcParams.address = buf;
 		srcParams.bytesPerWord = 1;
@@ -374,5 +379,37 @@ namespace board {
 								bytes, false);
 		dmaChannelSPI.start();
 		//lcd_spi_waitDMA();
+	}
+
+	void lcd_spi_read_bulk(uint8_t* buf, int bytes) {
+		if(lcd_spi_isDMAInProgress)
+			lcd_spi_waitDMA();
+		// Switch to read speed
+		lcd_spi_read();
+		// Drop old data in rx buffers
+		spi_drop_read();
+#if 0
+		lcd_spi_isDMAInProgress = true;
+		DMATransferParams srcParams, dstParams;
+		srcParams.address = &SPI_DR(SPI1);
+		srcParams.bytesPerWord = 1;
+		srcParams.increment = false;
+
+		dstParams.address = buf;
+		dstParams.bytesPerWord = 1;
+		dstParams.increment = true;
+
+		dmaChannelSPI.setTransferParams(srcParams, dstParams,
+								DMADirection::PERIPHERAL_TO_MEMORY,
+								bytes, false);
+		dmaChannelSPI.start();
+		lcd_spi_waitDMA();
+#else
+		do{
+			*buf++= spi_xfer(SPI1, (uint16_t)0);
+		}while(--bytes);
+#endif
+		// Switch back to normal
+		lcd_spi_write();
 	}
 }
