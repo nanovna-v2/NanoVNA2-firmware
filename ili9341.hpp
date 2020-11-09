@@ -56,6 +56,9 @@ extern small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 // write spi_buffer to spi bus up to bytes without waiting for completion
 extern small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
 
+// read to buffer from spi bus up to bytes, waiting for completion aftrer
+extern small_function<void(uint8_t *buf, uint32_t bytes)> ili9341_spi_read;
+
 // wait for bulk transfers to complete
 extern small_function<void()> ili9341_spi_wait_bulk;
 
@@ -80,5 +83,4 @@ void ili9341_drawstring(const char *str, int len, int x, int y);
 //int ili9341_drawchar_size(uint8_t ch, int x, int y, uint8_t size);
 void ili9341_drawstring_size(const char *str, int x, int y, uint8_t size);
 void ili9341_drawfont(uint8_t ch, int x, int y);
-void ili9341_read_memory(int x, int y, int w, int h, int len, uint16_t* out);
-void ili9341_read_memory_continue(int len, uint16_t* out);
+void ili9341_read_memory(int x, int y, int w, int h, uint16_t* out);
