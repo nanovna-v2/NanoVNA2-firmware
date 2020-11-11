@@ -819,13 +819,13 @@ static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
     draw_menu();
     break;
   case 2: /* search Left */
-    i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
+    i = marker_search_dir(uistat.marker_search_mode, markers[active_marker].index, MK_SEARCH_LEFT);
     if (i != -1)
       markers[active_marker].index = i;
     draw_menu();
     break;
   case 3: /* search right */
-    i = marker_search_right(uistat.marker_search_mode, markers[active_marker].index);
+    i = marker_search_dir(uistat.marker_search_mode, markers[active_marker].index, MK_SEARCH_RIGHT);
     if (i != -1)
       markers[active_marker].index = i;
     draw_menu();
@@ -1641,7 +1641,7 @@ draw_menu_buttons(const menuitem_t *menu)
 
 
     if (button.icon >=0){
-      ili9341_blitBitmap(LCD_WIDTH-MENU_BUTTON_WIDTH+MENU_BUTTON_BORDER + 1, y+(MENU_BUTTON_HEIGHT-ICON_HEIGHT)/2, ICON_WIDTH, ICON_HEIGHT, &check_box[button.icon*ICON_HEIGHT]);
+      ili9341_blitBitmap(LCD_WIDTH-MENU_BUTTON_WIDTH+MENU_BUTTON_BORDER + 1, y+(MENU_BUTTON_HEIGHT-ICON_HEIGHT)/2, ICON_WIDTH, ICON_HEIGHT, &check_box[button.icon*2*ICON_HEIGHT]);
       text_offs=LCD_WIDTH-MENU_BUTTON_WIDTH+MENU_BUTTON_BORDER+1+ICON_WIDTH;
     }
     int lines = menu_is_multiline(menu[i].label);
@@ -1917,11 +1917,11 @@ lever_search_marker(UIEvent evt)
 {
   if (active_marker != MARKER_INVALID) {
     if (evt.isJogLeft()) {
-      int i = marker_search_left(uistat.marker_search_mode, markers[active_marker].index);
+      int i = marker_search_dir(uistat.marker_search_mode, markers[active_marker].index, MK_SEARCH_LEFT);
       if (i != -1)
         markers[active_marker].index = i;
     } else if (evt.isJogRight()) {
-      int i = marker_search_right(uistat.marker_search_mode, markers[active_marker].index);
+      int i = marker_search_dir(uistat.marker_search_mode, markers[active_marker].index, MK_SEARCH_RIGHT);
       if (i != -1)
         markers[active_marker].index = i;
     }
