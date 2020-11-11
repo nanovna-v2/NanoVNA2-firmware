@@ -150,6 +150,9 @@ enum MarkerSearchModes: uint8_t {
 	Max
 };
 
+#define MK_SEARCH_LEFT    -1
+#define MK_SEARCH_RIGHT    1
+
 enum {
 	UI_OPTIONS_FLIP = 1
 };
