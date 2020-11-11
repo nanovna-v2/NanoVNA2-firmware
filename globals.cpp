@@ -53,7 +53,6 @@ uistat_t uistat = {
  digit_mode: 0,
  current_trace: 0,
  value: 0,
- previous_value: 0,
  lever_mode: LM_MARKER,
  previous_marker: 0,
  marker_search_mode: MarkerSearchModes::Max,
