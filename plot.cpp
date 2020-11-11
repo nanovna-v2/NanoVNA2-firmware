@@ -987,11 +987,13 @@ search_index_range_x(int x1, int x2, uint32_t *index, int *i0, int *i1)
 	j = i;
 	// Search index left from point
 	do {
+		if (j == 0) break;
 		j--;
 	} while (j > 0 && x1 <= CELL_X(index[j]));
 	*i0 = j;
 	// Search index right from point
 	do {
+		if (i >=sweep_points-1) break;
 		i++;
 	} while (i < sweep_points-1 && CELL_X(index[i]) < x2);
 	*i1 = i;
