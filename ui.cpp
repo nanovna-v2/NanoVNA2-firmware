@@ -805,7 +805,7 @@ static UI_FUNCTION_CALLBACK(menu_marker_op_cb)
 
 static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
 {
-  int i;
+  int i = -1;
   if (active_marker == MARKER_INVALID)
     return;
 
@@ -814,28 +814,22 @@ static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
   case 1: /* minimum */
     uistat.marker_search_mode = (item == 0) ? MarkerSearchModes::Max : MarkerSearchModes::Min;
     i = marker_search(uistat.marker_search_mode);
-    if (i != -1)
-      markers[active_marker].index = i;
-    draw_menu();
     break;
   case 2: /* search Left */
     i = marker_search_dir(uistat.marker_search_mode, markers[active_marker].index, MK_SEARCH_LEFT);
-    if (i != -1)
-      markers[active_marker].index = i;
-    draw_menu();
     break;
   case 3: /* search right */
     i = marker_search_dir(uistat.marker_search_mode, markers[active_marker].index, MK_SEARCH_RIGHT);
-    if (i != -1)
-      markers[active_marker].index = i;
-    draw_menu();
     break;
   case 4: /* tracking */
     uistat.marker_tracking = !uistat.marker_tracking;
-    draw_menu();
     break;
   }
-  redraw_marker(active_marker);
+  if (i >= 0){
+    markers[active_marker].index = i;
+    redraw_marker(active_marker);
+  }
+  draw_menu();
 //  uistat.lever_mode = LM_SEARCH;
 }
 
