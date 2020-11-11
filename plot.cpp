@@ -1525,9 +1525,12 @@ request_to_redraw_marker(int marker)
 	if (marker == MARKER_INVALID)
 		return;
 	// mark map on new position of marker
-	redraw_request |= REDRAW_MARKER;
 	markmap_marker(marker);
+
+	// mark cells on marker info
+	markmap_upperarea();
 }
+
 void
 redraw_marker(int marker)
 {
