@@ -1226,10 +1226,8 @@ marker_search(MarkerSearchModes mode)
 	return found;
 }
 
-// TODO: merge marker_search_left and marker_search_right into one function
-
 int
-marker_search_left(MarkerSearchModes mode, int from)
+marker_search_dir(MarkerSearchModes mode, int from, int dir)
 {
 	compare_t compare = marker_comparator(mode);
 	int i;
@@ -1239,14 +1237,14 @@ marker_search_left(MarkerSearchModes mode, int from)
 		return -1;
 
 	int value = CELL_Y(trace_index[uistat.current_trace][from]);
-	for (i = from - 1; i >= 0; i--) {
+	for (i = from + dir; i >= 0 && i < sweep_points; i+=dir) {
 		uint32_t index = trace_index[uistat.current_trace][i];
 		if ((*compare)(value, CELL_Y(index)))
 			break;
 		value = CELL_Y(index);
 	}
 
-	for (; i >= 0; i--) {
+	for (;i >= 0 && i < sweep_points; i+=dir) {
 		uint32_t index = trace_index[uistat.current_trace][i];
 		if ((*compare)(CELL_Y(index), value)) {
 			break;
@@ -1256,36 +1254,6 @@ marker_search_left(MarkerSearchModes mode, int from)
 	}
 	return found;
 }
-
-int
-marker_search_right(MarkerSearchModes mode, int from)
-{
-	compare_t compare = marker_comparator(mode);
-	int i;
-	int found = -1;
-
-	if (uistat.current_trace == -1)
-		return -1;
-
-	int value = CELL_Y(trace_index[uistat.current_trace][from]);
-	for (i = from + 1; i < sweep_points; i++) {
-		uint32_t index = trace_index[uistat.current_trace][i];
-		if ((*compare)(value, CELL_Y(index)))
-			break;
-		value = CELL_Y(index);
-	}
-
-	for (; i < sweep_points; i++) {
-		uint32_t index = trace_index[uistat.current_trace][i];
-		if ((*compare)(CELL_Y(index), value)) {
-			break;
-		}
-		found = i;
-		value = CELL_Y(index);
-	}
-	return found;
-}
-
 
 int
 distance_to_index(int8_t t, uint16_t idx, int16_t x, int16_t y)
