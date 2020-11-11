@@ -47,7 +47,7 @@ using namespace UIActions;
 int8_t previous_marker = MARKER_INVALID;
 
 enum {
-  UI_NORMAL, UI_MENU, UI_NUMERIC, UI_KEYPAD, UI_USB_MODE
+  UI_NORMAL, UI_MENU, UI_KEYPAD, UI_USB_MODE
 };
 
 enum {
@@ -120,18 +120,14 @@ bool uiEventsEnabled = true;
 UIEvent lastUIEvent = {};
 
 void ui_mode_menu(void);
-void ui_mode_numeric(int _keypad_mode);
 void ui_mode_keypad(int _keypad_mode);
 void draw_menu(void);
 void leave_ui_mode(void);
 void erase_menu_buttons(void);
 void ui_process_keypad(UIEvent evt);
-static void ui_process_numeric(UIEvent evt);
 
 static void menu_push_submenu(const menuitem_t *submenu);
 static int touch_pickup_marker(void);
-
-
 
 void
 touch_prepare_sense(void)
@@ -708,13 +704,7 @@ static UI_FUNCTION_CALLBACK(menu_keyboard_cb)
   if (data == KM_SCALE && trace[uistat.current_trace].type == TRC_DELAY) {
     data = KM_SCALEDELAY;
   }
-  if (evt.isLeverLongPress()) {
-    ui_mode_numeric(data);
-//    ui_process_numeric();
-  } else {
-    ui_mode_keypad(data);
-//    ui_process_keypad();
-  }
+  ui_mode_keypad(data);
 }
 
 static UI_FUNCTION_ADV_CALLBACK(measurement_mode)
@@ -1443,14 +1433,6 @@ draw_numeric_input(const char *buf)
       c = KP_MINUS;
     else// if (c >= '0' && c <= '9')
       c = c - '0';
-    if (ui_mode == UI_NUMERIC && uistat.digit == 8-i) {
-      fg = DEFAULT_SPEC_INPUT_COLOR;
-        focused = true;
-      if (uistat.digit_mode){
-        bg = DEFAULT_SPEC_INPUT_COLOR;
-        fg = DEFAULT_MENU_TEXT_COLOR;
-      }
-    }
     ili9341_set_foreground(fg);
     ili9341_set_background(bg);
     if (c < 0 && focused) c = 0;
@@ -1706,60 +1688,7 @@ leave_ui_mode()
   if (ui_mode == UI_MENU) {
     request_to_draw_cells_behind_menu();
     erase_menu_buttons();
-  } else if (ui_mode == UI_NUMERIC) {
-    request_to_draw_cells_behind_numeric_input();
-    erase_numeric_input();
-    draw_frequencies();
   }
-}
-
-void
-fetch_numeric_target(void)
-{
-  switch (keypad_mode) {
-  case KM_START:
-    uistat.value = get_sweep_frequency(ST_START);
-    break;
-  case KM_STOP:
-    uistat.value = get_sweep_frequency(ST_STOP);
-    break;
-  case KM_CENTER:
-    uistat.value = get_sweep_frequency(ST_CENTER);
-    break;
-  case KM_SPAN:
-    uistat.value = get_sweep_frequency(ST_SPAN);
-    break;
-  case KM_POINTS:
-    uistat.value = sweep_points;
-    break;
-  case KM_CW:
-    uistat.value = get_sweep_frequency(ST_CW);
-    break;
-  case KM_SCALE:
-    uistat.value = get_trace_scale(uistat.current_trace) * 1000;
-    break;
-  case KM_REFPOS:
-    uistat.value = get_trace_refpos(uistat.current_trace) * 1000;
-    break;
-  case KM_EDELAY:
-    uistat.value = get_electrical_delay();
-    break;
-  case KM_VELOCITY_FACTOR:
-    uistat.value = velocity_factor * 100;
-    break;
-  case KM_SCALEDELAY:
-    uistat.value = get_trace_scale(uistat.current_trace) * 1e12;
-    break;
-  }
-
-  {
-    uint32_t x = uistat.value;
-    int n = 0;
-    for (; x >= 10 && n < 9; n++)
-      x /= 10;
-    uistat.digit = n;
-  }
-  uistat.previous_value = uistat.value;
 }
 
 void set_numeric_value(void)
@@ -1827,26 +1756,6 @@ ui_mode_menu(void)
 }
 
 void
-ui_mode_numeric(int _keypad_mode)
-{
-  if (ui_mode == UI_NUMERIC)
-    return;
-
-  leave_ui_mode();
-
-  // keypads array
-  keypad_mode = _keypad_mode;
-  ui_mode = UI_NUMERIC;
-  area_width = AREA_WIDTH_NORMAL;
-  area_height = LCD_HEIGHT-NUM_INPUT_HEIGHT;//AREA_HEIGHT_NORMAL - 32;
-
-  draw_numeric_area_frame();
-  fetch_numeric_target();
-  draw_numeric_area();
-  enable_redraw(false);
-}
-
-void
 ui_mode_keypad(int _keypad_mode)
 {
   if (ui_mode == UI_KEYPAD)
@@ -1868,8 +1777,6 @@ ui_mode_keypad(int _keypad_mode)
   draw_menu();
   draw_keypad();
   draw_numeric_area_frame();
-  fetch_numeric_target();
-//  draw_numeric_area();
   enable_redraw(false);
 }
 
@@ -2143,113 +2050,6 @@ keypad_apply_touch(UIEvent evt)
   return -1;
 }
 
-static void
-numeric_apply_touch(UIEvent evt)
-{
-  int touch_x, touch_y;
-  if(!touch_position(&touch_x, &touch_y, evt))
-    return;
-
-  if (touch_x < 64) {
-    ui_mode_normal();
-    return;
-  }
-  if (touch_x > 64+9*20+8+8) {
-    ui_mode_keypad(keypad_mode);
-    ui_process_keypad(evt);
-    return;
-  }
-
-  if (touch_y > LCD_HEIGHT-40) {
-    int n = 9 - (touch_x - 64) / 20;
-    uistat.digit = n;
-    uistat.digit_mode = TRUE;
-  } else {
-    int step, n;
-    if (touch_y < 100) {
-      step = 1;
-    } else {
-      step = -1;
-    }
-
-    for (n = uistat.digit; n > 0; n--)
-      step *= 10;
-    uistat.value += step;
-  }
-  draw_numeric_area();
-
-  uiWaitEvent();
-  uistat.digit_mode = FALSE;
-  draw_numeric_area();
-
-  return;
-}
-
-static void
-ui_process_numeric(UIEvent evt)
-{
-  if (evt.isLeverClick() || evt.isLeverLongPress()) {
-    if (uistat.digit_mode) {
-      uistat.digit_mode = FALSE;
-      draw_numeric_area();
-    } else {
-      if (evt.type == UIEventTypes::LongPress) {
-        uistat.digit_mode = TRUE;
-        draw_numeric_area();
-      } else {
-        set_numeric_value();
-        ui_mode_normal();
-        enable_redraw(true);
-      }
-    }
-  }
-
-  if(evt.isJog()) {
-    if (uistat.digit_mode) {
-      if (evt.isJogLeft()) {
-        if (uistat.digit < 8) {
-          uistat.digit++;
-          draw_numeric_area();
-        } else {
-          goto exit;
-        }
-      }
-      if (evt.isJogRight()) {
-        if (uistat.digit > 0) {
-          uistat.digit--;
-          draw_numeric_area();
-        } else {
-          goto exit;
-        }
-      }
-    } else {
-      int32_t step = 1;
-      int n;
-      for (n = uistat.digit; n > 0; n--)
-        step *= 10;
-      if (evt.isJogRight()) {
-        uistat.value += step;
-        draw_numeric_area();
-      }
-      if (evt.isJogLeft()) {
-        uistat.value -= step;
-        draw_numeric_area();
-      }
-    }
-  }
-
-  if(evt.isTouchPress()) {
-    numeric_apply_touch(evt);
-  }
-
-  return;
-
- exit:
-  // cancel operation
-  ui_mode_normal();
-  enable_redraw(true);
-}
-
 void
 ui_process_keypad(UIEvent evt)
 {
@@ -2387,9 +2187,6 @@ ui_process(UIEvent evt)
     break;
   case UI_MENU:
     ui_process_menu(evt);
-    break;
-  case UI_NUMERIC:
-    ui_process_numeric(evt);
     break;
   case UI_KEYPAD:
     ui_process_keypad(evt);
