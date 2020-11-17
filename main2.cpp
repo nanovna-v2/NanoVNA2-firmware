@@ -332,10 +332,10 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
+	int avg = current_props._avg;
+	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
-		int avg = current_props._avg;
-		if(usbDataMode) avg = 1;
 		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
 			vnaMeasurement.nPeriodsMultiplier = 6 * avg;
 		} else {
@@ -368,7 +368,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		return;
 	}
 	vnaMeasurement.adcFullScale = 20000 * 48;
-	vnaMeasurement.nPeriodsMultiplier = 1 * current_props._avg;
+	vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -1588,17 +1588,7 @@ int main(void) {
 		current_props._frequency0 = 200000000;
 		show_dmesg();
 	}
-
-#if BOARD_REVISION < 4
-	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
-#else
-	sys_syscall(4, gainTable);
-#endif
-
-	for(int i=0; i<=RFSW_BBGAIN_MAX; i++) {
-		printk("BBGAIN %d: %.2f dB\n", i, log10f(gainTable[i])*20.f);
-	}
-
+    UIActions::rebuild_bbgain();
 #ifdef HAS_SELF_TEST
 	if(SelfTest::shouldEnterSelfTest()) {
 		SelfTest::performSelfTest(vnaMeasurement);
@@ -2044,9 +2034,23 @@ namespace UIActions {
 		ecalIgnoreValues = 20;
 		return ret;
 	}
+
+	void rebuild_bbgain(void){
+#if BOARD_REVISION < 4
+		performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
+#else
+		sys_syscall(4, gainTable);
+#endif
+
+		for(int i=0; i<=RFSW_BBGAIN_MAX; i++) {
+			printk("BBGAIN %d: %.2f dB\n", i, log10f(gainTable[i])*20.f);
+		}
+	}
+
 	int caldata_recall(int id) {
 		int ret = flash_caldata_recall(id);
 		if(ret == 0) {
+//			rebuild_bbgain();
 			setVNASweepToUI();
 			updateAveraging();
 			force_set_markmap();

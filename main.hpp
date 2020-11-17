@@ -16,6 +16,7 @@ namespace UIActions {
 	void cal_done(void);
 	void cal_reset(void);
 	void cal_reset_all(void);
+	void rebuild_bbgain(void);
 
 	void set_sweep_frequency(SweepParameter type, freqHz_t frequency);
 	void set_sweep_points(int points);
