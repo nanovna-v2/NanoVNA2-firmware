@@ -28,11 +28,15 @@ static void discardPoints(FIFO<complexf, fifoSize>& dpFIFO, int n) {
 
 // measure the attenuation at each gain setting
 void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGain) {
+	int j, i;
+	volatile int currGain = 0;
 	auto old_emitDataPoint = vnaMeasurement.emitDataPoint;
 	auto old_phaseChanged = vnaMeasurement.phaseChanged;
+	auto old_avg = current_props._avg;
+	auto old_pow = current_props._adf4350_txPower;
 	FIFO<complexf, 32> dpFIFO;
-	volatile int currGain = 0;
-
+	current_props._avg = 1;
+	current_props._adf4350_txPower = 0;
 
 	// override phaseChanged, set bbgain to desired value
 	vnaMeasurement.phaseChanged = [&](VNAMeasurementPhases ph) {
@@ -50,29 +54,32 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 		dpFIFO.enqueue(v[1]);
 	};
 
-	for(currGain=0; currGain <= maxGain; currGain++) {
+	for(j = 0; j <= maxGain; j++) {
+		currGain = j;
 		discardPoints(dpFIFO, 3);
 		int nValues = 10;
 		if(currGain == 3)
 			nValues = 40;
 
 		float mag = 0;
-		for(int i=0; i<nValues; i++) {
+		for(i=0; i<nValues; i++) {
 			while(!dpFIFO.readable());
 			auto& dp = dpFIFO.read();
 			mag += abs(dp);
 			dpFIFO.dequeue();
 		}
-		mag /= nValues;
-		gainTable[currGain] = 1.f/mag;
+		gainTable[j] = mag / nValues;
 	}
 
 	// normalize first entry to 1.0
-	for(currGain=1; currGain <= maxGain; currGain++) {
-		gainTable[currGain] /= gainTable[0];
+	float norm = gainTable[0];
+	gainTable[0] = 1.f; // norm / gainTable[0];
+	for(j = 1; j <= maxGain; j++) {
+		gainTable[j] = norm / gainTable[j];
 	}
-	gainTable[0] = 1.f;
 
+	current_props._avg = old_avg;
+	current_props._adf4350_txPower = old_pow;
 	// reset callbacks
 	vnaMeasurement.emitDataPoint = old_emitDataPoint;
 	vnaMeasurement.phaseChanged = old_phaseChanged;
