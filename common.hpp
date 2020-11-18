@@ -150,6 +150,9 @@ enum MarkerSearchModes: uint8_t {
 	Max
 };
 
+#define MK_SEARCH_LEFT    -1
+#define MK_SEARCH_RIGHT    1
+
 enum {
 	UI_OPTIONS_FLIP = 1
 };
@@ -237,7 +240,6 @@ struct uistat_t {
   int8_t digit_mode;
   int8_t current_trace; /* 0..3 */
   int64_t value; // for editing at numeric input area
-  int64_t previous_value;
   uint8_t lever_mode;
   int8_t previous_marker;
   MarkerSearchModes marker_search_mode;
