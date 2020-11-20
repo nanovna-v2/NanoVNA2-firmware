@@ -47,6 +47,9 @@ void CommandParser::handleInput(const uint8_t* s, int len) {
 					case 0x12:
 						send(rPtr, 4);
 						break;
+					case 0x13:
+						send(rPtr, 8);
+						break;
 				}
 				cmdPhase = 0;
 				goto cont;
