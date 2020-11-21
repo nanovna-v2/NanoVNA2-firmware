@@ -24,7 +24,7 @@ typedef VNAObservation VNAObservationSet;
 // S11, S21
 typedef array<complexf, 2> VNARawValue;
 
-typedef int64_t freqHz_t;
+typedef uint64_t freqHz_t;
 
 
 // constants and data types used by all modules.
@@ -252,7 +252,7 @@ struct uistat_t {
 
 static inline bool is_freq_for_adf4350(freqHz_t freq)
 {
-	return freq > FREQUENCY_CHANGE_OVER;
+	return freq >= FREQUENCY_CHANGE_OVER;
 }
 
 // convert vbat [mV] to battery indicator
