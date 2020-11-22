@@ -8,15 +8,16 @@
 #define _BMP24(d)                    (((d)>>16)&0xFF), (((d)>>8)&0xFF), ((d)&0xFF)
 #define _BMP32(d)  (((d)>>24)&0xFF), (((d)>>16)&0xFF), (((d)>>8)&0xFF), ((d)&0xFF)
 
-#define S_DELTA "\004"
-#define S_PI    "\034"
-#define S_MICRO "\035"
-#define S_OHM   "\036"
-#define S_DEGREE "\037"
-#define S_SARROW "\030"
-#define S_INFINITY "\031"
-#define S_LARROW "\032"
-#define S_RARROW "\033"
+// Additional chars in fonts
+#define S_DELTA    "\027"  // hex 0x17
+#define S_SARROW   "\030"  // hex 0x18
+#define S_INFINITY "\031"  // hex 0x19
+#define S_LARROW   "\032"  // hex 0x1A
+#define S_RARROW   "\033"  // hex 0x1B
+#define S_PI       "\034"  // hex 0x1C
+#define S_MICRO    "\035"  // hex 0x1D
+#define S_OHM      "\036"  // hex 0x1E
+#define S_DEGREE   "\037"  // hex 0x1F
 
 #ifndef DISPLAY_ST7796
 extern const uint8_t x5x7_bits [];
