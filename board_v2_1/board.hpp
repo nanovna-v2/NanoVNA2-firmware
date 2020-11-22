@@ -173,15 +173,18 @@ namespace board {
 	// spi peripheral only manages clk, sdi, and sdo.
 	void lcd_spi_init();
 
-	// two speed presets for ili9341 and touch controller
-	void lcd_spi_fast();
+	// three speed presets for ili9341 write/read and touch controller
+	void lcd_spi_write();
+	void lcd_spi_read();
 	void lcd_spi_slow();
 
 	// bits must be 16 or 8
 	uint32_t lcd_spi_transfer(uint32_t sdi, int bits);
 
 	void lcd_spi_transfer_bulk(uint8_t* buf, int bytes);
-	
+
+	void lcd_spi_read_bulk(uint8_t* buf, int bytes);
+
 	// wait for all bulk transfers to complete
 	void lcd_spi_waitDMA();
 }
