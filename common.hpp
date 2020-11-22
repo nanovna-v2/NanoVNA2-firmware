@@ -24,7 +24,7 @@ typedef VNAObservation VNAObservationSet;
 // S11, S21
 typedef array<complexf, 2> VNARawValue;
 
-typedef uint64_t freqHz_t;
+typedef int64_t freqHz_t;
 
 
 // constants and data types used by all modules.
