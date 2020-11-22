@@ -91,7 +91,7 @@ void XPT2046::getRaw (uint16_t &vi, uint16_t &vj, adc_ref_t mode, uint8_t max_sa
 		spiTransfer(CTRL_HI_Y | CTRL_LO_SER, 8);
 	}
 	spiTransfer(0, 16);  // Flush last read, just to be sure
-	
+	spiTransfer(0, 16);
 	spiSetCS(false);
 }
 
