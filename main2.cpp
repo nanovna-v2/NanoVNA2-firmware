@@ -333,7 +333,7 @@ static void adf4350_powerup(void) {
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
 	int avg = current_props._avg;
-	if(usbDataMode) avg = 1;
+//	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
 		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
@@ -405,7 +405,7 @@ void setFrequency(freqHz_t freqHz) {
 	 * changing to an existing frequency temporarily breaks the signal */
 	if(currFreqHz != freqHz) {
 		currFreqHz = freqHz;
-		// use adf4350 for f > 140MHz
+		// use adf4350 for f >= 140MHz
 		if(is_freq_for_adf4350(freqHz)) {
 			adf4350_update(freqHz);
 			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
@@ -653,6 +653,9 @@ For a description of the command interface see command_parser.hpp
 -- 26: dataMode: 0 => VNA data, 1 => raw data, 2 => exit usb data mode
 -- 30: valuesFIFO - returns data points; elements are 32-byte. See below for data format.
 --                  command 0x14 reads FIFO data; writing any value clears FIFO.
+-- 40: adf4350 power
+-- 41: si5351 power (reserved)
+-- 42: average setting
 -- f0: device variant (01)
 -- f1: protocol version (01)
 -- f2: hardware revision
@@ -853,6 +856,9 @@ static void cmdRegisterWrite(int address) {
 		usbCaptureMode = false;
 		return;
 	}
+	if (address == 0x40) {UIActions::set_averaging(registers[0x40]); return;}
+	if (address == 0x42) {UIActions::set_adf4350_txPower(registers[0x42]); return;}
+
 	if(!usbDataMode)
 		enterUSBDataMode();
 	if(address == 0x00 || address == 0x10 || address == 0x20 || address == 0x22) {
@@ -1084,7 +1090,7 @@ static void setVNASweepToUI() {
 
 void updateAveraging() {
 	int avg = current_props._avg;
-	if(usbDataMode) avg = 1;
+//	if(usbDataMode) avg = 1;
 #if BOARD_REVISION >= 4
 	sys_setTimings_args args = {0, avg};
 	sys_syscall(5, &args);
@@ -1478,6 +1484,11 @@ int main(void) {
 		registers[(0xd0 + i*4 + 2) & registersSizeMask] = (deviceID[i] >> 16) & 0xff;
 		registers[(0xd0 + i*4 + 3) & registersSizeMask] = (deviceID[i] >> 24) & 0xff;
 	}
+	//	-- 40: average setting
+	//	-- 41: si5351 power (reserved)
+	//	-- 42: adf4350 power
+	registers[0x40] = current_props._avg;
+	registers[0x42] = current_props._adf4350_txPower;
 
 	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
@@ -2019,6 +2030,7 @@ namespace UIActions {
 		if(i < 1) i = 1;
 		if(i > 255) i = 255;
 		current_props._avg = (uint8_t) i;
+		registers[0x40] = (uint8_t) i;
 		updateAveraging();
 	}
 
@@ -2026,6 +2038,7 @@ namespace UIActions {
 		if(i < 0) i = 0;
 		if(i > 3) i = 3;
 		current_props._adf4350_txPower = (uint8_t) i;
+		registers[0x42] = (uint8_t) i;
 	}
 
 	int caldata_save(int id) {
