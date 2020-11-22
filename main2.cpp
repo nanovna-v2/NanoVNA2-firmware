@@ -196,7 +196,7 @@ struct sys_start_args {
 };
 struct sys_setSweep_args {
 	freqHz_t startFreqHz, stepFreqHz;
-	int nPoints, dataPointsPerFreq;
+	int nPoints, dataPointsPerFreq = 1;
 	uint32_t flags = 0;
 
 	// this function is called to modify the frequency or other parameters at
@@ -1031,8 +1031,8 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 		} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
 			collectMeasurementState = 2;
 			collectMeasurementOffset += 2;
-			if(collectMeasurementOffset >= currSweepArgs.nPoints)
-				collectMeasurementOffset -= currSweepArgs.nPoints;
+			if(collectMeasurementOffset >= sweep_points)
+				collectMeasurementOffset -= sweep_points;
 		} else if(collectMeasurementState == 2 && collectMeasurementOffset == freqIndex) {
 			collectMeasurementState = 0;
 			collectMeasurementType = -1;
@@ -1083,8 +1083,10 @@ void updateAveraging() {
 	int avg = current_props._avg;
 	if(usbDataMode) avg = 1;
 #if BOARD_REVISION >= 4
-	sys_setTimings_args args = {0, avg};
-	sys_syscall(5, &args);
+	if(avg != currSweepArgs.dataPointsPerFreq) {
+		currSweepArgs.dataPointsPerFreq = avg;
+		sys_syscall(3, &currSweepArgs);
+	}
 #endif
 }
 
@@ -1319,6 +1321,10 @@ cal_interpolate(void)
   redraw_request |= REDRAW_CAL_STATUS;
 }
 
+int lastFreqIndex = -1;
+int currDPCnt = 0;
+usbDataPoint currUSBDP;
+
 // consume all items in the values fifo and update the "measured" array.
 static bool processDataPoint() {
 	int rdRPos = usbTxQueueRPos;
@@ -1328,6 +1334,30 @@ static bool processDataPoint() {
 	while(rdRPos != rdWPos) {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		int freqIndex = usbDP.freqIndex;
+		
+		currDPCnt++;
+		if(freqIndex != lastFreqIndex) {
+			currDPCnt = 0;
+			lastFreqIndex = freqIndex;
+		}
+		
+		if(currSweepArgs.dataPointsPerFreq > 1) {
+			if(currDPCnt == 0) {
+				currUSBDP = usbDP;
+			} else {
+				currUSBDP.S11 += usbDP.S11;
+				currUSBDP.S21 += usbDP.S21;
+			}
+			if(currDPCnt == (currSweepArgs.dataPointsPerFreq - 1)) {
+				currUSBDP.S11 /= currSweepArgs.dataPointsPerFreq;
+				currUSBDP.S21 /= currSweepArgs.dataPointsPerFreq;
+			} else {
+				rdRPos = (rdRPos + 1) & usbTxQueueMask;
+				usbTxQueueRPos = rdRPos;
+				continue;
+			}
+		}
+		
 		/*VNAObservation& value = usbDP.value;
 		auto refl = value[0]/value[1];
 		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;*/
