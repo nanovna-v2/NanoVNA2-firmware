@@ -81,7 +81,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 		return;
 	}
 	if(periodCounterSwitch >= nWaitSwitch) {
-		currDP += complexi{valRe, valIm};
+		currDP += complexf{(float)valRe, (float)valIm};
 
 		if(measurementPhase == VNAMeasurementPhases::THRU) {
 			if(clipped) {
@@ -127,7 +127,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 			currThru = currDP;
 
 			if(currGain < gainMax && !gainChangeOccurred) {
-				float mag = abs(to_complexf(currThru));
+				float mag = abs(currThru) / 512; // Fix sample multipler 16 / 8192
 				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
 				if(mag < (fullScale * 0.15)) {
 					// signal level too low; increase gain and retry
@@ -170,12 +170,12 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 			break;
 
 		case VNAMeasurementPhases::ECALTHRU:
-			ecal[2] = to_complexf(currDP);
+			ecal[2] = currDP;
 			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 			break;
 
 		case VNAMeasurementPhases::ECALLOAD:
-			ecal[0] = to_complexf(currDP);
+			ecal[0] = currDP;
 #ifdef ECAL_PARTIAL
 			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
@@ -185,7 +185,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 #endif
 			break;
 		case VNAMeasurementPhases::ECALSHORT:
-			ecal[1] = to_complexf(currDP);
+			ecal[1] = currDP;
 			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			doEmitValue(true);
@@ -195,7 +195,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 
 void VNAMeasurement::doEmitValue(bool ecal) {
 	// emit new data point
-	VNAObservationSet value = {to_complexf(currRefl), to_complexf(currFwd), to_complexf(currThru)};
+	VNAObservationSet value = {currRefl, currFwd, currThru};
 	emitDataPoint(sweepCurrPoint, currFreq, value, ecal ? this->ecal : nullptr);
 
 	clipFlag = false;

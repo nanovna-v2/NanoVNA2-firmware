@@ -117,7 +117,7 @@ public:
 
 
 	// current data point variables
-	complexi currDP, currFwd, currRefl, currThru;
+	complexf currDP, currFwd, currRefl, currThru;
 
 	// sweep params
 	freqHz_t sweepStartHz = 0, sweepStepHz = 0;
