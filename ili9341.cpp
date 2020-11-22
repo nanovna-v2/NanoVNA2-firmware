@@ -153,6 +153,7 @@ small_function<void(bool selected)> ili9341_spi_set_cs;
 small_function<uint32_t(uint32_t sdi, int bits)> ili9341_spi_transfer;
 small_function<void(uint32_t words)> ili9341_spi_transfer_bulk;
 small_function<void()> ili9341_spi_wait_bulk;
+small_function<void(uint8_t *buf, uint32_t bytes)> ili9341_spi_read;
 
 static inline void ssp_senddata(uint8_t x)
 {
@@ -379,44 +380,37 @@ void ili9341_bulk(int x, int y, int w, int h)
 }
 
 void
-ili9341_read_memory_raw(uint8_t cmd, int len, uint16_t* out)
-{
-	uint8_t r, g, b;
-	ili9341_spi_wait_bulk();
-	send_command(cmd, 0, NULL);
-
-	// require 8bit dummy clock
-	r = ssp_sendrecvdata(0);
-
-	while (len-- > 0) {
-		// read data is always 18bit
-		r = ssp_sendrecvdata(0);
-		g = ssp_sendrecvdata(0);
-		b = ssp_sendrecvdata(0);
-		*out++ = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-	}
-
-	CS_HIGH;
-}
-
-void
-ili9341_read_memory(int x, int y, int w, int h, int len, uint16_t *out)
+ili9341_read_memory(int x, int y, int w, int h, uint16_t *out)
 {
 	uint32_t xx = __REV16(x | ((x + w - 1) << 16));
 	uint32_t yy = __REV16(y | ((y + h - 1) << 16));
 	ili9341_spi_wait_bulk();
 	send_command(ILI9341_COLUMN_ADDRESS_SET, 4, (uint8_t *)&xx);
 	send_command(ILI9341_PAGE_ADDRESS_SET, 4, (uint8_t*)&yy);
-	
-	ili9341_read_memory_raw(0x2E, len, out);
-}
 
-void
-ili9341_read_memory_continue(int len, uint16_t* out)
-{
-	ili9341_read_memory_raw(0x3E, len, out);
-}
+	ili9341_spi_wait_bulk();
+	send_command(0x2E, 0, NULL);
 
+	int len = w * h;
+#ifndef DISPLAY_ST7796
+	// require 8bit dummy clock
+	ssp_sendrecvdata(0);
+	do {
+		// read data is always 24bit RGB888
+		uint8_t r, g, b;
+		r = ssp_sendrecvdata(0);
+		g = ssp_sendrecvdata(0);
+		b = ssp_sendrecvdata(0);
+		*out++ = RGB565(r,g,b);
+	} while(--len);
+#else
+	// require 8bit dummy clock
+	ssp_sendrecvdata(0);
+	// read data is always 16bit RGB565
+	ili9341_spi_read((uint8_t *)out, len * 2);
+#endif
+	CS_HIGH;
+}
 
 void
 ili9341_set_flip(bool flipX, bool flipY) {
