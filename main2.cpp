@@ -314,7 +314,7 @@ static void adf4350_setup() {
 }
 static void adf4350_update(freqHz_t freqHz) {
 	adf4350_tx.rfPower = current_props._adf4350_txPower;
-//	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
+	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
 	synthesizers::adf4350_set(adf4350_tx, freqHz, adf4350_freqStep);
 	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
 }
