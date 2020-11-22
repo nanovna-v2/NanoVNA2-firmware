@@ -281,10 +281,10 @@ extern "C" void tim2_isr() {
 
 static int si5351_doUpdate(uint32_t freqHz) {
 	// round frequency to values that can be accurately set, so that IF frequency is not wrong
-	if(freqHz <= 10000000)
-		freqHz = (freqHz/10) * 10;
-	else
-		freqHz = (freqHz/100) * 100;
+//	if(freqHz <= 10000000)
+//		freqHz = (freqHz/10) * 10;
+//	else
+//		freqHz = (freqHz/100) * 100;
 	return synthesizers::si5351_set(freqHz+lo_freq, freqHz);
 }
 
@@ -314,7 +314,7 @@ static void adf4350_setup() {
 }
 static void adf4350_update(freqHz_t freqHz) {
 	adf4350_tx.rfPower = current_props._adf4350_txPower;
-	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
+//	freqHz = freqHz_t(freqHz/adf4350_freqStep)*adf4350_freqStep;
 	synthesizers::adf4350_set(adf4350_tx, freqHz, adf4350_freqStep);
 	synthesizers::adf4350_set(adf4350_rx, freqHz + lo_freq, adf4350_freqStep);
 }
@@ -336,9 +336,9 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 //	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
-		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
+/*		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
 			vnaMeasurement.nPeriodsMultiplier = 6 * avg;
-		} else {
+		} else */{
 			vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
