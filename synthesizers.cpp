@@ -64,30 +64,6 @@ namespace synthesizers {
 		return si5351.Init() == 0;
 	}
 
-	// Find better approximate values for n/d
-	#define MAX_DENOMINATOR ((1 << 20) - 1)
-	static inline void approximate_fraction(uint32_t *n, uint32_t *d)
-	{
-	  // cf. https://github.com/python/cpython/blob/master/Lib/fractions.py#L227
-	  uint32_t denom = *d;
-	  if (denom > MAX_DENOMINATOR) {
-	    uint32_t num = *n;
-	    uint32_t p0 = 0, q0 = 1, p1 = 1, q1 = 0;
-	    while (denom != 0) {
-	      uint32_t a = num / denom;
-	      uint32_t b = num % denom;
-	      uint32_t q2 = q0 + a*q1;
-	      if (q2 > MAX_DENOMINATOR)
-	        break;
-	      uint32_t p2 = p0 + a*p1;
-	      p0 = p1; q0 = q1; p1 = p2; q1 = q2;
-	      num = denom; denom = b;
-	    }
-	    *n = p1;
-	    *d = q1;
-	  }
-	}
-
 	int si5351_set(uint32_t rxFreqHz, uint32_t txFreqHz) {
 		using namespace Si5351;
 		int ret = 0;
@@ -135,9 +111,9 @@ namespace synthesizers {
 
 				// calculate pll settings
 				uint32_t mult = uint32_t(uint64_t(freqHz)*6*128/1000);
-				uint32_t N = mult/xtalFreqKHz;
-				uint32_t frac = mult - N*xtalFreqKHz;
-
+				uint32_t N    = mult / xtalFreqKHz;
+				uint32_t frac = mult % xtalFreqKHz;
+				approximate_fraction(&N, &frac);
 				si5351.PLL[pll].PLL_Multiplier_Integer = N;
 				si5351.PLL[pll].PLL_Multiplier_Numerator = frac;
 				si5351.PLL[pll].PLL_Multiplier_Denominator = xtalFreqKHz;
