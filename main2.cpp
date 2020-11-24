@@ -486,7 +486,9 @@ static void lcd_and_ui_setup() {
 	ili9341_spi_wait_bulk = []() {
 		lcd_spi_waitDMA();
 	};
-
+	ili9341_spi_read = [](uint8_t *buf, uint32_t bytes) {
+		lcd_spi_read_bulk(buf, bytes);
+	};
 	xpt2046.spiSetCS = [](bool selected) {
 		// a single SPI master is used for both the ILI9346 display and the
 		// touch controller; if an outstanding background DMA is in progress,
@@ -505,10 +507,10 @@ static void lcd_and_ui_setup() {
 		digitalWrite(ili9341_cs, HIGH);
 
 		lcd_spi_slow();
-		delayMicroseconds(10);
+//		delayMicroseconds(10);
 		uint32_t ret = lcd_spi_transfer(sdi, bits);
-		delayMicroseconds(10);
-		lcd_spi_fast();
+//		delayMicroseconds(10);
+		lcd_spi_write();
 		return ret;
 	};
 	delay(10);
@@ -516,7 +518,7 @@ static void lcd_and_ui_setup() {
 	xpt2046.begin(LCD_WIDTH, LCD_HEIGHT);
 
 	ili9341_init();
-	lcd_spi_fast();
+	lcd_spi_write();
 	// show test pattern
 	//ili9341_test(5);
 	// clear screen
@@ -706,7 +708,8 @@ static void cmdReadFIFO(int address, int nValues) {
 	if(address != 0x30) return;
 	if(!usbDataMode)
 		enterUSBDataMode();
-
+	// Set count as sweepPoints if 0
+	if (nValues == 0) nValues = *(uint16_t*)(registers + 0x20);
 	for(int i=0; i<nValues;) {
 		int rdRPos = usbTxQueueRPos;
 		int rdWPos = usbTxQueueWPos;
@@ -831,19 +834,19 @@ static void setVNASweepToUSB() {
 static void cmdRegisterWrite(int address) {
 	if(address == 0xee) {
 		usbCaptureMode = true;
-
+#pragma pack(push, 1)
 		constexpr struct {
 			uint16_t width;
 			uint16_t height;
 			uint8_t pixelFormat;
 		} meta = { LCD_WIDTH, LCD_HEIGHT, 16 };
-
+#pragma pack(pop)
 		serial.print((char*) &meta, sizeof(meta));
 
 		// use uint16_t ili9341_spi_buffers for read buffer
 		static_assert(meta.width * 2 <= sizeof(ili9341_spi_buffers));
 		for (int y=0; y < meta.height; y+=1){
-			ili9341_read_memory(0, y, meta.width, 1, meta.width*2, ili9341_spi_buffers);   
+			ili9341_read_memory(0, y, meta.width, 1, ili9341_spi_buffers);
 			serial.print((char*) ili9341_spi_buffers, meta.width * 2 * 1);
 		}
 
