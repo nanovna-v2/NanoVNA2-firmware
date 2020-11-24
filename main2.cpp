@@ -1806,7 +1806,7 @@ namespace UIActions {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 		#if BOARD_REVISION >= 4
-			sys_setTimings_args args {0, current_props._avg};
+			sys_setTimings_args args {0, 1};
 			sys_syscall(5, &args);
 		#endif
 			current_props._cal_status |= (1 << type);
@@ -1816,12 +1816,12 @@ namespace UIActions {
 		vnaMeasurement.ecalIntervalPoints = 1;
 		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	#if BOARD_REVISION >= 4
-		int avg = current_props._avg;
-		if(avg <= 4)
-			avg *= 4;
-		else if(avg < 20)
-			avg *= 2;
-		sys_setTimings_args args {0, avg};
+		int avgMult = 1;
+		if(current_props._avg <= 4)
+			avgMult = 4;
+		else if(current_props._avg < 20)
+			avgMult = 2;
+		sys_setTimings_args args {0, avgMult};
 		sys_syscall(5, &args);
 	#endif
 		collectMeasurementType = type;
