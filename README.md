@@ -76,6 +76,14 @@ For Plus4, a different linker script needs to be used. The build command line fo
 make BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
 ```
 
+The first time you build the firmware on a fresh repository, there is a libopencm3 bug that sometimes causes the linker script to be overwritten with a nonworking one. If the built firmware does not boot, try running:
+```
+git reset --hard gd32f303cc_with_bootloader.ld
+git reset --hard gd32f303cc_with_bootloader_plus4.ld
+```
+And rebuilding.
+
+
 ## Flashing the firmware
 There are two options to update the firmware when using the regular USB interface:
  - Use NanoVNA-QT
