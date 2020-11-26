@@ -196,7 +196,7 @@ struct sys_start_args {
 };
 struct sys_setSweep_args {
 	freqHz_t startFreqHz, stepFreqHz;
-	int nPoints, dataPointsPerFreq;
+	int nPoints, dataPointsPerFreq = 1;
 	uint32_t flags = 0;
 
 	// this function is called to modify the frequency or other parameters at
@@ -951,6 +951,10 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 
+int lastFreqIndex = -1;
+int currDPCnt = 0;
+VNAObservation currDP = {0.f, 0.f, 0.f};
+
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped) {
 	digitalWrite(led, clipped?1:0);
@@ -960,6 +964,27 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
 #endif
+	currDPCnt++;
+	if(freqIndex != lastFreqIndex) {
+		currDPCnt = 0;
+		lastFreqIndex = freqIndex;
+	}
+
+	if(currSweepArgs.dataPointsPerFreq > 1) {
+		if(currDPCnt == 0) {
+			currDP = v;
+		} else {
+			currDP[0] += v[0];
+			currDP[1] += v[1];
+			currDP[2] += v[2];
+		}
+		if(currDPCnt == (currSweepArgs.dataPointsPerFreq - 1)) {
+			v = currDP;
+		} else {
+			return;
+		}
+	}
+	
 
 	//v[0] = powf(10, currThruGain/20.f)*v[1];
 	//ecal = nullptr;
@@ -1034,8 +1059,8 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 		} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
 			collectMeasurementState = 2;
 			collectMeasurementOffset += 2;
-			if(collectMeasurementOffset >= currSweepArgs.nPoints)
-				collectMeasurementOffset -= currSweepArgs.nPoints;
+			if(collectMeasurementOffset >= sweep_points)
+				collectMeasurementOffset -= sweep_points;
 		} else if(collectMeasurementState == 2 && collectMeasurementOffset == freqIndex) {
 			collectMeasurementState = 0;
 			collectMeasurementType = -1;
@@ -1076,7 +1101,7 @@ static void setVNASweepToUI() {
 	ecalState = ECAL_STATE_MEASURING;
 #else
 	setHWSweep(sys_setSweep_args {
-		start, step, current_props._sweep_points, 1
+		start, step, current_props._sweep_points, current_props._avg
 	});
 #endif
 	update_grid();
@@ -1086,8 +1111,10 @@ void updateAveraging() {
 	int avg = current_props._avg;
 	if(usbDataMode) avg = 1;
 #if BOARD_REVISION >= 4
-	sys_setTimings_args args = {0, avg};
-	sys_syscall(5, &args);
+	if(avg != currSweepArgs.dataPointsPerFreq) {
+		currSweepArgs.dataPointsPerFreq = avg;
+		sys_syscall(3, &currSweepArgs);
+	}
 #endif
 }
 
@@ -1322,6 +1349,7 @@ cal_interpolate(void)
   redraw_request |= REDRAW_CAL_STATUS;
 }
 
+
 // consume all items in the values fifo and update the "measured" array.
 static bool processDataPoint() {
 	int rdRPos = usbTxQueueRPos;
@@ -1331,6 +1359,7 @@ static bool processDataPoint() {
 	while(rdRPos != rdWPos) {
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
 		int freqIndex = usbDP.freqIndex;
+		
 		/*VNAObservation& value = usbDP.value;
 		auto refl = value[0]/value[1];
 		auto thru = value[2]/value[1];// - measuredEcal[2][freqIndex]*0.8f;*/
@@ -1769,7 +1798,7 @@ namespace UIActions {
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 		#if BOARD_REVISION >= 4
-			sys_setTimings_args args {0, current_props._avg};
+			sys_setTimings_args args {0, 1};
 			sys_syscall(5, &args);
 		#endif
 			current_props._cal_status |= (1 << type);
@@ -1779,12 +1808,12 @@ namespace UIActions {
 		vnaMeasurement.ecalIntervalPoints = 1;
 		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	#if BOARD_REVISION >= 4
-		int avg = current_props._avg;
-		if(avg <= 4)
-			avg *= 4;
-		else if(avg < 20)
-			avg *= 2;
-		sys_setTimings_args args {0, avg};
+		int avgMult = 1;
+		if(current_props._avg <= 4)
+			avgMult = 4;
+		else if(current_props._avg < 20)
+			avgMult = 2;
+		sys_setTimings_args args {0, avgMult};
 		sys_syscall(5, &args);
 	#endif
 		collectMeasurementType = type;
