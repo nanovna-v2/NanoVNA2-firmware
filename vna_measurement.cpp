@@ -59,7 +59,7 @@ void VNAMeasurement::sweepAdvance() {
 	}
 }
 
-void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, bool clipped) {
+void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, bool clipped) {
 	auto currPoint = sweepCurrPoint;
 	/* If -1 then we restart */
 	if(currPoint == -1) {
@@ -127,7 +127,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 			currThru = currDP;
 
 			if(currGain < gainMax && !gainChangeOccurred) {
-				float mag = abs(currThru) / 512; // Fix sample multipler 16 / 8192
+				float mag = abs(currThru) / 512; // Fix to old sample multipler 16 / 8192
 				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
 				if(mag < (fullScale * 0.15)) {
 					// signal level too low; increase gain and retry
@@ -207,6 +207,6 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 	}
 }
 
-void VNAMeasurement::_emitValue_t::operator()(int32_t* valRe, int32_t* valIm) {
+void VNAMeasurement::_emitValue_t::operator()(int64_t* valRe, int64_t* valIm) {
 	m->sampleProcessor_emitValue(*valRe, *valIm, m->sampleProcessor.clipFlag);
 }
