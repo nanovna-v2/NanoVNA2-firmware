@@ -33,7 +33,8 @@ void VNAMeasurement::setMeasurementPhase(VNAMeasurementPhases ph) {
 	phaseChanged(ph);
 	measurementPhase = ph;
 	periodCounterSwitch = 0;
-	currDP = {0, 0};
+	currDP_re = 0;
+	currDP_im = 0;
 }
 static inline complexf to_complexf(VNAMeasurement::complexi value) {
 	return {(float) value.real(), (float) value.imag()};
@@ -81,7 +82,8 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 		return;
 	}
 	if(periodCounterSwitch >= nWaitSwitch) {
-		currDP += complexf{(float)valRe, (float)valIm};
+		currDP_re+= valRe;
+		currDP_im+= valIm;
 
 		if(measurementPhase == VNAMeasurementPhases::THRU) {
 			if(clipped) {
@@ -91,7 +93,8 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 					currGain--;
 					gainChanged(currGain);
 					periodCounterSwitch = 0;
-					currDP = {0, 0};
+					currDP_re = 0;
+					currDP_im = 0;
 					sampleProcessor.clipFlag = false;
 					gainChangeOccurred = true;
 					return;
@@ -115,16 +118,16 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 	// Loop through measurement phase
 	switch(measurementPhase) {
 		case VNAMeasurementPhases::REFERENCE:
-			currFwd = currDP;
+			currFwd = complexf{(float)currDP_re, (float)currDP_im};
 			setMeasurementPhase(VNAMeasurementPhases::REFL);
 			break;
 		case VNAMeasurementPhases::REFL:
-			currRefl = currDP;
+			currRefl = complexf{(float)currDP_re, (float)currDP_im};
 			setMeasurementPhase(VNAMeasurementPhases::THRU);
 			gainChanged(currGain);
 			break;
 		case VNAMeasurementPhases::THRU:
-			currThru = currDP;
+			currThru = complexf{(float)currDP_re, (float)currDP_im};
 
 			if(currGain < gainMax && !gainChangeOccurred) {
 				float mag = abs(currThru) / 512; // Fix to old sample multipler 16 / 8192
@@ -135,7 +138,8 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 					gainChanged(currGain);
 					gainChangeOccurred = true;
 					periodCounterSwitch = 0;
-                    currDP = {0, 0};
+					currDP_re = 0;
+					currDP_im = 0;
 					return;
 				}
 			}
@@ -170,12 +174,12 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 			break;
 
 		case VNAMeasurementPhases::ECALTHRU:
-			ecal[2] = currDP;
+			ecal[2] = complexf{(float)currDP_re, (float)currDP_im};
 			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 			break;
 
 		case VNAMeasurementPhases::ECALLOAD:
-			ecal[0] = currDP;
+			ecal[0] = complexf{(float)currDP_re, (float)currDP_im};
 #ifdef ECAL_PARTIAL
 			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
@@ -185,7 +189,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 #endif
 			break;
 		case VNAMeasurementPhases::ECALSHORT:
-			ecal[1] = currDP;
+			ecal[1] = complexf{(float)currDP_re, (float)currDP_im};
 			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			doEmitValue(true);
