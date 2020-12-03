@@ -97,8 +97,8 @@ public:
 			for(int streamNum = 0; streamNum < nStreams; streamNum++){
 				int32_t sample = *samples++ - 2048;                              // 12bit ADC
 				if(sample > 2000 || sample < -2000) {clipFlag = true;}           // Overflow
-				accumRe[streamNum] = __smlalbt(sample, sc_t, accumRe[streamNum]); // accumRe[streamNum]+= sample[0] * sc_t[1];
-				accumIm[streamNum] = __smlalbb(sample, sc_t, accumIm[streamNum]); // accumIm[streamNum]+= sample[0] * sc_t[0];
+				accumRe[streamNum] = __smlalbt(accumRe[streamNum], sample, sc_t); // accumRe[streamNum]+= sample[0] * sc_t[1];
+				accumIm[streamNum] = __smlalbb(accumIm[streamNum], sample, sc_t); // accumIm[streamNum]+= sample[0] * sc_t[0];
 			}
 #else
 			int32_t lo_im = correlationTable[accumPhase*2];
