@@ -395,6 +395,13 @@ __attribute__((used, noinline)) int calculateSynthWait(bool isSi, int retval) {
 	else return calculateSynthWaitAF(retval);
 }
 
+
+// needed for correct automatic synthwait setting between board versions
+__attribute__((used)) int calculateSynthWait(bool isSi, int retval) {
+	if(isSi) return calculateSynthWaitSI(retval);
+	else return calculateSynthWaitAF(retval);
+}
+
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(freqHz_t freqHz) {
 	updateIFrequency(freqHz);
