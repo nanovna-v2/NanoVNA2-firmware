@@ -1008,6 +1008,30 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
 #endif
+	currDPCnt++;
+	if(freqIndex != lastFreqIndex) {
+		currDPCnt = 0;
+		lastFreqIndex = freqIndex;
+	}
+
+	if(currSweepArgs.dataPointsPerFreq > 1 && !usbDataMode) {
+		if(currDPCnt == 0) {
+			currDP = v;
+		} else {
+			currDP[0] += v[0];
+			currDP[1] += v[1];
+			currDP[2] += v[2];
+		}
+		if(currDPCnt == (currSweepArgs.dataPointsPerFreq - 1)) {
+			v = currDP;
+		} else {
+			return;
+		}
+	}
+	
+
+	//v[0] = powf(10, currThruGain/20.f)*v[1];
+	//ecal = nullptr;
 
 #ifndef BOARD_DISABLE_ECAL
 	int ecalIgnoreValues2 = ecalIgnoreValues;
@@ -1135,8 +1159,9 @@ static void setVNASweepToUI() {
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 	vnaMeasurement.ecalIntervalPoints = 1;
-	vnaMeasurement.nPeriodsMultiplier = current_props._avg;
-	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
+	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
+	vnaMeasurement.setSweep(start, step, current_props._sweep_points, current_props._avg);
+	ecalState = ECAL_STATE_MEASURING;
 #else
 	currTimingsArgs.nAverage = current_props._avg;
 	sys_syscall(5, &currTimingsArgs);
@@ -1148,19 +1173,16 @@ static void setVNASweepToUI() {
 }
 
 void updateAveraging() {
-	auto avg = current_props._avg;
-	if (avg > BOARD_MEASUREMENT_MAX_CALIBRATION_AVG) avg = BOARD_MEASUREMENT_MAX_CALIBRATION_AVG;
+	int avg = current_props._avg;
+	if(!usbDataMode && avg != currSweepArgs.dataPointsPerFreq) {
+		currSweepArgs.dataPointsPerFreq = avg;
 #if BOARD_REVISION >= 4
-	if(avg != currTimingsArgs.nAverage) {
-		currTimingsArgs.nAverage = current_props._avg;
-		sys_syscall(5, &currTimingsArgs);
-	}
+		sys_syscall(3, &currSweepArgs);
 #else
-	if(avg != vnaMeasurement.nPeriodsMultiplier) {
-		vnaMeasurement.nPeriodsMultiplier = avg;
+		vnaMeasurement.sweepDataPointsPerFreq = avg;
 		vnaMeasurement.resetSweep();
-	}
 #endif
+	}
 }
 
 static void measurement_setup() {
@@ -1713,6 +1735,7 @@ int main(void) {
 			// display "usb mode" screen
 			if(!lastUSBDataMode) {
 				ui_mode_usb();
+				setVNASweepToUSB();
 			}
 			lastUSBDataMode = usbDataMode;
 
