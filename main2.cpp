@@ -395,6 +395,13 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 	}
 }
 
+
+// needed for correct automatic synthwait setting between board versions
+__attribute__((used)) int calculateSynthWait(bool isSi, int retval) {
+	if(isSi) return calculateSynthWaitSI(retval);
+	else return calculateSynthWaitAF(retval);
+}
+
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(freqHz_t freqHz) {
 	updateIFrequency(freqHz);
@@ -410,13 +417,21 @@ void setFrequency(freqHz_t freqHz) {
 			adf4350_update(freqHz);
 			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
+		#ifdef EXPERIMENTAL_SYNTHWAIT
 			vnaMeasurement.nWaitSynth = calculateSynthWaitAF(freqHz);
+		#else
+			vnaMeasurement.nWaitSynth = calculateSynthWait(false, freqHz);
+		#endif
 		} else {
 			int ret = si5351_update(freqHz);
 			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 			if(ret < 0 || ret > 2) ret = 2;
+		#ifdef EXPERIMENTAL_SYNTHWAIT
 			vnaMeasurement.nWaitSynth = calculateSynthWaitSI(ret);
+		#else
+			vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
+		#endif
 		}
 	}
 }
@@ -1765,8 +1780,6 @@ extern "C" void __aeabi_atexit(void * arg , void (* func ) (void *)) {
 }*/
 
 
-// Some variables and functions protected in bootloader, owerride it
-__attribute__((used)) static int calculateSynthWait(bool isSi, int retval) {return 5;}
 
 extern "C" {
 	__attribute__((used))
