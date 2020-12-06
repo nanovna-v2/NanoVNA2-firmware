@@ -19,7 +19,6 @@
  */
 #include "ili9341.hpp"
 #include "Font.h"
-#include "numfont20x22.h"
 #include "plot.hpp"
 
 // Display commands list
@@ -440,32 +439,18 @@ ili9341_set_background(uint16_t bg)
   background_color = bg;
 }
 
-void
-blit8BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-                         const uint8_t *bitmap)
+//static uint8_t bit_align = 0;
+void ili9341_blitBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint8_t *b)
 {
   uint16_t *buf = ili9341_spi_buffer;
-  for (uint16_t c = 0; c < height; c++) {
-    uint8_t bits = *bitmap++;
-    for (uint16_t r = 0; r < width; r++) {
+  uint8_t bits = 0;
+  for (uint32_t c = 0; c < height; c++) {
+    for (uint32_t r = 0; r < width; r++) {
+      if ((r&7) == 0) bits = *b++;
       *buf++ = (0x80 & bits) ? foreground_color : background_color;
       bits <<= 1;
     }
-  }
-  ili9341_bulk(x, y, width, height);
-}
-
-void
-blit16BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-                                 const uint16_t *bitmap)
-{
-  uint16_t *buf = ili9341_spi_buffer;
-  for (uint16_t c = 0; c < height; c++) {
-    uint16_t bits = *bitmap++;
-    for (uint16_t r = 0; r < width; r++) {
-      *buf++ = (0x8000 & bits) ? foreground_color : background_color;
-      bits <<= 1;
-    }
+//    if (bit_align) b+=bit_align;
   }
   ili9341_bulk(x, y, width, height);
 }
@@ -473,7 +458,7 @@ blit16BitWidthBitmap(uint16_t x, uint16_t y, uint16_t width, uint16_t height,
 void
 ili9341_drawchar(uint8_t ch, int x, int y)
 {
-  blit8BitWidthBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
+  ili9341_blitBitmap(x, y, FONT_GET_WIDTH(ch), FONT_GET_HEIGHT, FONT_GET_DATA(ch));
 }
 
 void ili9341_drawstring(const char *str, int x, int y)
@@ -484,7 +469,7 @@ void ili9341_drawstring(const char *str, int x, int y)
     if (ch == '\n') {x = x_pos; y+=FONT_STR_HEIGHT; continue;}
     const uint8_t *char_buf = FONT_GET_DATA(ch);
     uint16_t w = FONT_GET_WIDTH(ch);
-    blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
+    ili9341_blitBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
     x += w;
   }
 }
@@ -497,7 +482,7 @@ ili9341_drawstring(const char *str, int len, int x, int y)
 		uint8_t ch = *str++;
 		const uint8_t *char_buf = FONT_GET_DATA(ch);
 		uint16_t w = FONT_GET_WIDTH(ch);
-		blit8BitWidthBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
+		ili9341_blitBitmap(x, y, w, FONT_GET_HEIGHT, char_buf);
 		x += w;
 	}
 }
@@ -577,7 +562,7 @@ ili9341_line(int x0, int y0, int x1, int y1)
 void
 ili9341_drawfont(uint8_t ch, int x, int y)
 {
-	blit16BitWidthBitmap(x, y, NUM_FONT_GET_WIDTH, NUM_FONT_GET_HEIGHT, NUM_FONT_GET_DATA(ch));
+  ili9341_blitBitmap(x, y, NUM_FONT_GET_WIDTH, NUM_FONT_GET_HEIGHT, NUM_FONT_GET_DATA(ch));
 }
 
 #if 0
