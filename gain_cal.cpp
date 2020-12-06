@@ -35,7 +35,7 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 	auto old_avg = current_props._avg;
 	auto old_pow = current_props._adf4350_txPower;
 	FIFO<complexf, 32> dpFIFO;
-	current_props._avg = 30;            // Use 30 x avg for bbgain cal
+	current_props._avg = 40;            // Use 40 x avg for bbgain cal
 	current_props._adf4350_txPower = 0; // Use 0 power for prevent bbgain0 overflow
 
 	// override phaseChanged, set bbgain to desired value
