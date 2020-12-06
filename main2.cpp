@@ -397,7 +397,7 @@ __attribute__((used, noinline)) int calculateSynthWait(bool isSi, int retval) {
 
 
 // needed for correct automatic synthwait setting between board versions
-__attribute__((used)) int calculateSynthWait(bool isSi, int retval) {
+__attribute__((used, noinline)) int calculateSynthWait(bool isSi, int retval) {
 	if(isSi) return calculateSynthWaitSI(retval);
 	else return calculateSynthWaitAF(retval);
 }
