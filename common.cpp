@@ -27,7 +27,7 @@ void properties_t::setFieldsToDefault() {
 	_active_marker   = 0;
 	_domain_mode     = 0;
 	_marker_smith_format = MS_RLC;
-	_avg = 1;
+	_avg = 2;
 	_adf4350_txPower = 3;
 	_si5351_txPower = 1;
 	_measurement_mode = MEASURE_MODE_FULL;
