@@ -252,9 +252,9 @@ namespace board {
 		adc_period_cycles = (7.5+12.5);
 		adc_clk = 6000000;
 
-		MEASUREMENT_NPERIODS_NORMAL = 14;
-		MEASUREMENT_NPERIODS_CALIBRATING = 30;
-		MEASUREMENT_ECAL_INTERVAL = 5;
+		MEASUREMENT_NPERIODS_NORMAL = 4;
+		MEASUREMENT_NPERIODS_CALIBRATING = 8;
+		MEASUREMENT_ECAL_INTERVAL = 10;
 		MEASUREMENT_NWAIT_SWITCH = 1;
 	}
 
@@ -282,8 +282,9 @@ namespace board {
 		digitalWrite(led2, LOW);
 	}
 
-	int calculateSynthWaitAF( freqHz_t freqHz) {
-		return 10;
+	int calculateSynthWaitAF(freqHz_t freqHz) {
+		if (freqHz < 1200000000) return 2;
+		return 3;
 	}
 
 	int calculateSynthWaitSI(int retval) {
