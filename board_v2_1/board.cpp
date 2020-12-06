@@ -252,10 +252,17 @@ namespace board {
 		adc_period_cycles = (7.5+12.5);
 		adc_clk = 6000000;
 
+	#ifdef EXPERIMENTAL_NPERIODS
 		MEASUREMENT_NPERIODS_NORMAL = 4;
 		MEASUREMENT_NPERIODS_CALIBRATING = 8;
 		MEASUREMENT_ECAL_INTERVAL = 10;
 		MEASUREMENT_NWAIT_SWITCH = 1;
+	#else
+		MEASUREMENT_NPERIODS_NORMAL = 14;
+		MEASUREMENT_NPERIODS_CALIBRATING = 30;
+		MEASUREMENT_ECAL_INTERVAL = 5;
+		MEASUREMENT_NWAIT_SWITCH = 1;
+	#endif
 	}
 
 
@@ -283,8 +290,12 @@ namespace board {
 	}
 
 	int calculateSynthWaitAF(freqHz_t freqHz) {
+	#ifdef EXPERIMENTAL_SYNTHWAIT
 		if (freqHz < 1200000000) return 2;
 		return 3;
+	#else
+		return 10;
+	#endif
 	}
 
 	int calculateSynthWaitSI(int retval) {
