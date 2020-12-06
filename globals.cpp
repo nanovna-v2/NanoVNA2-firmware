@@ -47,13 +47,14 @@ __attribute__((used))
 volatile int MEASUREMENT_NPERIODS_CALIBRATING = 260;
 __attribute__((used))
 volatile int MEASUREMENT_ECAL_INTERVAL = 10;
+__attribute__((used))
+volatile int MEASUREMENT_NWAIT_SWITCH = 1;
 
 uistat_t uistat = {
  digit: 6,
  digit_mode: 0,
  current_trace: 0,
  value: 0,
- previous_value: 0,
  lever_mode: LM_MARKER,
  previous_marker: 0,
  marker_search_mode: MarkerSearchModes::Max,

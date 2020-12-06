@@ -281,10 +281,10 @@ extern "C" void tim2_isr() {
 
 static int si5351_doUpdate(uint32_t freqHz) {
 	// round frequency to values that can be accurately set, so that IF frequency is not wrong
-	if(freqHz <= 10000000)
-		freqHz = (freqHz/10) * 10;
-	else
-		freqHz = (freqHz/100) * 100;
+//	if(freqHz <= 10000000)
+//		freqHz = (freqHz/10) * 10;
+//	else
+//		freqHz = (freqHz/100) * 100;
 	return synthesizers::si5351_set(freqHz+lo_freq, freqHz);
 }
 
@@ -332,13 +332,13 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
+	int avg = current_props._avg;
+//	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
-		int avg = current_props._avg;
-		if(usbDataMode) avg = 1;
-		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
+/*		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
 			vnaMeasurement.nPeriodsMultiplier = 6 * avg;
-		} else {
+		} else */{
 			vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
@@ -367,8 +367,8 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 		return;
 	}
-	vnaMeasurement.adcFullScale = 20000 * 48;
-	vnaMeasurement.nPeriodsMultiplier = 1 * current_props._avg;
+	vnaMeasurement.adcFullScale = 20000 * 48 * 512;
+	vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -405,18 +405,18 @@ void setFrequency(freqHz_t freqHz) {
 	 * changing to an existing frequency temporarily breaks the signal */
 	if(currFreqHz != freqHz) {
 		currFreqHz = freqHz;
-		// use adf4350 for f > 140MHz
+		// use adf4350 for f >= 140MHz
 		if(is_freq_for_adf4350(freqHz)) {
 			adf4350_update(freqHz);
 			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_HF);
 			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_HF);
-			vnaMeasurement.nWaitSynth = calculateSynthWait(false, 0);
+			vnaMeasurement.nWaitSynth = calculateSynthWaitAF(freqHz);
 		} else {
 			int ret = si5351_update(freqHz);
 			rfsw(RFSW_TXSYNTH, RFSW_TXSYNTH_LF);
 			rfsw(RFSW_RXSYNTH, RFSW_RXSYNTH_LF);
 			if(ret < 0 || ret > 2) ret = 2;
-			vnaMeasurement.nWaitSynth = calculateSynthWait(true, ret);
+			vnaMeasurement.nWaitSynth = calculateSynthWaitSI(ret);
 		}
 	}
 }
@@ -653,6 +653,9 @@ For a description of the command interface see command_parser.hpp
 -- 26: dataMode: 0 => VNA data, 1 => raw data, 2 => exit usb data mode
 -- 30: valuesFIFO - returns data points; elements are 32-byte. See below for data format.
 --                  command 0x14 reads FIFO data; writing any value clears FIFO.
+-- 40: adf4350 power
+-- 41: si5351 power (reserved)
+-- 42: average setting
 -- f0: device variant (01)
 -- f1: protocol version (01)
 -- f2: hardware revision
@@ -853,6 +856,9 @@ static void cmdRegisterWrite(int address) {
 		usbCaptureMode = false;
 		return;
 	}
+	if (address == 0x40) {UIActions::set_averaging(registers[0x40]); return;}
+	if (address == 0x42) {UIActions::set_adf4350_txPower(registers[0x42]); return;}
+
 	if(!usbDataMode)
 		enterUSBDataMode();
 	if(address == 0x00 || address == 0x10 || address == 0x20 || address == 0x22) {
@@ -1011,11 +1017,11 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 #endif
 		} else {
 			if(ecalState == ECAL_STATE_DONE) {
-				scale *= 0.2f;
-				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal0 * 0.2f;
+				scale *= 0.1f;
+				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.9f + ecal0 * 0.1f;
 				#ifndef ECAL_PARTIAL
-					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
-					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
+					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.9f + ecal[1] * scale;
+					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.9f + ecal[2] * scale;
 				#endif
 			} else {
 				measuredEcal[0][freqIndex] = ecal0;
@@ -1093,6 +1099,7 @@ static void setVNASweepToUI() {
 
 	// Default to full, after ecalState is done we goto the configured mode
 	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
+	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 #if BOARD_REVISION < 4
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
@@ -1109,7 +1116,7 @@ static void setVNASweepToUI() {
 
 void updateAveraging() {
 	int avg = current_props._avg;
-	if(usbDataMode) avg = 1;
+//	if(usbDataMode) avg = 1;
 #if BOARD_REVISION >= 4
 	if(avg != currSweepArgs.dataPointsPerFreq) {
 		currSweepArgs.dataPointsPerFreq = avg;
@@ -1145,6 +1152,7 @@ static void measurement_setup() {
 		}
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 	vnaMeasurement.gainMin = 0;
 	vnaMeasurement.gainMax = RFSW_BBGAIN_MAX;
 	vnaMeasurement.init();
@@ -1507,6 +1515,12 @@ int main(void) {
 		registers[(0xd0 + i*4 + 2) & registersSizeMask] = (deviceID[i] >> 16) & 0xff;
 		registers[(0xd0 + i*4 + 3) & registersSizeMask] = (deviceID[i] >> 24) & 0xff;
 	}
+	//	-- 40: average setting
+	//	-- 41: si5351 power (reserved)
+	//	-- 42: adf4350 power
+	registers[0x40] = current_props._avg;
+	registers[0x41] = current_props._si5351_txPower;
+	registers[0x42] = current_props._adf4350_txPower;
 
 	// we want all higher priority irqs to preempt lower priority ones
 	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP16_NOSUB);
@@ -1617,17 +1631,7 @@ int main(void) {
 		current_props._frequency0 = 200000000;
 		show_dmesg();
 	}
-
-#if BOARD_REVISION < 4
-	performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
-#else
-	sys_syscall(4, gainTable);
-#endif
-
-	for(int i=0; i<=RFSW_BBGAIN_MAX; i++) {
-		printk("BBGAIN %d: %.2f dB\n", i, log10f(gainTable[i])*20.f);
-	}
-
+    UIActions::rebuild_bbgain();
 #ifdef HAS_SELF_TEST
 	if(SelfTest::shouldEnterSelfTest()) {
 		SelfTest::performSelfTest(vnaMeasurement);
@@ -1760,6 +1764,10 @@ extern "C" void __aeabi_atexit(void * arg , void (* func ) (void *)) {
 	// Leave this function empty. Program never exits.
 }*/
 
+
+// Some variables and functions protected in bootloader, owerride it
+__attribute__((used)) static int calculateSynthWait(bool isSi, int retval) {return 5;}
+
 extern "C" {
 	__attribute__((used))
 	uintptr_t __stack_chk_guard = 0xdeadbeef;
@@ -1785,7 +1793,7 @@ extern "C" {
 		(void*)&vnaMeasurement.sampleProcessor, (void*) adc_read,
 		(void*)calculateSynthWait, (void*)&MEASUREMENT_NPERIODS_NORMAL,
 		(void*)&MEASUREMENT_NPERIODS_CALIBRATING, (void*)&MEASUREMENT_ECAL_INTERVAL,
-		(void*)&vnaMeasurement.nWaitSwitch, &lo_freq, &adf4350_freqStep,
+		(void*)&MEASUREMENT_NWAIT_SWITCH, &lo_freq, &adf4350_freqStep,
 		sinROM50x1, sinROM48x1, sinROM25x2, sinROM24x2, sinROM10x2, sinROM200x1,
 		(void*)adc_process, &outputRawSamples, (void*)&vnaMeasurement.nPeriodsMultiplier,
 		crashDiagBuf, sinROM100x1, (void*) adcBuffer};
@@ -2058,6 +2066,7 @@ namespace UIActions {
 		if(i < 1) i = 1;
 		if(i > 255) i = 255;
 		current_props._avg = (uint8_t) i;
+		registers[0x40] = (uint8_t) i;
 		updateAveraging();
 	}
 
@@ -2065,6 +2074,7 @@ namespace UIActions {
 		if(i < 0) i = 0;
 		if(i > 3) i = 3;
 		current_props._adf4350_txPower = (uint8_t) i;
+		registers[0x42] = (uint8_t) i;
 	}
 
 	int caldata_save(int id) {
@@ -2073,9 +2083,23 @@ namespace UIActions {
 		ecalIgnoreValues = 20;
 		return ret;
 	}
+
+	void rebuild_bbgain(void){
+#if BOARD_REVISION < 4
+		performGainCal(vnaMeasurement, gainTable, RFSW_BBGAIN_MAX);
+#else
+		sys_syscall(4, gainTable);
+#endif
+
+		for(int i=0; i<=RFSW_BBGAIN_MAX; i++) {
+			printk("BBGAIN %d: %.2f dB\n", i, log10f(gainTable[i])*20.f);
+		}
+	}
+
 	int caldata_recall(int id) {
 		int ret = flash_caldata_recall(id);
 		if(ret == 0) {
+//			rebuild_bbgain();
 			setVNASweepToUI();
 			updateAveraging();
 			force_set_markmap();
