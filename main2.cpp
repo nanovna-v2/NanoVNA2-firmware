@@ -367,7 +367,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 		return;
 	}
-	vnaMeasurement.adcFullScale = 20000 * 48;
+	vnaMeasurement.adcFullScale = 20000 * 48 * 512;
 	vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
@@ -1517,6 +1517,7 @@ int main(void) {
 	//	-- 41: si5351 power (reserved)
 	//	-- 42: adf4350 power
 	registers[0x40] = current_props._avg;
+	registers[0x41] = current_props._si5351_txPower;
 	registers[0x42] = current_props._adf4350_txPower;
 
 	// we want all higher priority irqs to preempt lower priority ones

@@ -130,7 +130,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 			currThru = complexf{(float)currDP_re, (float)currDP_im};
 
 			if(currGain < gainMax && !gainChangeOccurred) {
-				float mag = abs(currThru) / 512; // Fix to old sample multipler 16 / 8192
+				float mag = abs(currThru);
 				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
 				if(mag < (fullScale * 0.15)) {
 					// signal level too low; increase gain and retry
