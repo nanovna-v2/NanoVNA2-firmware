@@ -22,8 +22,7 @@
 using namespace mculib;
 using namespace std;
 
-
-extern volatile int MEASUREMENT_NPERIODS_NORMAL, MEASUREMENT_NPERIODS_CALIBRATING, MEASUREMENT_ECAL_INTERVAL;
+extern volatile int MEASUREMENT_NPERIODS_NORMAL, MEASUREMENT_NPERIODS_CALIBRATING, MEASUREMENT_ECAL_INTERVAL, MEASUREMENT_NWAIT_SWITCH;
 
 namespace board {
 
@@ -256,6 +255,7 @@ namespace board {
 		MEASUREMENT_NPERIODS_NORMAL = 14;
 		MEASUREMENT_NPERIODS_CALIBRATING = 30;
 		MEASUREMENT_ECAL_INTERVAL = 5;
+		MEASUREMENT_NWAIT_SWITCH = 1;
 	}
 
 
@@ -282,14 +282,17 @@ namespace board {
 		digitalWrite(led2, LOW);
 	}
 
-	int calculateSynthWait(bool isSi, int retval) {
-		if(!isSi) return 10;
+	int calculateSynthWaitAF( freqHz_t freqHz) {
+		return 10;
+	}
+
+	int calculateSynthWaitSI(int retval) {
 		switch(retval) {
 			case 0: return 18;
 			case 1: return 60;
 			case 2: return 60;
 		}
-		while(1) asm __volatile ("nop");
+		return 5;
 	}
 
 	void lcd_spi_init() {

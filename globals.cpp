@@ -47,6 +47,8 @@ __attribute__((used))
 volatile int MEASUREMENT_NPERIODS_CALIBRATING = 260;
 __attribute__((used))
 volatile int MEASUREMENT_ECAL_INTERVAL = 10;
+__attribute__((used))
+volatile int MEASUREMENT_NWAIT_SWITCH = 1;
 
 uistat_t uistat = {
  digit: 6,
