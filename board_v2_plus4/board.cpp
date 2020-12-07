@@ -251,14 +251,22 @@ namespace board {
 		delayMicroseconds(1);
 		digitalWrite(led2, LOW);
 	}
+	
+	
+	int calculateSynthWaitAF(freqHz_t freqHz) {
+		if(freqHz < 1200000000) return  7;
+		if(freqHz < 2200000000) return 10;
+		if(freqHz < 3200000000) return 14;
+		return 18;
+	}
 
-	int calculateSynthWait(bool isSi, int retval) {
-		if(!isSi) return 5;
+	int calculateSynthWaitSI(int retval) {
 		switch(retval) {
-			case 0: return 30;
-			case 1: return 60;
-			case 2: return 60;
+			case 0: return 36;
+			case 1: return 120;
+			case 2: return 120;
 		}
+		return 5;
 	}
 
 	void lcd_spi_init() {

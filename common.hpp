@@ -247,12 +247,12 @@ struct uistat_t {
   bool marker_delta;
 };
 
-#define CONFIG_MAGIC 0x8008123b
+#define CONFIG_MAGIC 0x8008123c
 
 
 static inline bool is_freq_for_adf4350(freqHz_t freq)
 {
-	return freq > FREQUENCY_CHANGE_OVER;
+	return freq >= FREQUENCY_CHANGE_OVER;
 }
 
 // convert vbat [mV] to battery indicator
