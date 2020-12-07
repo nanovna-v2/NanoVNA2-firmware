@@ -162,8 +162,10 @@ namespace board {
 
 	// blink the status led
 	void ledPulse();
+	
+	int calculateSynthWaitAF(freqHz_t freqHz);
+	int calculateSynthWaitSI(int retval);
 
-	int calculateSynthWait(bool, int);
 	// sets up hardware spi for ili9341 and touch.
 	// spi peripheral only manages clk, sdi, and sdo.
 	void lcd_spi_init();
