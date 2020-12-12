@@ -155,6 +155,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 #endif
 					} else {
 						setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+						doEmitValue(false);
 					}
 					ecalCounter++;
 					if(ecalCounter >= ecalIntervalPoints)
@@ -163,14 +164,15 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 				case MEASURE_MODE_REFL_THRU_REFRENCE: /* AKA no ECAL */
 					/* Go back to the start: REFERENCE */
 					setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+					doEmitValue(false);
 					break;
 				case MEASURE_MODE_REFL_THRU:
 					/* aka CW mode
 					 * And keep the signal on the ouput */
 					setMeasurementPhase(VNAMeasurementPhases::REFL);
+					doEmitValue(false);
 					break;
 			}
-			doEmitValue(false);
 			break;
 
 		case VNAMeasurementPhases::ECALTHRU:
