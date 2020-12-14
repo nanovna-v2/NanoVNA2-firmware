@@ -50,13 +50,13 @@ void VNAMeasurement::sweepAdvance() {
 
 	periodCounterSynth = nWaitSynth;
 
-	ecalCounterOffset++;
-	if(ecalCounterOffset >= ecalIntervalPoints)
-		ecalCounterOffset = 0;
-	ecalCounter = ecalCounterOffset;
 	if(sweepCurrPoint == 0) {
 		periodCounterSynth *= 2;
 		currGain = gainMax;
+		ecalCounter = ecalCounterOffset;
+		ecalCounterOffset++;
+		if(ecalCounterOffset >= ecalIntervalPoints)
+			ecalCounterOffset = 0;
 	}
 }
 
@@ -69,6 +69,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 		sweepSetupChanged(start, stop);
 		dpCounterSynth = 0;
 		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+		ecalCounterOffset = 0;
 		sweepAdvance();
 		periodCounterSynth *= 2;
 		return;
@@ -131,7 +132,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 
 			if(currGain < gainMax && !gainChangeOccurred) {
 				float mag = abs(currThru);
-				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods;
+				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods * nPeriodsMultiplier;
 				if(mag < (fullScale * 0.15)) {
 					// signal level too low; increase gain and retry
 					currGain++;
@@ -146,31 +147,32 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 
 			switch(measurement_mode) {
 				case MEASURE_MODE_FULL:
-					ecalCounter++;
-					if(ecalCounter >= ecalIntervalPoints)
-						ecalCounter = 0;
 					if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
 						setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 #else
 						setMeasurementPhase(VNAMeasurementPhases::ECALTHRU);
 #endif
-						return;
 					} else {
 						setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+						doEmitValue(false);
 					}
+					ecalCounter++;
+					if(ecalCounter >= ecalIntervalPoints)
+						ecalCounter = 0;
 					break;
 				case MEASURE_MODE_REFL_THRU_REFRENCE: /* AKA no ECAL */
 					/* Go back to the start: REFERENCE */
 					setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+					doEmitValue(false);
 					break;
 				case MEASURE_MODE_REFL_THRU:
 					/* aka CW mode
 					 * And keep the signal on the ouput */
 					setMeasurementPhase(VNAMeasurementPhases::REFL);
+					doEmitValue(false);
 					break;
 			}
-			doEmitValue(false);
 			break;
 
 		case VNAMeasurementPhases::ECALTHRU:
