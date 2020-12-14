@@ -332,8 +332,15 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
+	int avg = current_props._avg;
+//	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
+/*		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
+			vnaMeasurement.nPeriodsMultiplier = 6 * avg;
+		} else */{
+			vnaMeasurement.nPeriodsMultiplier = 1 * avg;
+		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 6000;
 			adf4350_freqStep = 6000;
@@ -361,6 +368,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		return;
 	}
 	vnaMeasurement.adcFullScale = 20000 * 48 * 512;
+	vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -1111,7 +1119,6 @@ static void setVNASweepToUI() {
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
-	vnaMeasurement.nPeriodsMultiplier = current_props._avg;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 	ecalState = ECAL_STATE_MEASURING;
 #else
@@ -1123,15 +1130,13 @@ static void setVNASweepToUI() {
 }
 
 void updateAveraging() {
-	auto avg = current_props._avg;
+	int avg = current_props._avg;
 //	if(usbDataMode) avg = 1;
 #if BOARD_REVISION >= 4
 	if(avg != currSweepArgs.dataPointsPerFreq) {
 		currSweepArgs.dataPointsPerFreq = avg;
 		sys_syscall(3, &currSweepArgs);
 	}
-#else
-	vnaMeasurement.nPeriodsMultiplier = avg;
 #endif
 }
 
@@ -1162,7 +1167,6 @@ static void measurement_setup() {
 		}
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
-	vnaMeasurement.nPeriodsMultiplier = current_props._avg;
 	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 	vnaMeasurement.gainMin = 0;
 	vnaMeasurement.gainMax = RFSW_BBGAIN_MAX;
@@ -1827,8 +1831,6 @@ namespace UIActions {
 		#if BOARD_REVISION >= 4
 			sys_setTimings_args args {0, 1};
 			sys_syscall(5, &args);
-		#else
-			vnaMeasurement.nPeriodsMultiplier = current_props._avg;
 		#endif
 			current_props._cal_status |= (1 << type);
 			ui_cal_collected();
@@ -1844,8 +1846,6 @@ namespace UIActions {
 			avgMult = 2;
 		sys_setTimings_args args {0, avgMult};
 		sys_syscall(5, &args);
-	#else
-		vnaMeasurement.nPeriodsMultiplier = current_props._avg < 10 ? 10 : current_props._avg;
 	#endif
 		collectMeasurementType = type;
 	}
