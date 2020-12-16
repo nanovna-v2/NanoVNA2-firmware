@@ -41,6 +41,8 @@ typedef int64_t freqHz_t;
 #define PORT_CORE_VARIANT_NAME "N/A"
 #define PLATFORM_NAME "BARE METAL"
 
+// Enable L/C math code
+#define __USE_LC_MATCHING__
 
 #define FREQUENCY_MIN 10000
 #define FREQUENCY_MAX 4400000000
@@ -104,7 +106,8 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define TD_WINDOW_NORMAL (0b00<<3)
 #define TD_WINDOW_MINIMUM (0b01<<3)
 #define TD_WINDOW_MAXIMUM (0b10<<3)
-
+// L/C match enable option
+#define TD_LC_MATH        (1<<5)
 
 #define REDRAW_CELLS      (1<<0)
 #define REDRAW_FREQUENCY  (1<<1)
