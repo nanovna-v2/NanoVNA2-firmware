@@ -793,6 +793,19 @@ static UI_FUNCTION_CALLBACK(menu_marker_op_cb)
   //redraw_all();
 }
 
+#ifdef __USE_LC_MATCHING__
+static UI_FUNCTION_ADV_CALLBACK(menu_marker_lc_match_acb)
+{
+  (void)data;
+  if (b){
+    b->icon = domain_mode & TD_LC_MATH ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    return;
+  }
+  domain_mode^=TD_LC_MATH;
+  ui_mode_normal();
+}
+#endif
+
 static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
 {
   int i = -1;
@@ -1052,9 +1065,11 @@ const menuitem_t menu_power[] = {
 
 static const menuitem_t menu_sweep_config[] = {
   { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
+#if BOARD_REVISION < 4
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
+#endif
   { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
@@ -1110,6 +1125,9 @@ const menuitem_t menu_marker_smith[] = {
   { MT_ADV_CALLBACK, MS_REIM,"Re+Im", (const void *)menu_marker_smith_acb },
   { MT_ADV_CALLBACK, MS_RX,  "R+Xj", (const void *)menu_marker_smith_acb },
   { MT_ADV_CALLBACK, MS_RLC, "R+L/C", (const void *)menu_marker_smith_acb },
+#ifdef __USE_LC_MATCHING__
+  { MT_ADV_CALLBACK,      0, "L/C MATCH", (const void *)menu_marker_lc_match_acb },
+#endif
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
