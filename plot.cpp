@@ -34,6 +34,7 @@ int area_height = AREA_HEIGHT_NORMAL;
 
 bool plot_redraw_enable = true;
 bool plot_canceled = false;
+uint16_t sweep_count = 0;
 
 small_function<freqHz_t(int)> plot_getFrequencyAt;
 small_function<void()> plot_tick;
@@ -923,7 +924,8 @@ void plot_into_index(complexf measured[2][SWEEP_POINTS_MAX])
 			trace_index[t][i] = trace_into_index(x, t, i, measured[n]);
 		}
 	}
-
+	// Current scan count
+	sweep_count++;
 	mark_cells_from_index();
 	markmap_all_markers();
 	redraw_request |= REDRAW_CELLS;
@@ -1015,6 +1017,21 @@ cell_blit_bitmap(int x, int y, uint16_t w, uint16_t h, const uint8_t *bmp)
         ili9341_spi_buffer[y*CELLWIDTH + x + r] = foreground_color;
       bits <<= 1;
     }
+  }
+}
+
+static void
+cell_drawstring(char *str, int x, int y)
+{
+  if (y <= -FONT_GET_HEIGHT || y >= CELLHEIGHT)
+    return;
+  while (*str) {
+    if (x >= CELLWIDTH)
+      return;
+    uint8_t ch = *str++;
+    uint16_t w = FONT_GET_WIDTH(ch);
+    cell_blit_bitmap(x, y, w, FONT_GET_HEIGHT, FONT_GET_DATA(ch));
+    x += w;
   }
 }
 
@@ -1308,6 +1325,11 @@ markmap_all_markers(void)
 	markmap_upperarea();
 }
 
+// Include L/C match functions
+#ifdef __USE_LC_MATCHING__
+  #include "lc_matching.c"
+#endif
+
 bool plot_checkerBoard = false;
 bool plot_shadeCells = false;
 static void
@@ -1451,6 +1473,11 @@ draw_cell(int m, int n)
 	if (n <= (3*FONT_STR_HEIGHT)/CELLHEIGHT)
 		cell_draw_marker_info(x0, y0);
 
+	// L/C match data output
+	#ifdef __USE_LC_MATCHING__
+	  if (domain_mode & TD_LC_MATH)
+	    cell_draw_lc_match(x0, y0);
+	#endif
 //	PULSE;
 
 	// Draw reference position (<10 system ticks for all screen calls)
@@ -1552,21 +1579,6 @@ request_to_draw_cells_behind_numeric_input(void)
   // Values Hardcoded from ui.c
   invalidate_rect(0, LCD_HEIGHT-NUM_INPUT_HEIGHT, LCD_WIDTH-1, LCD_HEIGHT-1);
   redraw_request |= REDRAW_CELLS;
-}
-
-static void
-cell_drawstring(char *str, int x, int y)
-{
-  if (y <= -FONT_GET_HEIGHT || y >= CELLHEIGHT)
-    return;
-  while (*str) {
-    if (x >= CELLWIDTH)
-      return;
-    uint8_t ch = *str++;
-    uint16_t w = FONT_GET_WIDTH(ch);
-    cell_blit_bitmap(x, y, w, FONT_GET_HEIGHT, FONT_GET_DATA(ch));
-    x += w;
-  }
 }
 
 static void
