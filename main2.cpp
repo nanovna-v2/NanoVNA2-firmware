@@ -337,9 +337,9 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
 /*		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
-			vnaMeasurement.nPeriodsMultiplier = 6 * avg;
+			vnaMeasurement.nPeriodsMultiplier = 6;
 		} else */{
-			vnaMeasurement.nPeriodsMultiplier = 1 * avg;
+			vnaMeasurement.nPeriodsMultiplier = 1;
 		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 6000;
@@ -368,7 +368,6 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 		return;
 	}
 	vnaMeasurement.adcFullScale = 20000 * 48 * 512;
-	vnaMeasurement.nPeriodsMultiplier = 1 * avg;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -991,7 +990,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 		lastFreqIndex = freqIndex;
 	}
 
-	if(currSweepArgs.dataPointsPerFreq > 1) {
+	if(currSweepArgs.dataPointsPerFreq > 1 && !usbDataMode) {
 		if(currDPCnt == 0) {
 			currDP = v;
 		} else {
@@ -1119,7 +1118,7 @@ static void setVNASweepToUI() {
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
-	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
+	vnaMeasurement.setSweep(start, step, current_props._sweep_points, current_props._avg);
 	ecalState = ECAL_STATE_MEASURING;
 #else
 	setHWSweep(sys_setSweep_args {
@@ -1131,13 +1130,15 @@ static void setVNASweepToUI() {
 
 void updateAveraging() {
 	int avg = current_props._avg;
-//	if(usbDataMode) avg = 1;
-#if BOARD_REVISION >= 4
-	if(avg != currSweepArgs.dataPointsPerFreq) {
+	if(!usbDataMode && avg != currSweepArgs.dataPointsPerFreq) {
 		currSweepArgs.dataPointsPerFreq = avg;
+#if BOARD_REVISION >= 4
 		sys_syscall(3, &currSweepArgs);
-	}
+#else
+		vnaMeasurement.sweepDataPointsPerFreq = avg;
+		vnaMeasurement.resetSweep();
 #endif
+	}
 }
 
 static void measurement_setup() {
@@ -1655,7 +1656,6 @@ int main(void) {
 
 	usbTxQueueRPos = usbTxQueueWPos;
 	setVNASweepToUI();
-	updateAveraging();
 
 	redraw_frame();
 
@@ -1686,7 +1686,6 @@ int main(void) {
 			if(!lastUSBDataMode) {
 				ui_mode_usb();
 				setVNASweepToUSB();
-				updateAveraging();
 			}
 			lastUSBDataMode = usbDataMode;
 
@@ -1700,7 +1699,6 @@ int main(void) {
 				redraw_frame();
 				request_to_redraw_grid();
 				setVNASweepToUI();
-				updateAveraging();
 			}
 		}
 		lastUSBDataMode = usbDataMode;
@@ -1859,7 +1857,6 @@ namespace UIActions {
 	void cal_reset_all(void) {
 		current_props.setFieldsToDefault();
 		setVNASweepToUI();
-		updateAveraging();
 		force_set_markmap();
 	}
 
@@ -2114,7 +2111,6 @@ namespace UIActions {
 		if(ret == 0) {
 //			rebuild_bbgain();
 			setVNASweepToUI();
-			updateAveraging();
 			force_set_markmap();
 		}
 		return ret;
