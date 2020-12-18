@@ -49,7 +49,7 @@ void VNAMeasurement::sweepAdvance() {
 	frequencyChanged(currFreq);
 
 	periodCounterSynth = nWaitSynth;
-
+	periodCounterSwitch = 0;
 	if(sweepCurrPoint == 0) {
 		periodCounterSynth *= 2;
 		currGain = gainMax;
@@ -71,14 +71,12 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 		setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 		ecalCounterOffset = 0;
 		sweepAdvance();
-		periodCounterSynth *= 2;
 		return;
 	}
 	/* If periodCounterSynth not elapsed, decrement and wait for it */
 	if(periodCounterSynth > 0) {
 		// still waiting for synthesizer
 		periodCounterSynth--;
-		periodCounterSwitch = 0;
 		gainChangeOccurred = false;
 		return;
 	}
