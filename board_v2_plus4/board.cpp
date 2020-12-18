@@ -254,7 +254,7 @@ namespace board {
 	
 	
 	int calculateSynthWaitAF(freqHz_t freqHz) {
-		if(freqHz < 1200000000) return  7;
+		if(freqHz < 1200000000) return  8;
 		if(freqHz < 2200000000) return 10;
 		if(freqHz < 3200000000) return 14;
 		return 18;
