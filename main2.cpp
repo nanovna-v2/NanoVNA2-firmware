@@ -218,6 +218,7 @@ typedef void* (*sys_syscall_t)(int opcode, void* args);
 sys_syscall_t sys_syscall = (sys_syscall_t) 0x08000151;
 
 sys_setSweep_args currSweepArgs;
+sys_setTimings_args currTimingsArgs;
 
 void sweepMutateParams(int freqIndex, sys_sweepPoint* outParams);
 
@@ -332,15 +333,8 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
-	int avg = current_props._avg;
-//	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
-/*		if(txFreqHz > 149600000 && txFreqHz < 150100000) {
-			vnaMeasurement.nPeriodsMultiplier = 6;
-		} else */{
-			vnaMeasurement.nPeriodsMultiplier = 1;
-		}
 		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
 			lo_freq = 6000;
 			adf4350_freqStep = 6000;
@@ -971,43 +965,19 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 
-int lastFreqIndex = -1;
-int currDPCnt = 0;
-VNAObservation currDP = {0.f, 0.f, 0.f};
-
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped) {
 	digitalWrite(led, clipped?1:0);
 
-#if BOARD_REVISION < 4
-	v[2] *= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
-	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
-	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
-#endif
-	currDPCnt++;
-	if(freqIndex != lastFreqIndex) {
-		currDPCnt = 0;
-		lastFreqIndex = freqIndex;
-	}
-
-	if(currSweepArgs.dataPointsPerFreq > 1 && !usbDataMode) {
-		if(currDPCnt == 0) {
-			currDP = v;
-		} else {
-			currDP[0] += v[0];
-			currDP[1] += v[1];
-			currDP[2] += v[2];
-		}
-		if(currDPCnt == (currSweepArgs.dataPointsPerFreq - 1)) {
-			v = currDP;
-		} else {
-			return;
-		}
-	}
-	
-
 	//v[0] = powf(10, currThruGain/20.f)*v[1];
 	//ecal = nullptr;
+
+	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
+
+#if BOARD_REVISION < 4
+	v[2]*= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
+	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
+	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
 
 	int ecalIgnoreValues2 = ecalIgnoreValues;
 	if(ecalIgnoreValues2 != 0) {
@@ -1015,9 +985,6 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 		__sync_bool_compare_and_swap(&ecalIgnoreValues, ecalIgnoreValues2, ecalIgnoreValues2-1);
 	}
 
-	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
-
-#if BOARD_REVISION < 4
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
 		auto ecal0 = applyFixedCorrections(ecal[0] * scale, freqHz);
@@ -1112,33 +1079,37 @@ static void setVNASweepToUI() {
 		step = (stop - start) / (current_props._sweep_points - 1);
 
 	// Default to full, after ecalState is done we goto the configured mode
-	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
-	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 #if BOARD_REVISION < 4
 	ecalState = ECAL_STATE_MEASURING;
+	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
+	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 	vnaMeasurement.ecalIntervalPoints = 1;
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
-	vnaMeasurement.setSweep(start, step, current_props._sweep_points, current_props._avg);
-	ecalState = ECAL_STATE_MEASURING;
+	vnaMeasurement.nPeriodsMultiplier = current_props._avg;
+	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 #else
+	currTimingsArgs.nAverage = current_props._avg;
+	sys_syscall(5, &currTimingsArgs);
 	setHWSweep(sys_setSweep_args {
-		start, step, current_props._sweep_points, current_props._avg
+		start, step, current_props._sweep_points, 1
 	});
 #endif
 	update_grid();
 }
 
 void updateAveraging() {
-	int avg = current_props._avg;
-	if(!usbDataMode && avg != currSweepArgs.dataPointsPerFreq) {
-		currSweepArgs.dataPointsPerFreq = avg;
+	auto avg = current_props._avg;
 #if BOARD_REVISION >= 4
-		sys_syscall(3, &currSweepArgs);
-#else
-		vnaMeasurement.sweepDataPointsPerFreq = avg;
-		vnaMeasurement.resetSweep();
-#endif
+	if(avg != currTimingsArgs.nAverage) {
+		currTimingsArgs.nAverage = current_props._avg;
+		sys_syscall(5, &currTimingsArgs);
 	}
+#else
+	if(avg != vnaMeasurement.nPeriodsMultiplier) {
+		vnaMeasurement.nPeriodsMultiplier = avg;
+		vnaMeasurement.resetSweep();
+	}
+#endif
 }
 
 static void measurement_setup() {
@@ -1824,26 +1795,29 @@ namespace UIActions {
 		current_props._cal_status &= ~(1 << type);
 		vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 		collectMeasurementCB = [type]() {
+		#if BOARD_REVISION >= 4
+			sys_setTimings_args args {0, current_props._avg};
+			sys_syscall(5, &args);
+		#else
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
-		#if BOARD_REVISION >= 4
-			sys_setTimings_args args {0, 1};
-			sys_syscall(5, &args);
+			vnaMeasurement.nPeriodsMultiplier = current_props._avg;
 		#endif
 			current_props._cal_status |= (1 << type);
 			ui_cal_collected();
 		};
-		__sync_synchronize();
-		vnaMeasurement.ecalIntervalPoints = 1;
-		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
+		uint32_t avgMult = current_props._avg;
+//		if(avgMult > 20) avgMult = 20;
+		if(avgMult <  4) avgMult =  4;
 	#if BOARD_REVISION >= 4
-		int avgMult = 1;
-		if(current_props._avg <= 4)
-			avgMult = 4;
-		else if(current_props._avg < 20)
-			avgMult = 2;
+		__sync_synchronize();
 		sys_setTimings_args args {0, avgMult};
 		sys_syscall(5, &args);
+	#else
+		vnaMeasurement.ecalIntervalPoints = 1;
+		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
+		vnaMeasurement.nPeriodsMultiplier = avgMult;
+		vnaMeasurement.resetSweep();
 	#endif
 		collectMeasurementType = type;
 	}
