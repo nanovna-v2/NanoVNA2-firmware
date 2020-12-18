@@ -56,7 +56,16 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
+
+// Set FFT size depend from max points count
+#if SWEEP_POINTS_MAX < 256
 #define FFT_SIZE 256
+#elif SWEEP_POINTS_MAX < 512
+#define FFT_SIZE 512
+#else
+#error "Need update FFT table for more points size"
+#endif
+
 #define ECAL_PARTIAL
 
 #ifdef ECAL_PARTIAL
