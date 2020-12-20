@@ -264,7 +264,7 @@ struct uistat_t {
 
 static inline bool is_freq_for_adf4350(freqHz_t freq)
 {
-	return freq >= FREQUENCY_CHANGE_OVER;
+	return freq > FREQUENCY_CHANGE_OVER;
 }
 
 // convert vbat [mV] to battery indicator
