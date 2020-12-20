@@ -58,16 +58,14 @@ namespace synthesizers {
 		else //if(freqHz	> 34375000)
 			O = 64;
 
-		freqHz*= O;
-		uint32_t denominator = board::xtalFreqHz/R;
-		uint32_t N         = freqHz / denominator;
-		uint32_t numerator = freqHz % denominator;
-		approximate_fraction(&numerator, &denominator);
+		uint64_t N = freqHz*O/freqStepHz;
+		uint32_t modulus = board::xtalFreqHz/R/freqStepHz;
+
 		adf4350.R = R;
 		adf4350.O = O;
-		adf4350.N = N;
-		adf4350.numerator = numerator;
-		adf4350.denominator = denominator;
+		adf4350.N = N / modulus;
+		adf4350.numerator = N - (adf4350.N * modulus);
+		adf4350.denominator = modulus;
 
 		adf4350.sendConfig();
 		adf4350.sendN();

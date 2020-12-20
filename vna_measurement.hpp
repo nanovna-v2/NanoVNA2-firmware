@@ -84,7 +84,7 @@ public:
 
 	struct _emitValue_t {
 		VNAMeasurement* m;
-		void operator()(int64_t* valRe, int64_t* valIm);
+		void operator()(int32_t* valRe, int32_t* valIm);
 	};
 
 	SampleProcessor<_emitValue_t> sampleProcessor;
@@ -132,6 +132,6 @@ public:
 
 	void setMeasurementPhase(VNAMeasurementPhases ph);
 	void sweepAdvance();
-	void sampleProcessor_emitValue(int64_t valRe, int64_t valIm, bool clipped);
+	void sampleProcessor_emitValue(int32_t valRe, int32_t valIm, bool clipped);
 	void doEmitValue(bool ecal);
 };

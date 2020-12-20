@@ -51,7 +51,7 @@ void VNAMeasurement::sweepAdvance() {
 	periodCounterSynth = nWaitSynth;
 	periodCounterSwitch = 0;
 	if(sweepCurrPoint == 0) {
-		periodCounterSynth *= 2;
+		periodCounterSynth = 64; // for first point need more wait
 		currGain = gainMax;
 		ecalCounter = ecalCounterOffset;
 		ecalCounterOffset++;
@@ -60,7 +60,7 @@ void VNAMeasurement::sweepAdvance() {
 	}
 }
 
-void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, bool clipped) {
+void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, bool clipped) {
 	auto currPoint = sweepCurrPoint;
 	/* If -1 then we restart */
 	if(currPoint == -1) {
@@ -113,25 +113,26 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 	if(periodCounterSwitch < (nWaitSwitch + nPeriods*nPeriodsMultiplier)) {
 		return;
 	}
+	// Real measure count
+	periodCounterSwitch-=nWaitSwitch;
+	// Get current point measured data (not depend from measure count)
+	complexf currDP = complexf{(float)currDP_re/periodCounterSwitch, (float)currDP_im/periodCounterSwitch};
 
 	// Loop through measurement phase
 	switch(measurementPhase) {
 		case VNAMeasurementPhases::REFERENCE:
-			currFwd = complexf{(float)currDP_re, (float)currDP_im};
+			currFwd = currDP;
 			setMeasurementPhase(VNAMeasurementPhases::REFL);
 			break;
 		case VNAMeasurementPhases::REFL:
-			currRefl = complexf{(float)currDP_re, (float)currDP_im};
+			currRefl = currDP;
 			setMeasurementPhase(VNAMeasurementPhases::THRU);
 			gainChanged(currGain);
 			break;
 		case VNAMeasurementPhases::THRU:
-			currThru = complexf{(float)currDP_re, (float)currDP_im};
-
 			if(currGain < gainMax && !gainChangeOccurred) {
-				float mag = abs(currThru);
-				float fullScale = float(adcFullScale) * sampleProcessor.accumPeriod * nPeriods * nPeriodsMultiplier;
-				if(mag < (fullScale * 0.15)) {
+				float mag = abs(currDP);
+				if(mag < (adcFullScale * 0.15f)) {
 					// signal level too low; increase gain and retry
 					currGain++;
 					gainChanged(currGain);
@@ -142,7 +143,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 					return;
 				}
 			}
-
+			currThru = currDP;
 			switch(measurement_mode) {
 				case MEASURE_MODE_FULL:
 					if(ecalCounter == 0) {
@@ -174,12 +175,12 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 			break;
 
 		case VNAMeasurementPhases::ECALTHRU:
-			ecal[2] = complexf{(float)currDP_re, (float)currDP_im};
+			ecal[2] = currDP;
 			setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
 			break;
 
 		case VNAMeasurementPhases::ECALLOAD:
-			ecal[0] = complexf{(float)currDP_re, (float)currDP_im};
+			ecal[0] = currDP;
 #ifdef ECAL_PARTIAL
 			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
@@ -189,7 +190,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int64_t valRe, int64_t valIm, boo
 #endif
 			break;
 		case VNAMeasurementPhases::ECALSHORT:
-			ecal[1] = complexf{(float)currDP_re, (float)currDP_im};
+			ecal[1] = currDP;
 			/* Go back to the start: REFERENCE */
 			setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
 			doEmitValue(true);
@@ -211,6 +212,6 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 	}
 }
 
-void VNAMeasurement::_emitValue_t::operator()(int64_t* valRe, int64_t* valIm) {
+void VNAMeasurement::_emitValue_t::operator()(int32_t* valRe, int32_t* valIm) {
 	m->sampleProcessor_emitValue(*valRe, *valIm, m->sampleProcessor.clipFlag);
 }
