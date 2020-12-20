@@ -339,7 +339,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 6000;
 			adf4350_freqStep = 6000;
 			vnaMeasurement.setCorrelationTable(sinROM200x1, 200);
-			vnaMeasurement.adcFullScale = 10000 * 200;
+			vnaMeasurement.adcFullScale = 10000 * 200 * 200;
 			vnaMeasurement.gainMax = 0;
 			currThruGain = 0;
 			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
@@ -347,7 +347,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 12000;
 			adf4350_freqStep = 12000;
 			vnaMeasurement.setCorrelationTable(sinROM100x1, 100);
-			vnaMeasurement.adcFullScale = 10000 * 100;
+			vnaMeasurement.adcFullScale = 10000 * 100 * 100;
 			vnaMeasurement.gainMax = 0;
 			currThruGain = 0;
 			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
@@ -355,13 +355,12 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 150000;
 			adf4350_freqStep = 10000;
 			vnaMeasurement.setCorrelationTable(sinROM10x2, 20);
-			vnaMeasurement.adcFullScale = 10000 * 48;
+			vnaMeasurement.adcFullScale = 10000 * 48 * 20;
 			vnaMeasurement.gainMax = 3;
 		}
 		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
 		return;
 	}
-	vnaMeasurement.adcFullScale = 20000 * 48 * 512;
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -369,10 +368,12 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 12500;
 			adf4350_freqStep = 12500;
 			vnaMeasurement.setCorrelationTable(sinROM24x2, 48);
+			vnaMeasurement.adcFullScale = 20000 * 48 * 48;
 		} else {
 			lo_freq = 6250;
 			adf4350_freqStep = 6250;
 			vnaMeasurement.setCorrelationTable(sinROM48x1, 48);
+			vnaMeasurement.adcFullScale = 20000 * 48 * 48;
 		}
 	} else {
 		// 6.0/12.0kHz IF
@@ -380,10 +381,12 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			lo_freq = 12000;
 			adf4350_freqStep = 12000;
 			vnaMeasurement.setCorrelationTable(sinROM25x2, 50);
+			vnaMeasurement.adcFullScale = 20000 * 48 * 50;
 		} else {
 			lo_freq = 6000;
 			adf4350_freqStep = 6000;
 			vnaMeasurement.setCorrelationTable(sinROM50x1, 50);
+			vnaMeasurement.adcFullScale = 20000 * 48 * 50;
 		}
 	}
 }
@@ -998,11 +1001,11 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 #endif
 		} else {
 			if(ecalState == ECAL_STATE_DONE) {
-				scale *= 0.1f;
-				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.9f + ecal0 * 0.1f;
+				scale *= 0.2f;
+				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal0 * 0.2f;
 				#ifndef ECAL_PARTIAL
-					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.9f + ecal[1] * scale;
-					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.9f + ecal[2] * scale;
+					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
+					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
 				#endif
 			} else {
 				measuredEcal[0][freqIndex] = ecal0;
