@@ -1842,7 +1842,7 @@ draw_cal_status(void)
   if (cal_status & CALSTAT_APPLY) {
 	ili9341_set_foreground(DEFAULT_CAL_ACTIVE_COLOR);
     c[0] = cal_status & CALSTAT_INTERPOLATED ? 'c' : 'C';
-    c[1] = active_props == &current_props ? '*' : '0' + lastsaveid;
+    c[1] = '0' + lastsaveid;
     c[2] = 0;
     ili9341_drawstring(c, x, y);
   }
