@@ -20,7 +20,7 @@ void properties_t::setFieldsToDefault() {
 	magic = CONFIG_MAGIC;
 	_frequency0   = 100000000;    // start = 100MHz
 	_frequency1   = 900000000;    // end   = 900MHz
-	_sweep_points = 101;
+	_sweep_points = SWEEP_POINTS_MAX;
 	_cal_status   = 0;
 	_electrical_delay = 0.0;
 	_velocity_factor =  0.7;
