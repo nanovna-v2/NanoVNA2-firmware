@@ -385,6 +385,7 @@ static void updateIFrequency(freqHz_t txFreqHz) {
 			vnaMeasurement.adcFullScale = 20000 * 48 * 50;
 		}
 	}
+#endif
 }
 
 
