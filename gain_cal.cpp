@@ -48,7 +48,6 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 
 	// disable ecal during gain cal
 	vnaMeasurement.ecalIntervalPoints = 10000;
-	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 	vnaMeasurement.setSweep(DEFAULT_FREQ, 0, 1, 1);
 	vnaMeasurement.emitDataPoint = [&](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
 		dpFIFO.enqueue(v[1]);
