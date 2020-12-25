@@ -1,4 +1,5 @@
 #include "vna_measurement.hpp"
+#include <board.hpp>
 
 VNAMeasurement::VNAMeasurement(): sampleProcessor(_emitValue_t {this}) {
 
@@ -51,7 +52,7 @@ void VNAMeasurement::sweepAdvance() {
 	periodCounterSynth = nWaitSynth;
 	periodCounterSwitch = 0;
 	if(sweepCurrPoint == 0) {
-		periodCounterSynth = 64; // for first point need more wait
+		periodCounterSynth = BOARD_MEASUREMENT_FIRST_POINT_WAIT; // for first point need more wait
 		currGain = gainMax;
 		ecalCounter = ecalCounterOffset;
 		ecalCounterOffset++;
