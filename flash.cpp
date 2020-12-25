@@ -6,6 +6,9 @@
 
 #define FLASH_PAGE_SIZE 2048
 
+// Use for cache config check
+static uint16_t crc_cache = 0;
+
 uint32_t flash_program_data(uint32_t dst, uint8_t *src, uint32_t bytes) {
 	uint32_t flash_status = 0;
 
@@ -73,15 +76,16 @@ uint32_t flash_program_data(uint32_t dst, uint8_t *src, uint32_t bytes) {
 	return 0;
 }
 
-
-
+static inline uint32_t __ROR(uint32_t op1, uint32_t op2) {
+	return (op1 >> op2) | (op1 << (32 - op2));
+}
 
 static uint32_t checksum(const void *start, size_t len) {
 	uint32_t *p = (uint32_t*)start;
-	uint32_t *tail = (uint32_t*)(((uint8_t*)start) + len);
 	uint32_t value = 0;
-	while (p < tail)
-		value ^= *p++;
+	len>>=2;
+	while (len--)
+		value = __ROR(value, 31) + *p++;
 	return value;
 }
 
@@ -101,84 +105,84 @@ int flash_caldata_save(int id) {
 		return -1;
 
 	current_props.magic = CONFIG_MAGIC;
-	current_props.checksum = 0;
-	current_props.checksum = checksum(&current_props, sizeof current_props);
+	current_props.checksum = checksum(&current_props, sizeof(current_props) - 8);
 
 	int ret = flash_program_data(dst, src, sizeof(current_props));
 
 	printk("save caldata %d, ret = %d\n", id, ret);
 	printk("src magic: %x, dst magic = %x\n", *(uint32_t*)src, *(uint32_t*)dst);
 	lastsaveid = id;
+	crc_cache|=1<<id;
 	return ret;
 }
+
 int flash_caldata_recall(int id) {
-	properties_t *src;
-	void *dst = &current_props;
+	const properties_t *src;
 
 	if (id < 0 || id >= SAVEAREA_MAX)
 		return -1;
 
 	// point to saved area on the flash memory
 	src = (properties_t*)SAVEAREA(id);
-
-	if (src->magic != CONFIG_MAGIC) {
-		printk("caldata_recall: incorrect magic %x, should be %x\n", src->magic, CONFIG_MAGIC);
-		return -2;
+	// Need check it
+	if ((crc_cache&(1<<id)) == 0){
+		if (src->magic != CONFIG_MAGIC) {
+			printk("caldata_recall: incorrect magic %x, should be %x\n", src->magic, CONFIG_MAGIC);
+			return -2;
+		}
+		if (checksum(src, sizeof(current_props) - 8) != src->checksum) {
+			printk("caldata_recall: incorrect checksum %08x\n", src->checksum);
+			return -3;
+		}
 	}
-	int ck;
-	if ((ck = checksum(src, sizeof(properties_t))) != 0) {
-		printk("caldata_recall: incorrect checksum %d, should be 0\n", ck);
-		return -3;
-	}
-
 	/* active configuration points to save data on flash memory */
-	active_props = src;
 	lastsaveid = id;
-
+	crc_cache|=1<<id;
 	/* duplicated saved data onto sram to be able to modify marker/trace */
-	memcpy(dst, src, sizeof(properties_t));
+	memcpy(&current_props, src, sizeof(properties_t));
 	return 0;
 }
 
 const properties_t *caldata_reference(void) {
-	const properties_t *src;
-
-	src = (const properties_t*)SAVEAREA(lastsaveid);
+	const properties_t *src = (const properties_t*)SAVEAREA(lastsaveid);
+	// Return cached result
+	if (crc_cache&(1<<lastsaveid)) return src;
 	if (src->magic != CONFIG_MAGIC)
 		return nullptr;
-	if (checksum(src, sizeof(properties_t)) != 0)
+	if (checksum(src, sizeof(current_props) - 8) != src->checksum)
 		return nullptr;
+	crc_cache|=1<<lastsaveid;
 	return src;
 }
 
 int flash_config_save(void) {
-	uint8_t *src = (uint8_t*)&config;
+	uint8_t* src = (uint8_t*)&config;
 	uint32_t dst = CONFIGAREA_BEGIN;
-	uint32_t bytes = sizeof(config);
 
 	static_assert(CONFIGAREA_BYTES >= sizeof(config),
 		"CONFIGAREA_BYTES is too small");
 
 	config.magic = CONFIG_MAGIC;
-	config.checksum = 0;
-	config.checksum = checksum(&config, bytes);
-
-	return flash_program_data(dst, src, bytes);
+	config.checksum = checksum(&config, sizeof(config) - 8);
+	crc_cache|=1<<15;
+	return flash_program_data(dst, src, sizeof(config));
 }
+
 int flash_config_recall(void) {
 	const config_t *src = (const config_t*)CONFIGAREA_BEGIN;
 	void *dst = &config;
-
-	if (src->magic != CONFIG_MAGIC) {
-		printk("config_recall: incorrect magic %x, should be %x\n", src->magic, CONFIG_MAGIC);
-		return -1;
+	// Check cache
+	if ((crc_cache&(1<<15)) == 0){
+		if (src->magic != CONFIG_MAGIC) {
+			printk("config_recall: incorrect magic %x, should be %x\n", src->magic, CONFIG_MAGIC);
+			return -1;
+		}
+		if (checksum(src, sizeof(config) - 8) != src->checksum) {
+			printk("config_recall: incorrect checksum %08x\n", src->checksum);
+			return -2;
+		}
 	}
-	int ck;
-	if ((ck = checksum(src, sizeof(config_t))) != 0) {
-		printk("config_recall: incorrect checksum %d, should be 0\n", ck);
-		return -1;
-	}
-
+	crc_cache|=1<<15;
 	/* duplicated saved data onto sram to be able to modify marker/trace */
 	memcpy(dst, src, sizeof(config_t));
 	return 0;
@@ -186,7 +190,7 @@ int flash_config_recall(void) {
 
 void flash_clear_user(void) {
 	flash_unlock();
-
+	crc_cache = 0;
 	// erase flash pages
 	uint8_t *p = (uint8_t*)USERFLASH_BEGIN;
 	uint8_t *tail = (uint8_t*)board::USERFLASH_END;
