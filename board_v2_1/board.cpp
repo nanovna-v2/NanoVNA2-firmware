@@ -22,7 +22,6 @@
 using namespace mculib;
 using namespace std;
 
-extern volatile int MEASUREMENT_NPERIODS_NORMAL, MEASUREMENT_NPERIODS_CALIBRATING, MEASUREMENT_ECAL_INTERVAL, MEASUREMENT_NWAIT_SWITCH;
 
 namespace board {
 
@@ -251,18 +250,6 @@ namespace board {
 		adc_srate = 6000000/(7.5+12.5);
 		adc_period_cycles = (7.5+12.5);
 		adc_clk = 6000000;
-
-	#ifdef EXPERIMENTAL_NPERIODS
-		MEASUREMENT_NPERIODS_NORMAL = 7;
-		MEASUREMENT_NPERIODS_CALIBRATING = 15;
-		MEASUREMENT_ECAL_INTERVAL = 10;
-		MEASUREMENT_NWAIT_SWITCH = 1;
-	#else
-		MEASUREMENT_NPERIODS_NORMAL = 14;
-		MEASUREMENT_NPERIODS_CALIBRATING = 30;
-		MEASUREMENT_ECAL_INTERVAL = 5;
-		MEASUREMENT_NWAIT_SWITCH = 1;
-	#endif
 	}
 
 
@@ -289,13 +276,22 @@ namespace board {
 		digitalWrite(led2, LOW);
 	}
 
+#ifdef EXPERIMENTAL_SYNTHWAIT
 	int calculateSynthWaitAF(freqHz_t freqHz) {
-	#ifdef EXPERIMENTAL_SYNTHWAIT
 		if (freqHz < 1200000000) return 2;
 		return 3;
-	#else
+	}
+	int calculateSynthWaitSI(int retval) {
+		switch(retval) {
+			case 0: return 18;
+			case 1: return 60;
+			case 2: return 60;
+		}
+		return 5;
+	}
+#else
+	int calculateSynthWaitAF(freqHz_t freqHz) {
 		return 10;
-	#endif
 	}
 
 	int calculateSynthWaitSI(int retval) {
@@ -306,6 +302,7 @@ namespace board {
 		}
 		return 5;
 	}
+#endif
 
 	void lcd_spi_init() {
 		dmaChannelSPI.enable();
