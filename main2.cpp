@@ -1101,6 +1101,7 @@ static void setVNASweepToUI() {
 
 void updateAveraging() {
 	auto avg = current_props._avg;
+	if (avg > BOARD_MEASUREMENT_MAX_CALIBRATION_AVG) avg = BOARD_MEASUREMENT_MAX_CALIBRATION_AVG;
 #if BOARD_REVISION >= 4
 	if(avg != currTimingsArgs.nAverage) {
 		currTimingsArgs.nAverage = current_props._avg;
