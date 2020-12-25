@@ -969,19 +969,19 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 
+#define USE_FIXED_CORRECTION
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped) {
 	digitalWrite(led, clipped?1:0);
-
-	//v[0] = powf(10, currThruGain/20.f)*v[1];
-	//ecal = nullptr;
 
 	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
 
 #if BOARD_REVISION < 4
 	v[2]*= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
+#ifdef USE_FIXED_CORRECTION
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
+#endif
 
 	int ecalIgnoreValues2 = ecalIgnoreValues;
 	if(ecalIgnoreValues2 != 0) {
