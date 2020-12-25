@@ -24,23 +24,25 @@ public:
 	typedef complex<int32_t> complexi;
 
 	// how many periods to wait after changing rf switches
-	uint32_t nWaitSwitch = 1;
+	uint16_t nWaitSwitch = 1;
 
 	// how many periods to wait after changing synthesizer frequency
-	uint32_t nWaitSynth = 30;
+	uint16_t nWaitSynth = 30;
 
 	// how many periods to average over
-	uint32_t nPeriods = 14;
-	uint32_t nPeriodsMultiplier = 1;
+	uint16_t nMeasureCount = 0;
+	uint16_t nPeriods = 14;
+	uint16_t nPeriodsCalibrating = 28;
+	uint16_t nPeriodsMultiplier = 1;
 
 	// every ecalIntervalPoints we will measure one frequency point for ecal
-	uint32_t ecalIntervalPoints = 8;
+	uint16_t ecalIntervalPoints = 8;
 
 	// AGC parameters; VNAMeasurement will detect ADC clip events and inform the
 	// host when baseband/rf gain needs to be changed.
 	uint8_t gainMin = 0, gainMax = 3;
 
-	uint32_t adcFullScale = 30000;
+	float adcFullScale = 0;
 
 	// automatically reset before each measurement; indicates whether the current
 	// S11 data point is corrupted when emitDataPoint() is called.
@@ -123,7 +125,7 @@ public:
 	// sweep params
 	freqHz_t sweepStartHz = 0, sweepStepHz = 0;
 	int sweepPoints = 1;
-	int sweepDataPointsPerFreq = 1;
+	uint32_t sweepDataPointsPerFreq = 1;
 
 	freqHz_t currFreq;
 
