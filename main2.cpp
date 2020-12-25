@@ -969,6 +969,22 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 	}
 }
 
+// Allow smooth complex data point array (this remove noise, smooth power depend form count)
+static void measurementDataSmooth(complexf *data, int points, int count){
+	int j;
+	while(count--){
+		complexf prev = data[0];
+		// first point smooth
+		data[0] = (prev + prev + data[1])/3.0f;
+		for (j=1;j<points-1;j++){
+			complexf old = data[j]; // save current data point for next point smooth
+			data[j] = (prev + data[j] + data[j] + data[j+1])/4.0f;
+			prev = old;
+		}
+		// last point smooth
+		data[j] = (data[j] + data[j] + prev)/3.0f;
+	}
+}
 
 #define USE_FIXED_CORRECTION
 // callback called by VNAMeasurement when an observation is available.
@@ -1026,6 +1042,11 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 				ecalState = ECAL_STATE_DONE;
 				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
 				vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
+				measurementDataSmooth(measuredEcal[0], vnaMeasurement.sweepPoints, 16);
+				#ifndef ECAL_PARTIAL
+					measurementDataSmooth(measuredEcal[1], vnaMeasurement.sweepPoints, 16);
+					measurementDataSmooth(measuredEcal[2], vnaMeasurement.sweepPoints, 16);
+				#endif
 			}
 		}
 	}
@@ -1052,6 +1073,24 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 			collectMeasurementOffset = freqIndex > 0 ? freqIndex - 1 : vnaMeasurement.sweepPoints - 1;
 		} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
 			collectMeasurementState = 0;
+#if 0
+			// Made smooth result for calibration
+			int count = 4;
+			if(collectMeasurementType == CAL_LOAD)
+				measurementDataSmooth(current_props._cal_data[CAL_LOAD], vnaMeasurement.sweepPoints, count);
+			else if(collectMeasurementType == CAL_OPEN){
+				measurementDataSmooth(current_props._cal_data[CAL_OPEN], vnaMeasurement.sweepPoints, count);
+				measurementDataSmooth(current_props._cal_data[CAL_ISOLN_OPEN], vnaMeasurement.sweepPoints, count*8);
+			}
+			else if(collectMeasurementType == CAL_SHORT){
+				measurementDataSmooth(current_props._cal_data[CAL_SHORT], vnaMeasurement.sweepPoints, count);
+				measurementDataSmooth(current_props._cal_data[CAL_ISOLN_SHORT], vnaMeasurement.sweepPoints, count*8);
+			}
+//			else if(collectMeasurementType == CAL_THRU) { // Not need smooth thru calibration, no noise,
+//				measurementDataSmooth(current_props._cal_data[CAL_THRU_REFL], vnaMeasurement.sweepPoints, count);
+//				measurementDataSmooth(current_props._cal_data[CAL_THRU], vnaMeasurement.sweepPoints, count);
+//			}
+#endif
 			collectMeasurementType = -1;
 			eventQueue.enqueue(collectMeasurementCB);
 		}
