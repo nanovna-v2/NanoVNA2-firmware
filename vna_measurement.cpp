@@ -62,7 +62,7 @@ void VNAMeasurement::sweepAdvance() {
 	periodCounterSwitch = 0;
 	if(sweepCurrPoint == 0) {
 		periodCounterSynth = BOARD_MEASUREMENT_FIRST_POINT_WAIT; // for first point need more wait
-		currGain = gainMax;
+		currThruGain = gainMax;
 		ecalCounter = ecalCounterOffset;
 		ecalCounterOffset++;
 		if(ecalCounterOffset >= ecalIntervalPoints)
@@ -97,10 +97,10 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 		if(measurementPhase == VNAMeasurementPhases::THRU) {
 			if(clipped) {
 				// ADC clip occurred during a measurement period
-				if(currGain > gainMin) {
+				if(currThruGain > gainMin) {
 					// decrease gain and redo measurement
-					currGain--;
-					gainChanged(currGain);
+					currThruGain--;
+					gainChanged(currThruGain);
 					periodCounterSwitch = 0;
 					currDP_re = 0;
 					currDP_im = 0;
@@ -110,10 +110,8 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 				}
 			}
 		}
-
-		if(measurementPhase == VNAMeasurementPhases::THRU)
-			clipFlag2 |= clipped;
-		else clipFlag |= clipped;
+		else // not show clippederror on thru measure
+			clipFlag |= clipped;
 	} else {
 		sampleProcessor.clipFlag = false;
 	}
@@ -137,15 +135,14 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 		case VNAMeasurementPhases::REFL:
 			currRefl = currDP;
 			setMeasurementPhase(VNAMeasurementPhases::THRU);
-			gainChanged(currGain);
 			break;
 		case VNAMeasurementPhases::THRU:
-			if(currGain < gainMax && !gainChangeOccurred) {
+			if(currThruGain < gainMax && !gainChangeOccurred) {
 				float mag = abs(currDP);
 				if(mag < (adcFullScale * 0.15f)) {
 					// signal level too low; increase gain and retry
-					currGain++;
-					gainChanged(currGain);
+					currThruGain++;
+					gainChanged(currThruGain);
 					gainChangeOccurred = true;
 					periodCounterSwitch = 0;
 					currDP_re = 0;
@@ -214,7 +211,7 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 	emitDataPoint(sweepCurrPoint, currFreq, value, ecal ? this->ecal : nullptr);
 
 	clipFlag = false;
-	clipFlag2 = false;
+
 	dpCounterSynth++;
 	if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
 		dpCounterSynth = 0;

@@ -115,7 +115,6 @@ static volatile bool usbDataMode = false;
 static volatile bool usbCaptureMode = false;
 
 static freqHz_t currFreqHz = 0;		// current hardware tx frequency
-int currThruGain = 0;		// gain setting used for this thru measurement
 
 // if nonzero, any ecal data in the next ecalIgnoreValues data points will be ignored.
 // this variable is decremented every time a data point arrives, if nonzero.
@@ -333,34 +332,31 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
-	if(BOARD_REVISION >= 3) {
-		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
-		if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
-			lo_freq = 6000;
-			adf4350_freqStep = 6000;
-			vnaMeasurement.setCorrelationTable(sinROM200x1, 200);
-			vnaMeasurement.adcFullScale = 10000 * 200 * 200;
-			vnaMeasurement.gainMax = 0;
-			currThruGain = 0;
-			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
-		} else if(txFreqHz <= 350000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
-			lo_freq = 12000;
-			adf4350_freqStep = 12000;
-			vnaMeasurement.setCorrelationTable(sinROM100x1, 100);
-			vnaMeasurement.adcFullScale = 10000 * 100 * 100;
-			vnaMeasurement.gainMax = 0;
-			currThruGain = 0;
-			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(0));
-		} else {
-			lo_freq = 150000;
-			adf4350_freqStep = 10000;
-			vnaMeasurement.setCorrelationTable(sinROM10x2, 20);
-			vnaMeasurement.adcFullScale = 10000 * 48 * 20;
-			vnaMeasurement.gainMax = 3;
-		}
-		nvic_enable_irq(NVIC_TIM1_UP_IRQ);
-		return;
+#if BOARD_REVISION >= 3
+	nvic_disable_irq(NVIC_TIM1_UP_IRQ);
+	if(txFreqHz < 40000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
+		lo_freq = 6000;
+		adf4350_freqStep = 6000;
+		vnaMeasurement.setCorrelationTable(sinROM200x1, 200);
+		vnaMeasurement.adcFullScale = 10000 * 200 * 200;
+		vnaMeasurement.gainMax = 0;
+		vnaMeasurement.currThruGain = 0;
+	} else if(txFreqHz <= 350000) { //|| (txFreqHz > 149000000 && txFreqHz < 151000000)) {
+		lo_freq = 12000;
+		adf4350_freqStep = 12000;
+		vnaMeasurement.setCorrelationTable(sinROM100x1, 100);
+		vnaMeasurement.adcFullScale = 10000 * 100 * 100;
+		vnaMeasurement.gainMax = 0;
+		vnaMeasurement.currThruGain = 0;
+	} else {
+		lo_freq = 150000;
+		adf4350_freqStep = 10000;
+		vnaMeasurement.setCorrelationTable(sinROM10x2, 20);
+		vnaMeasurement.adcFullScale = 10000 * 48 * 20;
+		vnaMeasurement.gainMax = 3;
 	}
+	nvic_enable_irq(NVIC_TIM1_UP_IRQ);
+#else
 	// adf4350 freq step and thus IF frequency must be a divisor of the crystal frequency
 	if(xtalFreqHz == 20000000 || xtalFreqHz == 40000000) {
 		// 6.25/12.5kHz IF
@@ -928,13 +924,13 @@ static int measurementGetDefaultGain(freqHz_t freqHz) {
 }
 // callback called by VNAMeasurement to change rf switch positions.
 static void measurementPhaseChanged(VNAMeasurementPhases ph) {
-	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 	lcdInhibit = false;
 	switch(ph) {
 		case VNAMeasurementPhases::REFERENCE:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			rfsw(RFSW_ECAL, RFSW_ECAL_OPEN);
+			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 			break;
 		case VNAMeasurementPhases::REFL:
 			// If only measuring REFL and THRU, we skip REFERENCE and thus
@@ -944,25 +940,30 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 				rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			}
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
+			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 			break;
 		case VNAMeasurementPhases::THRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_NORMAL);
 			rfsw(RFSW_REFL, RFSW_REFL_OFF);
 			rfsw(RFSW_RECV, RFSW_RECV_PORT2);
+			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(vnaMeasurement.currThruGain));
 			lcdInhibit = true;
 			break;
 		case VNAMeasurementPhases::ECALTHRU:
 			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
+			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 			lcdInhibit = true;
 			break;
 		case VNAMeasurementPhases::ECALLOAD:
 			rfsw(RFSW_REFL, RFSW_REFL_ON);
 			rfsw(RFSW_RECV, RFSW_RECV_REFL);
 			rfsw(RFSW_ECAL, RFSW_ECAL_LOAD);
+			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 			break;
 		case VNAMeasurementPhases::ECALSHORT:
 			rfsw(RFSW_ECAL, RFSW_ECAL_SHORT);
+			rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(currFreqHz)));
 			break;
 	}
 }
@@ -976,7 +977,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
 
 #if BOARD_REVISION < 4
-	v[2]*= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
+	v[2]*= gainTable[vnaMeasurement.currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
 #ifdef USE_FIXED_CORRECTION
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
@@ -1116,8 +1117,7 @@ static void measurement_setup() {
 		measurementPhaseChanged(ph);
 	};
 	vnaMeasurement.gainChanged = [](int gain) {
-		currThruGain = gain;
-		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(currThruGain));
+		rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(gain));
 	};
 	vnaMeasurement.emitDataPoint = [](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
 		measurementEmitDataPoint(freqIndex, freqHz, v, ecal, vnaMeasurement.clipFlag);

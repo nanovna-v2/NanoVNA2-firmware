@@ -49,7 +49,7 @@ public:
 	bool clipFlag = false;
 
 	// same as clipFlag, but for S21
-	bool clipFlag2 = false;
+//	bool clipFlag2 = false;
 
 	// called when a new data point is available.
 	// ecal is load, short, thru.
@@ -114,7 +114,8 @@ public:
 	// number of frequency points since start of sweep
 	volatile int sweepCurrPoint = 0;
 
-	uint32_t currGain = 0;
+	uint16_t currThruGain = 0;
+	uint16_t currReflGain = 0;
 	bool gainChangeOccurred = false;
 
 
