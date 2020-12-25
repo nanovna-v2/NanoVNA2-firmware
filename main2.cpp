@@ -568,11 +568,13 @@ static void exitUSBDataMode() {
 	usbDataMode = false;
 }
 
-
+#ifdef BOARD_DISABLE_ECAL
+// Made measure ecal, and apply correction
+#define ecalApplyReflection(refl, freqIndex) refl
+#else
+complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX] alignas(8);
 static complexf ecalApplyReflection(complexf refl, int freqIndex) {
-	#if BOARD_REVISION >= 4
-		return refl;
-	#elif defined(ECAL_PARTIAL)
+	#if defined(ECAL_PARTIAL)
 		return refl - measuredEcal[0][freqIndex];
 	#else
 		return SOL_compute_reflection(
@@ -582,6 +584,7 @@ static complexf ecalApplyReflection(complexf refl, int freqIndex) {
 					refl);
 	#endif
 }
+#endif
 
 
 static complexf applyFixedCorrections(complexf refl, freqHz_t freq) {
@@ -990,8 +993,7 @@ static void measurementDataSmooth(complexf *data, int points, int count){
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped) {
 	digitalWrite(led, clipped?1:0);
-
-	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
+	bool collectAllowed = true;
 
 #if BOARD_REVISION < 4
 	v[2]*= gainTable[vnaMeasurement.currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
@@ -1000,12 +1002,13 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
 #endif
 
+#ifndef BOARD_DISABLE_ECAL
 	int ecalIgnoreValues2 = ecalIgnoreValues;
 	if(ecalIgnoreValues2 != 0) {
 		ecal = nullptr;
 		__sync_bool_compare_and_swap(&ecalIgnoreValues, ecalIgnoreValues2, ecalIgnoreValues2-1);
 	}
-
+	collectAllowed = (ecal != nullptr);
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
 		auto ecal0 = ecal[0] * scale;
@@ -1050,6 +1053,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 			}
 		}
 	}
+#endif
 #endif
 
 	if(collectMeasurementType >= 0 && collectAllowed) {

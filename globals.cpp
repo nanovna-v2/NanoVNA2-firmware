@@ -32,10 +32,6 @@ properties_t current_props;
 complexf measuredFreqDomain[2][SWEEP_POINTS_MAX] alignas(8);
 complexf measured[2][SWEEP_POINTS_MAX] alignas(8);
 
-#if BOARD_REVISION < 4
-complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX] alignas(8);
-#endif
-
 volatile EcalStates ecalState = ECAL_STATE_MEASURING;
 
 __attribute__((used))

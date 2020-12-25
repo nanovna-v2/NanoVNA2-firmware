@@ -1069,8 +1069,8 @@ const menuitem_t menu_power[] = {
 
 static const menuitem_t menu_sweep_config[] = {
   { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
-#if BOARD_REVISION < 4
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
+#ifndef BOARD_DISABLE_ECAL
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
 #endif
