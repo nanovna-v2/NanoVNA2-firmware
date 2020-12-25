@@ -968,19 +968,19 @@ static void measurementPhaseChanged(VNAMeasurementPhases ph) {
 }
 
 
+#define USE_FIXED_CORRECTION
 // callback called by VNAMeasurement when an observation is available.
 static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservation v, const complexf* ecal, bool clipped) {
 	digitalWrite(led, clipped?1:0);
-
-	//v[0] = powf(10, currThruGain/20.f)*v[1];
-	//ecal = nullptr;
 
 	bool collectAllowed = (BOARD_REVISION >= 4) || (ecal != nullptr);
 
 #if BOARD_REVISION < 4
 	v[2]*= gainTable[currThruGain] / gainTable[measurementGetDefaultGain(freqHz)];
+#ifdef USE_FIXED_CORRECTION
 	v[2] = applyFixedCorrectionsThru(v[2], freqHz);
 	v[0] = applyFixedCorrections(v[0]/v[1], freqHz) * v[1];
+#endif
 
 	int ecalIgnoreValues2 = ecalIgnoreValues;
 	if(ecalIgnoreValues2 != 0) {
@@ -990,8 +990,10 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
-		auto ecal0 = applyFixedCorrections(ecal[0] * scale, freqHz);
-
+		auto ecal0 = ecal[0] * scale;
+#ifdef USE_FIXED_CORRECTION
+		ecal0 = applyFixedCorrections(ecal0, freqHz);
+#endif
 		if(collectMeasurementType >= 0) {
 			// we are collecting a measurement for calibration
 			measuredEcal[0][freqIndex] = ecal0;
@@ -1001,9 +1003,10 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 #endif
 		} else {
 			if(ecalState == ECAL_STATE_DONE) {
-				scale *= 0.2f;
+				// Noise Filtering k = 0.8
 				measuredEcal[0][freqIndex] = measuredEcal[0][freqIndex] * 0.8f + ecal0 * 0.2f;
 				#ifndef ECAL_PARTIAL
+					scale *= 0.2f;
 					measuredEcal[1][freqIndex] = measuredEcal[1][freqIndex] * 0.8f + ecal[1] * scale;
 					measuredEcal[2][freqIndex] = measuredEcal[2][freqIndex] * 0.8f + ecal[2] * scale;
 				#endif
@@ -1042,16 +1045,11 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 			current_props._cal_data[CAL_THRU_REFL][freqIndex] = refl;
 			current_props._cal_data[CAL_THRU][freqIndex] = tmp;
 		}
-
+		// Collect measure start from freqIndex, need collect all data
 		if(collectMeasurementState == 0) {
 			collectMeasurementState = 1;
-			collectMeasurementOffset = freqIndex;
+			collectMeasurementOffset = freqIndex > 0 ? freqIndex - 1 : vnaMeasurement.sweepPoints - 1;
 		} else if(collectMeasurementState == 1 && collectMeasurementOffset == freqIndex) {
-			collectMeasurementState = 2;
-			collectMeasurementOffset += 2;
-			if(collectMeasurementOffset >= sweep_points)
-				collectMeasurementOffset -= sweep_points;
-		} else if(collectMeasurementState == 2 && collectMeasurementOffset == freqIndex) {
 			collectMeasurementState = 0;
 			collectMeasurementType = -1;
 			eventQueue.enqueue(collectMeasurementCB);
@@ -1279,6 +1277,7 @@ static void transform_domain() {
 }
 
 static void apply_edelay(int i, complexf& refl, complexf& thru) {
+	if (electrical_delay == 0.0) return;
 	float w = 2 * M_PI * electrical_delay * UIActions::frequencyAt(i) * 1E-12;
 	complexf s = polar(1.f, w);
 	refl *= s;
@@ -1302,6 +1301,13 @@ cal_interpolate(void)
 //freqHz_t dst_stop = dst->stopFreqHz();
   freqHz_t dst_step = dst->stepFreqHz();
 
+  // Upload not interpolated if some
+  if (src_start == dst_start && src_step == dst_step && src->_sweep_points == dst->_sweep_points){
+    memcpy(current_props._cal_data, src->_cal_data, sizeof(src->_cal_data));
+    cal_status |= (src->_cal_status)&~CALSTAT_APPLY;
+    redraw_request |= REDRAW_CAL_STATUS;
+    return;
+  }
   // lower than start freq of src range
   for (i = 0; i < sweep_points; i++) {
     freqHz_t dst_f = dst_start + i*dst_step;
@@ -1341,9 +1347,7 @@ cal_interpolate(void)
       cal_data[eterm][i] = src->_cal_data[eterm][src->_sweep_points-1];
     }
   }
-  int new_cal_status = src->_cal_status | CALSTAT_INTERPOLATED;
-  new_cal_status &= ~CALSTAT_APPLY;
-  cal_status |= new_cal_status;
+  cal_status |= (src->_cal_status | CALSTAT_INTERPOLATED)&~CALSTAT_APPLY;
   redraw_request |= REDRAW_CAL_STATUS;
 }
 
@@ -1659,7 +1663,6 @@ int main(void) {
 			// display "usb mode" screen
 			if(!lastUSBDataMode) {
 				ui_mode_usb();
-				setVNASweepToUSB();
 			}
 			lastUSBDataMode = usbDataMode;
 
