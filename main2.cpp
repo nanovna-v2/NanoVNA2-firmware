@@ -401,6 +401,7 @@ __attribute__((used, noinline)) int calculateSynthWait(bool isSi, int retval) {
 // set the measurement frequency including setting the tx and rx synthesizers
 void setFrequency(freqHz_t freqHz) {
 	updateIFrequency(freqHz);
+	// On measure, call phase change before update frequency call, so update gain for frequency range here
 	rfsw(RFSW_BBGAIN, RFSW_BBGAIN_GAIN(measurementGetDefaultGain(freqHz)));
 
 	/* Only if frequency changes apply the new frequency.
@@ -1100,6 +1101,7 @@ static void setVNASweepToUI() {
 
 void updateAveraging() {
 	auto avg = current_props._avg;
+	if (avg > BOARD_MEASUREMENT_MAX_CALIBRATION_AVG) avg = BOARD_MEASUREMENT_MAX_CALIBRATION_AVG;
 #if BOARD_REVISION >= 4
 	if(avg != currTimingsArgs.nAverage) {
 		currTimingsArgs.nAverage = current_props._avg;
@@ -1813,8 +1815,8 @@ namespace UIActions {
 			ui_cal_collected();
 		};
 		uint32_t avgMult = current_props._avg;
-//		if(avgMult > 20) avgMult = 20;
-		if(avgMult <  4) avgMult =  4;
+		if(avgMult < BOARD_MEASUREMENT_MIN_CALIBRATION_AVG) avgMult = BOARD_MEASUREMENT_MIN_CALIBRATION_AVG;
+		if(avgMult > BOARD_MEASUREMENT_MAX_CALIBRATION_AVG) avgMult = BOARD_MEASUREMENT_MAX_CALIBRATION_AVG;
 	#if BOARD_REVISION >= 4
 		__sync_synchronize();
 		sys_setTimings_args args {0, avgMult};
