@@ -36,6 +36,15 @@ void VNAMeasurement::setMeasurementPhase(VNAMeasurementPhases ph) {
 	periodCounterSwitch = 0;
 	currDP_re = 0;
 	currDP_im = 0;
+	gainChangeOccurred = false;
+#if 0
+	// For ecal use nPeriodsCalibrating always, for other use nPeriods
+    if (ph > VNAMeasurementPhases::THRU) nMeasureCount = nPeriodsCalibrating * nPeriodsMultiplier;
+	else  	                             nMeasureCount = nPeriods * nPeriodsMultiplier;
+#else
+	// On calibration or first step (ecalIntervalPoints == 1) use nPeriodsCalibrating, for other use nPeriods
+	nMeasureCount = ((ecalIntervalPoints == 1) ? nPeriodsCalibrating : nPeriods) * nPeriodsMultiplier;
+#endif
 }
 static inline complexf to_complexf(VNAMeasurement::complexi value) {
 	return {(float) value.real(), (float) value.imag()};
@@ -111,7 +120,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 	periodCounterSwitch++;
 
 	/* If switch time not elapsed, wait some more */
-	if(periodCounterSwitch < (nWaitSwitch + nPeriods*nPeriodsMultiplier)) {
+	if(periodCounterSwitch < (nWaitSwitch + nMeasureCount)) {
 		return;
 	}
 	// Real measure count
@@ -207,7 +216,7 @@ void VNAMeasurement::doEmitValue(bool ecal) {
 	clipFlag = false;
 	clipFlag2 = false;
 	dpCounterSynth++;
-	if(int(dpCounterSynth) >= sweepDataPointsPerFreq && sweepPoints > 1) {
+	if(dpCounterSynth >= sweepDataPointsPerFreq && sweepPoints > 1) {
 		dpCounterSynth = 0;
 		sweepAdvance();
 	}

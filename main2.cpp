@@ -890,7 +890,6 @@ static void cmdRegisterWrite(int address) {
 	if(address == 0x00 || address == 0x10 || address == 0x20) {
 		ecalState = ECAL_STATE_MEASURING;
 		vnaMeasurement.ecalIntervalPoints = 1;
-		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	}
 	if(address == 0x30) {
 		usbTxQueueRPos = usbTxQueueWPos;
@@ -1024,7 +1023,6 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 			} else if(ecalState == ECAL_STATE_2NDSWEEP) {
 				ecalState = ECAL_STATE_DONE;
 				vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
-				vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 				vnaMeasurement.measurement_mode = (enum MeasurementMode) current_props._measurement_mode;
 			}
 		}
@@ -1084,9 +1082,7 @@ static void setVNASweepToUI() {
 #if BOARD_REVISION < 4
 	ecalState = ECAL_STATE_MEASURING;
 	vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
-	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 	vnaMeasurement.ecalIntervalPoints = 1;
-	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 	vnaMeasurement.nPeriodsMultiplier = current_props._avg;
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, 1);
 #else
@@ -1142,6 +1138,7 @@ static void measurement_setup() {
 		}
 	};
 	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
+	vnaMeasurement.nPeriodsCalibrating = MEASUREMENT_NPERIODS_CALIBRATING;
 	vnaMeasurement.nWaitSwitch = MEASUREMENT_NWAIT_SWITCH;
 	vnaMeasurement.gainMin = 0;
 	vnaMeasurement.gainMax = RFSW_BBGAIN_MAX;
@@ -1808,7 +1805,6 @@ namespace UIActions {
 			sys_syscall(5, &args);
 		#else
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
-			vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 			vnaMeasurement.nPeriodsMultiplier = current_props._avg;
 		#endif
 			current_props._cal_status |= (1 << type);
@@ -1823,7 +1819,6 @@ namespace UIActions {
 		sys_syscall(5, &args);
 	#else
 		vnaMeasurement.ecalIntervalPoints = 1;
-		vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_CALIBRATING;
 		vnaMeasurement.nPeriodsMultiplier = avgMult;
 		vnaMeasurement.resetSweep();
 	#endif
