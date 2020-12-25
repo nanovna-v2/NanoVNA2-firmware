@@ -2086,7 +2086,6 @@ namespace UIActions {
 	int caldata_recall(int id) {
 		int ret = flash_caldata_recall(id);
 		if(ret == 0) {
-//			rebuild_bbgain();
 			setVNASweepToUI();
 			force_set_markmap();
 		}

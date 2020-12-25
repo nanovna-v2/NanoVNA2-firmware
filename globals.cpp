@@ -1,5 +1,6 @@
 #include "globals.hpp"
 #include "ili9341.hpp"
+#include <board.hpp>
 
 volatile bool sweep_enabled = true;
 int16_t vbat;
@@ -27,10 +28,6 @@ config_t config = {
 };
 
 properties_t current_props;
-
-
-properties_t* active_props = &current_props;
-
 
 complexf measuredFreqDomain[2][SWEEP_POINTS_MAX] alignas(8);
 complexf measured[2][SWEEP_POINTS_MAX] alignas(8);
