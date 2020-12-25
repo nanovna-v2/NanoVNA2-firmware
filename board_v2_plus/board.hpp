@@ -22,7 +22,14 @@
 #define BOARD_NAME "NanoVNA V2 Plus"
 #define BOARD_REVISION (3)
 #define BOARD_REVISION_MAGIC 0xdeadbabe
+
+//#define BOARD_DISABLE_ECAL
+
+#ifndef BOARD_DISABLE_ECAL
 #define USB_POINTS_MAX 1024
+#else
+#define USB_POINTS_MAX 65535
+#endif
 
 using namespace mculib;
 using namespace std;

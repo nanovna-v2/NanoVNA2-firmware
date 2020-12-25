@@ -37,7 +37,10 @@ void VNAMeasurement::setMeasurementPhase(VNAMeasurementPhases ph) {
 	currDP_re = 0;
 	currDP_im = 0;
 	gainChangeOccurred = false;
-#if 0
+#ifdef BOARD_DISABLE_ECAL
+	// Disabled ecal, use only nPeriods
+	nMeasureCount = nPeriods * nPeriodsMultiplier;
+#elif 1
 	// For ecal use nPeriodsCalibrating always, for other use nPeriods
     if (ph > VNAMeasurementPhases::THRU) nMeasureCount = nPeriodsCalibrating * nPeriodsMultiplier;
 	else  	                             nMeasureCount = nPeriods * nPeriodsMultiplier;
@@ -153,6 +156,10 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 			currThru = currDP;
 			switch(measurement_mode) {
 				case MEASURE_MODE_FULL:
+#ifdef BOARD_DISABLE_ECAL
+					setMeasurementPhase(VNAMeasurementPhases::REFERENCE);
+					doEmitValue(false);
+#else
 					if(ecalCounter == 0) {
 #ifdef ECAL_PARTIAL
 						setMeasurementPhase(VNAMeasurementPhases::ECALLOAD);
@@ -166,6 +173,7 @@ void VNAMeasurement::sampleProcessor_emitValue(int32_t valRe, int32_t valIm, boo
 					ecalCounter++;
 					if(ecalCounter >= ecalIntervalPoints)
 						ecalCounter = 0;
+#endif
 					break;
 				case MEASURE_MODE_REFL_THRU_REFRENCE: /* AKA no ECAL */
 					/* Go back to the start: REFERENCE */

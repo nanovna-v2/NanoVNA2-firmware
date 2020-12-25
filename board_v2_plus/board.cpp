@@ -278,7 +278,7 @@ namespace board {
 		switch(retval) {
 			case 0: return 36;
 			case 1: return 120;
-			case 2: return 120;
+			case 2: return 32;
 		}
 		return 5;
 	}
