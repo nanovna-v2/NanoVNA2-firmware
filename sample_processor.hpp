@@ -54,6 +54,7 @@ public:
 			samples += nStreams;
 			if(int(accumPhase) >= accumPeriod) {
 				emitValue(accumRe, accumIm);
+				clipFlag = false;
 				for(int streamNum = 0; streamNum < nStreams; streamNum++)
 					accumRe[streamNum] = accumIm[streamNum] = 0;
 				accumPhase = 0;
