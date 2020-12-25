@@ -206,7 +206,7 @@ struct alignas(4) properties_t {
   uint8_t _si5351_txPower; // 0 to 3
   uint8_t _measurement_mode; //See enum MeasurementMode.
 
-  int32_t checksum;
+  uint32_t checksum;
 
   // overwrite all fields of this instance with factory default values
   void setFieldsToDefault();
@@ -244,7 +244,7 @@ typedef struct {
   int8_t default_loadcal;
   uint32_t harmonic_freq_threshold; // unused
   int8_t ui_options;
-  int32_t checksum;
+  uint32_t checksum;
 } config_t;
 
 struct uistat_t {
