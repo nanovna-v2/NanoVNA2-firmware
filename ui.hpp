@@ -5,7 +5,7 @@
 
 #ifndef DISPLAY_ST7796
 // Maximum menu buttons count
-#define MENU_BUTTON_MAX         9
+#define MENU_BUTTON_MAX         8
 // Menu buttons size
 #define MENU_BUTTON_WIDTH      68
 #define MENU_BUTTON_HEIGHT     26
