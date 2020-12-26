@@ -717,6 +717,8 @@ static UI_FUNCTION_ADV_CALLBACK(measurement_mode)
         b->icon = (mode == cur_mode) ? BUTTON_ICON_GROUP_CHECKED : BUTTON_ICON_GROUP ;
         return;
     }
+    // CW work also as checkbox
+    if (cur_mode == mode && mode == MEASURE_MODE_REFL_THRU) mode = MEASURE_MODE_FULL;
     set_measurement_mode(mode);
     draw_menu();
 }
@@ -1040,6 +1042,8 @@ const menuitem_t menu_avg[] = {
   { MT_ADV_CALLBACK, 25, "25x", (const void *)menu_avg_acb },
 #else
   { MT_ADV_CALLBACK, 40, "40x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 60, "60x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 80, "80x", (const void *)menu_avg_acb },
 #endif
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
