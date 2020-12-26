@@ -1042,7 +1042,7 @@ const menuitem_t menu_avg[] = {
   { MT_ADV_CALLBACK, 25, "25x", (const void *)menu_avg_acb },
 #else
   { MT_ADV_CALLBACK, 40, "40x", (const void *)menu_avg_acb },
-  { MT_ADV_CALLBACK, 60, "60x", (const void *)menu_avg_acb },
+//  { MT_ADV_CALLBACK, 60, "60x", (const void *)menu_avg_acb },
   { MT_ADV_CALLBACK, 80, "80x", (const void *)menu_avg_acb },
 #endif
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
