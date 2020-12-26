@@ -1715,6 +1715,7 @@ leave_ui_mode()
     request_to_draw_cells_behind_menu();
     erase_menu_buttons();
   }
+  draw_frequencies();
 }
 
 void set_numeric_value(void)
