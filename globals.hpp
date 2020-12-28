@@ -36,10 +36,6 @@ extern complexf measuredFreqDomain[2][SWEEP_POINTS_MAX];
 // measured data, possibly transformed
 extern complexf measured[2][SWEEP_POINTS_MAX];
 
-#if BOARD_REVISION < 4
-extern complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX];
-#endif
-
 enum EcalStates {
 	ECAL_STATE_MEASURING,
 	ECAL_STATE_2NDSWEEP,
