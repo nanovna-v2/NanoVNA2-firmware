@@ -39,7 +39,7 @@ extern uint16_t foreground_color;
 extern uint16_t background_color;
 
 // internal buffer space; may be repurposed
-#define SPI_BUFFER_SIZE	1280
+#define SPI_BUFFER_SIZE	1024
 extern uint16_t ili9341_spi_buffers[SPI_BUFFER_SIZE * 2];
 
 // the buffer that ili9341_bulk() transfers from
