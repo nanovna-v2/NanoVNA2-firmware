@@ -1,7 +1,7 @@
 MCULIB         ?= ../mculib
 DEVICE          = gd32f303cc
 OPENCM3_DIR    ?= ../libopencm3
-OBJS           += main.o ../common.o ../command_parser.o ../stream_fifo.o
+OBJS           += bootloader.o ../common.o ../command_parser.o ../stream_fifo.o
 OBJS           += $(MCULIB)/fastwiring.o $(MCULIB)/usbserial.o
 
 
@@ -27,7 +27,7 @@ flash: binary.hex
 	./st-flash --reset --format ihex write binary.hex
 
 factory_flash: binary.bin
-	# set magic value to enter dfu mode
+	# set magic value to enter bootloader mode
 	echo -n -e '\xbe\xba\x0b\xb0\xce\xfa\xef\xbe' | dd of=binary.bin bs=1024 seek=17
 	./st-flash --reset write binary.bin 0x08000000
 
