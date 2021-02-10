@@ -88,7 +88,7 @@ static volatile bool lcdInhibit = false;
 
 float gainTable[RFSW_BBGAIN_MAX+1];
 
-__attribute__((packed))
+// __attribute__((packed))	// Sigh, cannot be packed because complexf is not packed
 struct usbDataPoint {
 	//VNAObservation value;
 	complexf S11, S21;
@@ -332,7 +332,7 @@ static void adf4350_powerup(void) {
 
 // automatically set IF frequency depending on rf frequency and board parameters
 static void updateIFrequency(freqHz_t txFreqHz) {
-	int avg = current_props._avg;
+//	int avg = current_props._avg;
 //	if(usbDataMode) avg = 1;
 	if(BOARD_REVISION >= 3) {
 		nvic_disable_irq(NVIC_TIM1_UP_IRQ);
