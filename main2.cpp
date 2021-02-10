@@ -1481,7 +1481,7 @@ void debug_plot_markmap() {
 	plot_shadeCells = true;
 	draw_all_cells(true);
 
-	UIActions::enterDFU();
+	UIActions::enterBootload();
 	while(true);
 }
 
@@ -2133,11 +2133,11 @@ namespace UIActions {
 				(int)config.touch_cal[2], (int)config.touch_cal[3]);
 	}
 
-	void enterDFU() {
+	void enterBootload() {
 		// finish screen updates
 		lcd_spi_waitDMA();
 		// write magic value into ram (note: corrupts top of the stack)
-		bootloaderDFUIndicator = BOOTLOADER_DFU_MAGIC;
+		bootloaderBootloadIndicator = BOOTLOADER_BOOTLOAD_MAGIC;
 		// soft reset
 		SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 		while(true);

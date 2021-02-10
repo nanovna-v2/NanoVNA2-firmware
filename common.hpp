@@ -119,8 +119,8 @@ enum MeasurementMode {
     MEASURE_MODE_REFL_THRU_REFRENCE, //No ecal
 };
 
-constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
-static volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
+constexpr uint32_t BOOTLOADER_BOOTLOAD_MAGIC = 0xdeadbabe;
+static volatile uint32_t& bootloaderBootloadIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
 
 
 
