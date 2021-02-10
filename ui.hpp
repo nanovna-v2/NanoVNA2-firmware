@@ -69,7 +69,7 @@ void touch_cal_exec(void);
 void touch_draw_test(void);
 void touch_start_watchdog(void);
 bool touch_position(int *x, int *y);
-void ui_enter_dfu(void);
+void ui_enter_bootload(void);
 
 void ui_mode_normal(void);
 void ui_mode_menu(void);

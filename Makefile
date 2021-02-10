@@ -1,7 +1,7 @@
 # paths to libraries
 MCULIB         ?= mculib
 OPENCM3_DIR    ?= libopencm3
-DFU_PORT       ?= /dev/ttyACM0
+BOOTLOAD_PORT       ?= /dev/ttyACM0
 
 # device config
 BOARDNAME       ?= board_v2_2
@@ -88,8 +88,8 @@ dist-clean: clean
 flash: binary.hex
 	./st-flash --reset --format ihex write binary.hex
 
-dfu: binary.bin
-	python3 dfu.py --file $< --serial $(DFU_PORT)
+bootload_firmware dfu: binary.bin
+	python3 bootload_firmware.py --file $< --serial $(BOOTLOAD_PORT)
 
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
 include $(OPENCM3_DIR)/mk/gcc-rules.mk
