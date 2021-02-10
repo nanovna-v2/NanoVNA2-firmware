@@ -36,14 +36,21 @@ sudo tar xvf -C /opt/toolchains gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.
 export PATH=/opt/toolchains/gcc-arm-none-eabi-9-2020-q2-update/bin:$PATH
 ```
 
-## Installing dependencies
+## Installing dependencies for the firmware upload tools
 
-To upload the firmware on the NanoVNA2, you will need:
+The GD32F303 processor does not support the normal [USB DFU](https://www.usb.org/sites/default/files/DFU_1.1.pdf) mode. Instead, a serial bootloader program is installed. This serial tool was unfortunately named "dfu" even though it has no relationship to DFU. Please do not attempt to use a standard USB DFU tool.
 
-- Python 3
-- [pyserial](https://github.com/pyserial/pyserial)
+To install the bootloader on a new GD32F303, you will need to use an [ST-Link](https://www.st.com/en/development-tools/st-link-v2.html) device, of which many inexpensive clones are available. The [bootloader](bootloader/binary.bin) should be loaded at address 0x8000000, the start of the GD32F303 flash section.
 
-On a Debian based system, you can use:
+If you are using an ST-Link adapter, you should load the firmware binary at address 0x8004000. Some reports indicate that the NanoVNAv2 cannot be powered via the 3.2v supply from the ST-Link, but should be powered from its own battery.
+
+If you have an intact bootloader already installed in your NanoVNAv2, you have options to upload the firmware:
+
+- Using (NanoVNAv2-QT](https://github.com/nanovna-v2/NanoVNA-QT)
+
+- Using Python and the [dfu.py](dfu.py) script. You need Python version 3, and [pyserial](https://github.com/pyserial/pyserial)
+
+On a Debian based system, you can get pyserial using:
 
 ```
 sudo apt install python3-serial
@@ -92,14 +99,14 @@ For this to work the device must stay in the bootloader and enter _DFU mode_
 
 Another option is using a debugger using the debug pins.
 
-### Entering DFU mode
+### Entering serial firmware update mode
 ```
 Switch the device off
 Press and hold down the left button (the one closest to the Port 1 or the On/Off switch)
 Switch the device on (screen stays white), release the button
 ```
 
-The current user probably needs to be part of the dialout group to allow access.
+On a *nix system, the current user probably needs to be part of the dialout group to allow access so the serial port.
 
 Flashing can be done by running:
 ```
@@ -110,7 +117,7 @@ On some systems you may need to invoke python3 instead:
 python3 dfu.py -f binary.bin
 ```
 
-Note that depending on your installation the device might be seen as an Mobile Modem (3G/4G/etc) and it will not open the /dev/ttyACM0 port. 
+Note that depending on your installation's *udev* rules, the new serial device might be seen as an Mobile Modem (3G/4G/etc) and it will not create the /dev/ttyACM0 port. 
 After a while the modem manager will give up and you can access the device.
 If this is too much of a burden, you need to add udev rules to block modem manager from doing so.
 
