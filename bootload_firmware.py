@@ -62,8 +62,8 @@ def read_serialNumber(ser):
     sn = f"{sn[0]:08x}-{sn[1]:08x}-{sn[2]:08x}"
     return sn
 
-def detect_dfu(ser):
-    """returns true if device is in dfu mode"""
+def detect_bootloader_mode(ser):
+    """returns true if device is in bootloader mode"""
 
     # reset protocol to known state
     ser.write([0] * 8)
@@ -71,8 +71,8 @@ def detect_dfu(ser):
     # read registers 0xf1->0xf4
     # f0: device variant
     # f1: protocol version (01)
-    # f2: hardware revision (always 0 in dfu mode)
-    # f3: firmware major version (ff => dfu mode)
+    # f2: hardware revision (always 0 in bootloader mode)
+    # f3: firmware major version (ff => bootloader mode)
     # f4: firmware minor version (bootloader version)
 
     cmd = b"\x10\xf0\x10\xf1\x10\xf2\x10\xf3\x10\xf4"
@@ -80,7 +80,7 @@ def detect_dfu(ser):
     resp = ser.read(5)
 
     if resp and len(resp) == 5:
-        # firmware major version is always 0xff in dfu mode
+        # firmware major version is always 0xff in bootloader mode
         if resp[3] == 0xFF:
             return True
         print(f"Informations:")
@@ -185,10 +185,10 @@ def main():
         print(sn)
         exit(ret)
 
-    if not detect_dfu(ser):
-        print("Device not in DFU mode")
+    if not detect_bootloader_mode(ser):
+        print("Device not in Bootload mode")
         print(
-            "Please enter DFU mode through menu CONFIG -> DFU or hold down "
+            "Please enter Bootload mode through menu CONFIG -> BOOTLOAD or hold down "
             "the JOG LEFT button and power cycle the device."
         )
         exit(1)

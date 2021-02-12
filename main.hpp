@@ -48,7 +48,7 @@ namespace UIActions {
 
 	void printTouchCal();
 
-	void enterDFU();
+	void enterBootload();
 
 	void reconnectUSB();
 
