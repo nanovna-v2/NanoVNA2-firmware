@@ -1,3 +1,4 @@
+## NanoVNA V2 Firmware
 
 This repository contains the source code to build the firmware for the NanoVNA V2 (S-A-A-2).
 
@@ -5,22 +6,25 @@ See https://nanorfe.com/nanovna-v2.html for more info.
 
 Developers chat room: https://discord.gg/DUH5Xk5
 
-Below is information for building the firmware on Linux.
+Below is information for building and uploading the firmware.
 
 ## Installing the compiler
 
-### Debian based systems
+The ARM GCC compiler is maintained by ARM, and is also available by other methods.
+
+### Debian Linux based systems
 
 On any recent Debian based installation:
 ``` 
 sudo apt install gcc-arm-none-eabi
 ```
 
-### Installing the upstream toolchain
+### Installing the upstream toolchain direct from ARM
 
 If you want to install the latest version of the gnu ARM toolchain:
 
-1. get the latest version from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads . You can download it using your browser or a command line tool like `wget`:
+1. Get the latest version of the toolchain from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads .
+You can download it using your browser or a command line tool like `wget`:
 ```
 wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2
 ```
@@ -36,20 +40,7 @@ sudo tar xvf -C /opt/toolchains gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.
 export PATH=/opt/toolchains/gcc-arm-none-eabi-9-2020-q2-update/bin:$PATH
 ```
 
-## Installing dependencies
-
-To upload the firmware on the NanoVNA2, you will need:
-
-- Python 3
-- [pyserial](https://github.com/pyserial/pyserial)
-
-On a Debian based system, you can use:
-
-```
-sudo apt install python3-serial
-```
-
-## Getting the source code
+## Downloading this source code
 
 The code is spread out over 3 repositories, 2 of which are submodules of the main NanoVNA-V2-firmware one:
 ```
@@ -71,46 +62,70 @@ Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase 
 - `board_v2_plus` for V2 Plus hardware
 - `board_v2_plus4` for V2 Plus4 hardware
 
-For Plus4, a different linker script needs to be used. The build command line for the Plus4 is:
+For Plus4, a different linker script and display driver needs to be used. The build command line for the Plus4 is:
 ```
 make BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
 ```
 
-The first time you build the firmware on a fresh repository, there is a libopencm3 bug that sometimes causes the linker script to be overwritten with a nonworking one. If the built firmware does not boot, try running:
+The first time you build the firmware on a fresh repository, there is a libopencm3 bug that sometimes causes the linker script to be overwritten with one that will not work. If the built firmware does not boot, try running the following commands, then rebuild:
 ```
-git reset --hard gd32f303cc_with_bootloader.ld
-git reset --hard gd32f303cc_with_bootloader_plus4.ld
-```
-And rebuilding.
-
-
-## Flashing the firmware
-There are two options to update the firmware when using the regular USB interface:
- - Use NanoVNA-QT
- - Command line
-For this to work the device must stay in the bootloader and enter _DFU mode_
-
-Another option is using a debugger using the debug pins.
-
-### Entering DFU mode
-```
-Switch the device off
-Press and hold down the left button (the one closest to the Port 1 or the On/Off switch)
-Switch the device on (screen stays white), release the button
+git checkout -- gd32f303cc_with_bootloader.ld
+git checkout -- gd32f303cc_with_bootloader_plus4.ld
 ```
 
-The current user probably needs to be part of the dialout group to allow access.
+## To upload the firmware
+
+The GD32F303 processor does not support [USB DFU](https://www.usb.org/sites/default/files/DFU_1.1.pdf) mode like the STM32 chips do.
+Instead, a serial bootloader program is installed. Please do not attempt to use a standard USB DFU tool.
+
+The [bootloader](bootloader/binary.bin) should be loaded at address 0x8000000, the start of the GD32F303 flash section.
+To install the bootloader on a new GD32F303, you will need to use an [ST-Link](https://www.st.com/en/development-tools/st-link-v2.html) device, of which many inexpensive clones are available.
+Some reports indicate that the NanoVNAv2 cannot be powered via the 3.2v supply from the ST-Link, but should be powered from its own battery.
+
+The NanoVNA V2 firmware is installed at address 0x8004000.
+You can upload the firmware binary to that address using an ST-Link.
+
+If your device already has a working serial bootloader, you can upload the firmware without needing extra hardware.
+
+## Updating firmware using the serial bootloader
+
+If you have an intact bootloader already installed in your NanoVNAv2, there are several ways to update the firmware.
+
+You can update the firmware using (NanoVNAv2-QT](https://github.com/nanovna-v2/NanoVNA-QT). Restart your NanoVNA as described below and follow the instructions in NanoVNAv2-QT.
+
+Otherwise, you can update your firmware using Python and the [bootload_firmware.py](bootload_firmware.py) script.
+Ensure you have Python version 3, and install [pyserial](https://github.com/pyserial/pyserial).
+
+On a Debian based system, you can get pyserial using:
+
+```
+sudo apt install python3-serial
+```
+
+## Updating the firmware
+
+You must restart the device in BOOTLOAD mode:
+```
+Switch the device off.
+Press and hold down the left button (the one closest to the Port 1 or the On/Off switch).
+Switch the device on (screen stays white), release the button.
+```
+
+You will see a blank white screen. This indicates that it is waiting for new firmware.
+Check for the existence of the USB serial port device. This should be the device-special file /dev/ttyACM0
+On a *nix system, the current user probably needs to be part of the dialout group to allow access to ths device.
 
 Flashing can be done by running:
 ```
-python dfu.py -f binary.bin
-```
-On some systems you may need to invoke python3 instead:
-```
-python3 dfu.py -f binary.bin
+python bootload_firmware.py -f binary.bin
 ```
 
-Note that depending on your installation the device might be seen as an Mobile Modem (3G/4G/etc) and it will not open the /dev/ttyACM0 port. 
-After a while the modem manager will give up and you can access the device.
-If this is too much of a burden, you need to add udev rules to block modem manager from doing so.
+On some systems you may need to explicitly invoke python3 instead:
+```
+python3 bootload_firmware.py -f binary.bin
+```
+
+Note that depending on your installation's *udev* rules, the new serial device initially appear as an Mobile Modem (3G/4G/etc)
+and it will not create the /dev/ttyACM0 port.  After a while the modem manager will give up and you can access the port.
+If this is too much of a burden, you can add udev rules to block modem manager from trying to control this port.
 

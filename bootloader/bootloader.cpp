@@ -37,7 +37,7 @@ void* __dso_handle = (void*) &__dso_handle;
 
 int cpu_mhz = 8;
 Pad led = PA13;
-Pad dfuKey = PB11;
+Pad bootloadKey = PB11;
 Pad USB0_DP = PA12;
 Pad USB0_DM = PA11;
 
@@ -46,9 +46,9 @@ constexpr uint32_t USER_CODE_FLASH = 0x8004000; // 16KB after start of flash
 constexpr uint32_t USER_CODE_FLASH_END = 0x8000000 + 256*1024;
 constexpr uint32_t FLASH_PAGESIZE = 2048;
 constexpr uint32_t FLASH_PAGESIZE_MASK = FLASH_PAGESIZE - 1;
-constexpr uint32_t BOOTLOADER_DFU_MAGIC = 0xdeadbabe;
-constexpr uint64_t BOOTLOADER_FLASH_DFU_MAGIC = 0xbeeffaceb00bbabe;
-volatile uint32_t& bootloaderDFUIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
+constexpr uint32_t BOOTLOADER_BOOTLOAD_MAGIC = 0xdeadbabe;
+constexpr uint64_t BOOTLOADER_FLASH_BOOTLOAD_MAGIC = 0xbeeffaceb00bbabe;
+volatile uint32_t& bootloaderBootloadIndicator = *(uint32_t*)(0x20000000 + 48*1024 - 4);
 volatile uint64_t& bootloaderFirstBootIndicator = *(uint64_t*)(USER_CODE_FLASH + 1024);
 
 USBSerial serial;
@@ -249,9 +249,9 @@ void minimalHWInit() {
 	rcc_periph_clock_enable(RCC_AFIO);
 }
 
-// initialize all peripherals used by dfu (usb etc).
-// only called if we actually enter dfu mode.
-void dfuHWInit() {
+// initialize all peripherals used by bootload (usb etc).
+// only called if we actually enter bootload mode.
+void bootloadHWInit() {
 	uint32_t hseEstimateHz = detectHSEFreq();
 	int mult = 2, xtalFreqHz = 0;
 	if(hseEstimateHz < 21466200) {
@@ -291,8 +291,8 @@ registers map:
 -- ef: write 0x5e to reboot device
 -- f0: device variant
 -- f1: protocol version (01)
--- f2: hardware revision (always 0 in dfu mode)
--- f3: firmware major version (ff => dfu mode)
+-- f2: hardware revision (always 0 in bootload mode)
+-- f3: firmware major version (ff => bootload mode)
 -- f4: firmware minor version (bootloader version)
 */
 
@@ -314,19 +314,19 @@ void setMspAndJump(uint32_t usrAddr) {
 	usrMain();                                /* go! */
 }
 
-bool shouldEnterDFU() {
+bool shouldEnterBootload() {
 	// if the application left a magic value at the end of ram
-	// before a soft reset, enter dfu mode.
-	if(bootloaderDFUIndicator == BOOTLOADER_DFU_MAGIC)
+	// before a soft reset, enter bootload mode.
+	if(bootloaderBootloadIndicator == BOOTLOADER_BOOTLOAD_MAGIC)
 		return true;
 
-	// magic value in flash to indicate factory dfu
-	if(bootloaderFirstBootIndicator == BOOTLOADER_FLASH_DFU_MAGIC)
+	// magic value in flash to indicate factory bootload
+	if(bootloaderFirstBootIndicator == BOOTLOADER_FLASH_BOOTLOAD_MAGIC)
 		return true;
 
-	pinMode(dfuKey, INPUT_PULLUP);
+	pinMode(bootloadKey, INPUT_PULLUP);
 	delayMicroseconds(10);
-	if(digitalRead(dfuKey) == 0)
+	if(digitalRead(bootloadKey) == 0)
 		return true;
 	return false;
 }
@@ -394,8 +394,8 @@ void cmdInit() {
 	};
 	cmdParser.handleWrite = [](int address) {
 		if(address == 0xef && registers[address] == 0x5e) {
-			// clear enter dfu indicator
-			bootloaderDFUIndicator = reg_userArgument;
+			// clear enter bootload indicator
+			bootloaderBootloadIndicator = reg_userArgument;
 
 			// reset device
 			SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
@@ -423,14 +423,14 @@ void cmdInit() {
 	});
 }
 
-void dfuMain() {
-	dfuHWInit();
+void bootloadMain() {
+	bootloadHWInit();
 
 	// set version registers (accessed through usb serial)
 	registers[0xf0] = 2;	// device variant (NanoVNA V2)
 	registers[0xf1] = 1;	// protocol version
-	registers[0xf2] = 0;	// board revision (always 0 in dfu mode)
-	registers[0xf3] = 0xff;	// firmware major version (0xff in dfu mode)
+	registers[0xf2] = 0;	// board revision (always 0 in bootload mode)
+	registers[0xf3] = 0xff;	// firmware major version (0xff in bootload mode)
 	registers[0xf4] = 0;	// firmware minor version
 
 	// set up command interface
@@ -452,8 +452,8 @@ void dfuMain() {
 int main() {
 	minimalHWInit();
 
-	if(shouldEnterDFU()) {
-		dfuMain();
+	if(shouldEnterBootload()) {
+		bootloadMain();
 	} else {
 		setMspAndJump(USER_CODE_FLASH);
 	}
@@ -479,6 +479,7 @@ extern "C" void *memcpy(void *dest, const void *src, size_t n) {
 extern "C" void *memset(void *s, int c, size_t n) {
 	for(size_t i=0;i<n;i++)
 		((char*)s)[i] = c;
+	return s;
 }
 extern "C" int atoi(const char* s) {
 	// TODO: implement
