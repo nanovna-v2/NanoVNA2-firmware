@@ -251,7 +251,7 @@ static const uint8_t ili_init_seq[] = {
   // Interface Mode Control
   ILI9341_RGB_INTERFACE_CONTROL, 1, 0x00,
   // Frame Rate
-  ILI9341_FRAME_RATE_CONTROL_1, 2, 0x80, 0x10,
+  ILI9341_FRAME_RATE_CONTROL_1, 2, 0x50, 0x10,
   // Display Inversion Control , 2 Dot
   ILI9341_DISPLAY_INVERSION_CONTROL, 1, 0x00,
   // RGB/MCU Interface Control

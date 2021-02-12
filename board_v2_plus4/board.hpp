@@ -23,10 +23,20 @@
 #define BOARD_REVISION (4)
 #define BOARD_REVISION_MAGIC 0xdeadbabf
 #define USB_POINTS_MAX 65536
+// Plus4 not use ecal mode
+#define BOARD_DISABLE_ECAL
 
 using namespace mculib;
 using namespace std;
 
+// This not used in Plus4 code, need only for bootloader
+#define BOARD_MEASUREMENT_NPERIODS_NORMAL		14
+#define BOARD_MEASUREMENT_NPERIODS_CALIBRATING	30
+#define BOARD_MEASUREMENT_ECAL_INTERVAL			 5
+#define BOARD_MEASUREMENT_NWAIT_SWITCH			 1
+#define BOARD_MEASUREMENT_MIN_CALIBRATION_AVG	10
+#define BOARD_MEASUREMENT_MAX_CALIBRATION_AVG	25
+#define BOARD_MEASUREMENT_FIRST_POINT_WAIT     128
 
 namespace board {
 

@@ -22,7 +22,6 @@
 using namespace mculib;
 using namespace std;
 
-extern volatile int MEASUREMENT_NPERIODS_NORMAL, MEASUREMENT_NPERIODS_CALIBRATING, MEASUREMENT_ECAL_INTERVAL, MEASUREMENT_NWAIT_SWITCH;
 
 namespace board {
 
@@ -244,10 +243,6 @@ namespace board {
 		adc_srate = 30000000/(7.5+12.5);
 		adc_period_cycles = (7.5+12.5);
 		adc_clk = 30000000;
-		MEASUREMENT_NPERIODS_NORMAL = 10;
-		MEASUREMENT_NPERIODS_CALIBRATING = 23;
-		MEASUREMENT_ECAL_INTERVAL = 16;
-		MEASUREMENT_NWAIT_SWITCH = 4;
 	}
 
 
@@ -275,17 +270,15 @@ namespace board {
 	}
 
 	int calculateSynthWaitAF(freqHz_t freqHz) {
-		if(freqHz < 1200000000) return  7;
-		if(freqHz < 2200000000) return 10;
-		if(freqHz < 3200000000) return 14;
-		return 18;
+		if(freqHz < 3100000000) return 10;
+		return 24;
 	}
 
 	int calculateSynthWaitSI(int retval) {
 		switch(retval) {
 			case 0: return 36;
 			case 1: return 120;
-			case 2: return 120;
+			case 2: return 32;
 		}
 		return 5;
 	}

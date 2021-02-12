@@ -35,7 +35,7 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 	auto old_avg = current_props._avg;
 	auto old_pow = current_props._adf4350_txPower;
 	FIFO<complexf, 32> dpFIFO;
-	current_props._avg = 30;            // Use 30 x avg for bbgain cal
+	current_props._avg = 40;            // Use 40 x avg for bbgain cal
 	current_props._adf4350_txPower = 0; // Use 0 power for prevent bbgain0 overflow
 
 	// override phaseChanged, set bbgain to desired value
@@ -48,7 +48,6 @@ void performGainCal(VNAMeasurement& vnaMeasurement, float* gainTable, int maxGai
 
 	// disable ecal during gain cal
 	vnaMeasurement.ecalIntervalPoints = 10000;
-	vnaMeasurement.nPeriods = MEASUREMENT_NPERIODS_NORMAL;
 	vnaMeasurement.setSweep(DEFAULT_FREQ, 0, 1, 1);
 	vnaMeasurement.emitDataPoint = [&](int freqIndex, freqHz_t freqHz, const VNAObservation& v, const complexf* ecal) {
 		dpFIFO.enqueue(v[1]);

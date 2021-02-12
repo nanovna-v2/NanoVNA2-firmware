@@ -1,5 +1,6 @@
 #include "globals.hpp"
 #include "ili9341.hpp"
+#include <board.hpp>
 
 volatile bool sweep_enabled = true;
 int16_t vbat;
@@ -28,27 +29,19 @@ config_t config = {
 
 properties_t current_props;
 
-
-properties_t* active_props = &current_props;
-
-
 complexf measuredFreqDomain[2][SWEEP_POINTS_MAX] alignas(8);
 complexf measured[2][SWEEP_POINTS_MAX] alignas(8);
-
-#if BOARD_REVISION < 4
-complexf measuredEcal[ECAL_CHANNELS][USB_POINTS_MAX] alignas(8);
-#endif
 
 volatile EcalStates ecalState = ECAL_STATE_MEASURING;
 
 __attribute__((used))
-volatile int MEASUREMENT_NPERIODS_NORMAL = 160;
+volatile int MEASUREMENT_NPERIODS_NORMAL = BOARD_MEASUREMENT_NPERIODS_NORMAL;
 __attribute__((used))
-volatile int MEASUREMENT_NPERIODS_CALIBRATING = 260;
+volatile int MEASUREMENT_NPERIODS_CALIBRATING = BOARD_MEASUREMENT_NPERIODS_CALIBRATING;
 __attribute__((used))
-volatile int MEASUREMENT_ECAL_INTERVAL = 10;
+volatile int MEASUREMENT_ECAL_INTERVAL = BOARD_MEASUREMENT_ECAL_INTERVAL;
 __attribute__((used))
-volatile int MEASUREMENT_NWAIT_SWITCH = 1;
+volatile int MEASUREMENT_NWAIT_SWITCH = BOARD_MEASUREMENT_NWAIT_SWITCH;
 
 uistat_t uistat = {
  digit: 6,

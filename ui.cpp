@@ -717,6 +717,8 @@ static UI_FUNCTION_ADV_CALLBACK(measurement_mode)
         b->icon = (mode == cur_mode) ? BUTTON_ICON_GROUP_CHECKED : BUTTON_ICON_GROUP ;
         return;
     }
+    // CW work also as checkbox
+    if (cur_mode == mode && mode == MEASURE_MODE_REFL_THRU) mode = MEASURE_MODE_FULL;
     set_measurement_mode(mode);
     draw_menu();
 }
@@ -792,6 +794,19 @@ static UI_FUNCTION_CALLBACK(menu_marker_op_cb)
   draw_cal_status();
   //redraw_all();
 }
+
+#ifdef __USE_LC_MATCHING__
+static UI_FUNCTION_ADV_CALLBACK(menu_marker_lc_match_acb)
+{
+  (void)data;
+  if (b){
+    b->icon = domain_mode & TD_LC_MATH ? BUTTON_ICON_CHECK : BUTTON_ICON_NOCHECK;
+    return;
+  }
+  domain_mode^=TD_LC_MATH;
+  ui_mode_normal();
+}
+#endif
 
 static UI_FUNCTION_CALLBACK(menu_marker_search_cb)
 {
@@ -1023,7 +1038,13 @@ const menuitem_t menu_avg[] = {
   { MT_ADV_CALLBACK, 5, "5x", (const void *)menu_avg_acb },
   { MT_ADV_CALLBACK, 10, "10x", (const void *)menu_avg_acb },
   { MT_ADV_CALLBACK, 20, "20x", (const void *)menu_avg_acb },
+#if BOARD_MEASUREMENT_MAX_CALIBRATION_AVG < 40
+  { MT_ADV_CALLBACK, 25, "25x", (const void *)menu_avg_acb },
+#else
   { MT_ADV_CALLBACK, 40, "40x", (const void *)menu_avg_acb },
+//  { MT_ADV_CALLBACK, 60, "60x", (const void *)menu_avg_acb },
+  { MT_ADV_CALLBACK, 80, "80x", (const void *)menu_avg_acb },
+#endif
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -1053,8 +1074,10 @@ const menuitem_t menu_power[] = {
 static const menuitem_t menu_sweep_config[] = {
   { MT_CALLBACK, KM_POINTS, "SWEEP\nPOINTS", (const void *)menu_keyboard_cb },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU, "CW", (const void *)measurement_mode },
+#ifndef BOARD_DISABLE_ECAL
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_REFL_THRU_REFRENCE, "No ECAL", (const void *)measurement_mode  },
   { MT_ADV_CALLBACK, (uint8_t)MEASURE_MODE_FULL, "ECAL", (const void *)measurement_mode  },
+#endif
   { MT_SUBMENU,  0, "ADF4350\nTX POWER", (const void *)menu_power },
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
@@ -1110,6 +1133,9 @@ const menuitem_t menu_marker_smith[] = {
   { MT_ADV_CALLBACK, MS_REIM,"Re+Im", (const void *)menu_marker_smith_acb },
   { MT_ADV_CALLBACK, MS_RX,  "R+Xj", (const void *)menu_marker_smith_acb },
   { MT_ADV_CALLBACK, MS_RLC, "R+L/C", (const void *)menu_marker_smith_acb },
+#ifdef __USE_LC_MATCHING__
+  { MT_ADV_CALLBACK,      0, "L/C MATCH", (const void *)menu_marker_lc_match_acb },
+#endif
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -1689,6 +1715,7 @@ leave_ui_mode()
     request_to_draw_cells_behind_menu();
     erase_menu_buttons();
   }
+  draw_frequencies();
 }
 
 void set_numeric_value(void)

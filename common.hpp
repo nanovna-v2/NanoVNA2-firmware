@@ -41,6 +41,8 @@ typedef int64_t freqHz_t;
 #define PORT_CORE_VARIANT_NAME "N/A"
 #define PLATFORM_NAME "BARE METAL"
 
+// Enable L/C math code
+#define __USE_LC_MATCHING__
 
 #define FREQUENCY_MIN 10000
 #define FREQUENCY_MAX 4400000000
@@ -54,7 +56,16 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 
 #define TRACES_MAX 4
 #define MARKERS_MAX 4
+
+// Set FFT size depend from max points count
+#if SWEEP_POINTS_MAX < 256
 #define FFT_SIZE 256
+#elif SWEEP_POINTS_MAX < 512
+#define FFT_SIZE 512
+#else
+#error "Need update FFT table for more points size"
+#endif
+
 #define ECAL_PARTIAL
 
 #ifdef ECAL_PARTIAL
@@ -104,7 +115,8 @@ static constexpr uint32_t FREQUENCY_CHANGE_OVER	= 140000000;
 #define TD_WINDOW_NORMAL (0b00<<3)
 #define TD_WINDOW_MINIMUM (0b01<<3)
 #define TD_WINDOW_MAXIMUM (0b10<<3)
-
+// L/C match enable option
+#define TD_LC_MATH        (1<<5)
 
 #define REDRAW_CELLS      (1<<0)
 #define REDRAW_FREQUENCY  (1<<1)
@@ -194,7 +206,7 @@ struct alignas(4) properties_t {
   uint8_t _si5351_txPower; // 0 to 3
   uint8_t _measurement_mode; //See enum MeasurementMode.
 
-  int32_t checksum;
+  uint32_t checksum;
 
   // overwrite all fields of this instance with factory default values
   void setFieldsToDefault();
@@ -232,7 +244,7 @@ typedef struct {
   int8_t default_loadcal;
   uint32_t harmonic_freq_threshold; // unused
   int8_t ui_options;
-  int32_t checksum;
+  uint32_t checksum;
 } config_t;
 
 struct uistat_t {
@@ -252,7 +264,7 @@ struct uistat_t {
 
 static inline bool is_freq_for_adf4350(freqHz_t freq)
 {
-	return freq >= FREQUENCY_CHANGE_OVER;
+	return freq > FREQUENCY_CHANGE_OVER;
 }
 
 // convert vbat [mV] to battery indicator
