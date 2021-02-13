@@ -1038,13 +1038,9 @@ const menuitem_t menu_avg[] = {
   { MT_ADV_CALLBACK, 5, "5x", (const void *)menu_avg_acb },
   { MT_ADV_CALLBACK, 10, "10x", (const void *)menu_avg_acb },
   { MT_ADV_CALLBACK, 20, "20x", (const void *)menu_avg_acb },
-#if BOARD_MEASUREMENT_MAX_CALIBRATION_AVG < 40
-  { MT_ADV_CALLBACK, 25, "25x", (const void *)menu_avg_acb },
-#else
   { MT_ADV_CALLBACK, 40, "40x", (const void *)menu_avg_acb },
 //  { MT_ADV_CALLBACK, 60, "60x", (const void *)menu_avg_acb },
   { MT_ADV_CALLBACK, 80, "80x", (const void *)menu_avg_acb },
-#endif
   { MT_CANCEL, 0, S_LARROW" BACK", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
@@ -1166,7 +1162,7 @@ const menuitem_t menu_recall[] = {
 };
 
 const menuitem_t menu_bootload[] = {
-  { MT_CALLBACK, 0, "RESET AND\nENTER Bootload", (const void *)menu_bootload_cb },
+  { MT_CALLBACK, 0, "RESET AND\nENTER", (const void *)menu_bootload_cb },
   { MT_CANCEL, 0, S_LARROW"CANCEL", NULL },
   { MT_NONE, 0, NULL, NULL } // sentinel
 };
