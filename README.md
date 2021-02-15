@@ -103,7 +103,7 @@ Once the device is in BOOTLOAD mode, you can update the firmware using either [N
 
 
 
-## Upload firmware using NanoVNA-QT
+### Upload firmware using NanoVNA-QT
 
 Select the serial port device /dev/ttyACM0 under the Device menu in NanoVNA-QT. A dialog will appear asking asking if you would like to flash a new firmware. Click yes, and select the firmware .bin file to flash.
 
