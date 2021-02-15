@@ -52,7 +52,7 @@ cd NanoVNA-V2-firmware
 Now you can build the firmware by running make in the firmware sources directory:
 ```
 cd NanoVNA-V2-firmware
-make BOARDNAME=board_v2_2 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7"
+make -j4 BOARDNAME=board_v2_plus EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7" LDSCRIPT=./gd32f303cc_with_bootloader.ld
 ```
 Note that `SWEEP_POINTS_MAX` and `SAVEAREA_MAX` can be customized depending on hardware target.
 Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase `SWEEP_POINTS_MAX` to 301 points (warning: experimental! there may not be enough stack space if ram usage is near full).
@@ -64,7 +64,7 @@ Since Plus4 ECAL is no longer needed, and the extra RAM can be used to increase 
 
 For Plus4, a different linker script and display driver needs to be used. The build command line for the Plus4 is:
 ```
-make BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
+make -j4 BOARDNAME=board_v2_plus4 EXTRA_CFLAGS="-DSWEEP_POINTS_MAX=201 -DSAVEAREA_MAX=7 -DDISPLAY_ST7796" LDSCRIPT=./gd32f303cc_with_bootloader_plus4.ld
 ```
 
 The first time you build the firmware on a fresh repository, there is a libopencm3 bug that sometimes causes the linker script to be overwritten with one that will not work. If the built firmware does not boot, try running the following commands, then rebuild:
