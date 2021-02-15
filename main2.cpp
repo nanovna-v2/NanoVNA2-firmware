@@ -834,6 +834,8 @@ static void setVNASweepToUSB() {
 		setFrequency((freqHz_t)*(uint64_t*)(registers + 0x00));
 	}
 #else
+	currTimingsArgs.nAverage = 1;
+	sys_syscall(5, &currTimingsArgs);
 	setHWSweep(sys_setSweep_args {
 		(freqHz_t)*(uint64_t*)(registers + 0x00),
 		(freqHz_t)*(uint64_t*)(registers + 0x10),
@@ -987,6 +989,9 @@ static void measurementDataSmooth(complexf *data, int points, int count){
 		data[j] = (data[j] + data[j] + prev)/3.0f;
 	}
 }
+int currDPCnt = 0;
+int lastFreqIndex = -1;
+VNAObservation currDP;
 
 #define USE_FIXED_CORRECTION
 // callback called by VNAMeasurement when an observation is available.
@@ -1155,10 +1160,10 @@ static void setVNASweepToUI() {
 	vnaMeasurement.setSweep(start, step, current_props._sweep_points, current_props._avg);
 	ecalState = ECAL_STATE_MEASURING;
 #else
-	currTimingsArgs.nAverage = current_props._avg;
+	currTimingsArgs.nAverage = 1;
 	sys_syscall(5, &currTimingsArgs);
 	setHWSweep(sys_setSweep_args {
-		start, step, current_props._sweep_points, 1
+		start, step, current_props._sweep_points, current_props._avg
 	});
 #endif
 	update_grid();
@@ -1867,7 +1872,7 @@ namespace UIActions {
 		vnaMeasurement.measurement_mode = MEASURE_MODE_FULL;
 		collectMeasurementCB = [type]() {
 		#if BOARD_REVISION >= 4
-			sys_setTimings_args args {0, current_props._avg};
+			sys_setTimings_args args {0, 1};
 			sys_syscall(5, &args);
 		#else
 			vnaMeasurement.ecalIntervalPoints = MEASUREMENT_ECAL_INTERVAL;
@@ -1876,9 +1881,7 @@ namespace UIActions {
 			current_props._cal_status |= (1 << type);
 			ui_cal_collected();
 		};
-		uint32_t avgMult = current_props._avg;
-		if(avgMult < BOARD_MEASUREMENT_MIN_CALIBRATION_AVG) avgMult = BOARD_MEASUREMENT_MIN_CALIBRATION_AVG;
-		if(avgMult > BOARD_MEASUREMENT_MAX_CALIBRATION_AVG) avgMult = BOARD_MEASUREMENT_MAX_CALIBRATION_AVG;
+		uint32_t avgMult = 2;
 	#if BOARD_REVISION >= 4
 		__sync_synchronize();
 		sys_setTimings_args args {0, avgMult};
