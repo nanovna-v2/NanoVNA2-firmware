@@ -78,20 +78,11 @@ git checkout -- gd32f303cc_with_bootloader_plus4.ld
 The GD32F303 processor does not support [USB DFU](https://www.usb.org/sites/default/files/DFU_1.1.pdf) mode like the STM32 chips do.
 Instead, a serial bootloader program is installed. Please do not attempt to use a standard USB DFU tool.
 
-The [bootloader](bootloader/binary.bin) should be loaded at address 0x8000000, the start of the GD32F303 flash section.
-To install the bootloader on a new GD32F303, you will need to use an [ST-Link](https://www.st.com/en/development-tools/st-link-v2.html) device, of which many inexpensive clones are available.
-Some reports indicate that the NanoVNAv2 cannot be powered via the 3.2v supply from the ST-Link, but should be powered from its own battery.
+All V2 devices contain a USB serial bootloader, and you can upload the firmware through USB without needing extra hardware.
 
-The NanoVNA V2 firmware is installed at address 0x8004000.
-You can upload the firmware binary to that address using an ST-Link.
+## Updating firmware using the USB serial bootloader
 
-If your device already has a working serial bootloader, you can upload the firmware without needing extra hardware.
-
-## Updating firmware using the serial bootloader
-
-If you have an intact bootloader already installed in your NanoVNAv2, there are several ways to update the firmware.
-
-You can update the firmware using (NanoVNAv2-QT](https://github.com/nanovna-v2/NanoVNA-QT). Restart your NanoVNA as described below and follow the instructions in NanoVNAv2-QT.
+You can update the firmware using [NanoVNAv2-QT](https://github.com/nanovna-v2/NanoVNA-QT). Restart your NanoVNA as described below and follow the instructions in NanoVNAv2-QT.
 
 Otherwise, you can update your firmware using Python and the [bootload_firmware.py](bootload_firmware.py) script.
 Ensure you have Python version 3, and install [pyserial](https://github.com/pyserial/pyserial).
@@ -129,3 +120,14 @@ Note that depending on your installation's *udev* rules, the new serial device i
 and it will not create the /dev/ttyACM0 port.  After a while the modem manager will give up and you can access the port.
 If this is too much of a burden, you can add udev rules to block modem manager from trying to control this port.
 
+## Updating the firmware using an ST-Link
+
+### WARNING: It is imperative to back up the entire flash memory of the GD32 before updating the firmware using this method. Some devices have factory calibration data stored between the bootloader and application.
+
+The NanoVNA V2 firmware is installed at address 0x8004000 (V2/V2Plus) and 0x8008000 (V2Plus4).
+You can upload the firmware binary to that address using an ST-Link.
+
+The [bootloader](bootloader/binary.bin) is located at address 0x8000000, the start of the GD32F303 flash section.
+
+You can flash the firmware image using an [ST-Link](https://www.st.com/en/development-tools/st-link-v2.html) device, of which many inexpensive clones are available.
+Some reports indicate that the NanoVNAv2 cannot be powered via the 3.2v supply from the ST-Link, but should be powered from its own battery.
