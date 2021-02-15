@@ -82,20 +82,8 @@ All V2 devices contain a USB serial bootloader, and you can upload the firmware 
 
 ## Updating firmware using the USB serial bootloader
 
-You can update the firmware using [NanoVNAv2-QT](https://github.com/nanovna-v2/NanoVNA-QT). Restart your NanoVNA as described below and follow the instructions in NanoVNAv2-QT.
-
-Otherwise, you can update your firmware using Python and the [bootload_firmware.py](bootload_firmware.py) script.
-Ensure you have Python version 3, and install [pyserial](https://github.com/pyserial/pyserial).
-
-On a Debian based system, you can get pyserial using:
-
-```
-sudo apt install python3-serial
-```
-
-## Updating the firmware
-
 You must restart the device in BOOTLOAD mode:
+
 ```
 Switch the device off.
 Press and hold down the left button (the one closest to the Port 1 or the On/Off switch).
@@ -104,7 +92,29 @@ Switch the device on (screen stays white), release the button.
 
 You will see a blank white screen. This indicates that it is waiting for new firmware.
 Check for the existence of the USB serial port device. This should be the device-special file /dev/ttyACM0
-On a *nix system, the current user probably needs to be part of the dialout group to allow access to ths device.
+On a *nix system, the current user probably needs to be part of the dialout group to allow access to the device.
+
+Note that depending on your installation's *udev* rules, the new serial device initially appear as an Mobile Modem (3G/4G/etc)
+and it will not create the /dev/ttyACM0 port.  After a while the modem manager will give up and you can access the port.
+If this is too much of a burden, you can add udev rules to block modem manager from trying to control this port.
+
+
+Once the device is in BOOTLOAD mode, you can update the firmware using either [NanoVNA-QT](https://github.com/nanovna-v2/NanoVNA-QT) or the [bootload_firmware.py](bootload_firmware.py) Python script.
+
+
+
+## Upload firmware using NanoVNA-QT
+
+Select the serial port device /dev/ttyACM0 under the Device menu in NanoVNA-QT. A dialog will appear asking asking if you would like to flash a new firmware. Click yes, and select the firmware .bin file to flash.
+
+
+### Upload firmware using bootload_firmware.py
+Ensure you have Python version 3, and install [pyserial](https://github.com/pyserial/pyserial).
+
+On a Debian based system, you can get pyserial using:
+```
+sudo apt install python3-serial
+```
 
 Flashing can be done by running:
 ```
@@ -116,9 +126,6 @@ On some systems you may need to explicitly invoke python3 instead:
 python3 bootload_firmware.py -f binary.bin
 ```
 
-Note that depending on your installation's *udev* rules, the new serial device initially appear as an Mobile Modem (3G/4G/etc)
-and it will not create the /dev/ttyACM0 port.  After a while the modem manager will give up and you can access the port.
-If this is too much of a burden, you can add udev rules to block modem manager from trying to control this port.
 
 ## Updating the firmware using an ST-Link
 
