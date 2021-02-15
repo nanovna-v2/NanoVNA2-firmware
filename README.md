@@ -102,13 +102,12 @@ If this is too much of a burden, you can add udev rules to block modem manager f
 Once the device is in BOOTLOAD mode, you can update the firmware using either [NanoVNA-QT](https://github.com/nanovna-v2/NanoVNA-QT) or the [bootload_firmware.py](bootload_firmware.py) Python script.
 
 
-
-### Upload firmware using NanoVNA-QT
+#### Option 1: Upload firmware using NanoVNA-QT
 
 Select the serial port device /dev/ttyACM0 under the Device menu in NanoVNA-QT. A dialog will appear asking asking if you would like to flash a new firmware. Click yes, and select the firmware .bin file to flash.
 
 
-### Upload firmware using bootload_firmware.py
+#### Option 2: Upload firmware using bootload_firmware.py
 Ensure you have Python version 3, and install [pyserial](https://github.com/pyserial/pyserial).
 
 On a Debian based system, you can get pyserial using:
