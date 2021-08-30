@@ -88,12 +88,11 @@ static volatile bool lcdInhibit = false;
 
 float gainTable[RFSW_BBGAIN_MAX+1];
 
-__attribute__((packed))
 struct usbDataPoint {
 	//VNAObservation value;
 	complexf S11, S21;
 	int freqIndex;
-};
+} __attribute__((packed));
 static usbDataPoint usbTxQueue[128];
 static constexpr int usbTxQueueMask = 127;
 static volatile int usbTxQueueWPos = 0;
@@ -723,7 +722,9 @@ static void cmdReadFIFO(int address, int nValues) {
 	if(!usbDataMode)
 		enterUSBDataMode();
 	// Set count as sweepPoints if 0
-	if (nValues == 0) nValues = *(uint16_t*)(registers + 0x20);
+	if (nValues == 0)
+		nValues = *(uint16_t*)(registers + 0x20);
+
 	for(int i=0; i<nValues;) {
 		int rdRPos = usbTxQueueRPos;
 		int rdWPos = usbTxQueueWPos;
@@ -734,7 +735,7 @@ static void cmdReadFIFO(int address, int nValues) {
 		}
 
 		usbDataPoint& usbDP = usbTxQueue[rdRPos];
-		if(usbDP.freqIndex < 0 || usbDP.freqIndex > USB_POINTS_MAX)
+		if(usbDP.freqIndex < 0 || usbDP.freqIndex >= USB_POINTS_MAX)
 			continue;
 
 		/*VNAObservation& value = usbDP.value;
@@ -1037,6 +1038,7 @@ static void measurementEmitDataPoint(int freqIndex, freqHz_t freqHz, VNAObservat
 		__sync_bool_compare_and_swap(&ecalIgnoreValues, ecalIgnoreValues2, ecalIgnoreValues2-1);
 	}
 	collectAllowed = (ecal != nullptr);
+	__sync_synchronize();
 	if(ecal != nullptr) {
 		complexf scale = complexf(1., 0.)/v[1];
 		auto ecal0 = ecal[0] * scale;
@@ -1173,6 +1175,7 @@ void updateAveraging() {
 	int avg = current_props._avg;
 	if(!usbDataMode && avg != currSweepArgs.dataPointsPerFreq) {
 		currSweepArgs.dataPointsPerFreq = avg;
+		__sync_synchronize();
 #if BOARD_REVISION >= 4
 		sys_syscall(3, &currSweepArgs);
 #else
