@@ -2,7 +2,9 @@
 
 This repository contains the source code to build the firmware for the NanoVNA V2 (S-A-A-2).
 
-See https://nanorfe.com/nanovna-v2.html for more info.
+### Project website: https://nanorfe.com/nanovna-v2.html
+
+### Firmware downloads: https://nanorfe.com/nanovna-versions.html
 
 Developers chat room: https://discord.gg/DUH5Xk5
 
